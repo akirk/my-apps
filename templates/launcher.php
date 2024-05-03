@@ -1,3 +1,10 @@
+<?php
+/*
+ * @package My_Apps
+ */
+
+namespace My_Apps;
+?>
 <!DOCTYPE html>
 <html lang="en">
 

@@ -1,0 +1,6 @@
+{
+    "namespace": "My_Apps",
+    "base_dir": ".",
+    "wiki_directory": "../my-apps.wiki",
+    "github_blob_url": "https://github.com/akirk/my-apps/blob/main/"
+}

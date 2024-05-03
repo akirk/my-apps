@@ -1,0 +1,16 @@
+{
+    "name": "akirk/my-apps",
+    "description": "A WordPress app launcher",
+    "type": "wordpress-plugin",
+    "require-dev": {
+        "akirk/extract-wp-hooks": "^1.0"
+    },
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Alex Kirk",
+            "email": "akirk@users.noreply.github.com"
+        }
+    ],
+    "require": {}
+}

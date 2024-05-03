@@ -1,8 +1,20 @@
 <?php
 /*
-Plugin Name: My Apps
-Description: WordPress apps launcher
-*/
+ * Plugin Name: My Apps
+ * Plugin author: Alex Kirk
+ * Plugin URI: https://github.com/akirk/my-apps
+ * Version: 1.0.0
+ * Requires PHP: 5.6
+ * Description: WordPress apps launcher
+ * Version: 1.0.0
+ *
+ * License: GPL2
+ * Text Domain: my-apps
+ *
+ * @package My_Apps
+ */
+
+namespace My_Apps;
 
 class My_Apps {
 
@@ -14,7 +26,6 @@ class My_Apps {
 		add_action( 'admin_head', array( $this, 'admin_bar_css' ), 50 );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 1 );
 	}
-
 
 	/**
 	 * Ensure that the admin bar is also shown in the mobile view.
@@ -129,5 +140,4 @@ class My_Apps {
 	}
 }
 
-// Instantiate the class
 new My_Apps();

@@ -1,6 +1,7 @@
 assets	export-ignore
-*.scss	export-ignore
+.extract-wp-hooks.json	export-ignore
 .git*	export-ignore
+phpcs.xml.dist	export-ignore
 .gitignore	export-ignore
 .vscode	export-ignore
 comments.json	export-ignore

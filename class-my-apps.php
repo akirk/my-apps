@@ -35,12 +35,16 @@ class My_Apps {
 	 */
 	public function admin_bar_css() {
 		?><style>
-#wpadminbar li#wp-admin-bar-my-apps {
-	margin-top: 2px;
+#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
+	line-height: 24px;
+	font-size: 20px;
 }
 @media screen and (max-width: 782px) {
 	#wpadminbar li#wp-admin-bar-my-apps {
-	display: block;
+		display: block;
+	}
+	#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
+		font-size: 32px;
 	}
 }
 </style>
@@ -156,7 +160,7 @@ class My_Apps {
 									<td>
 										<a href="<?php echo esc_url( $data['url'] ); ?>"><?php echo esc_html( $data['name'] ); ?></a>
 									</td>
-									<td>
+									<td class="plugin">
 										<?php if (isset ($data['plugin']['Name'] ) ) :
 											$url = add_query_arg(
 												array(
@@ -181,14 +185,19 @@ class My_Apps {
 		<?php
 	}
 
-
-
-
 	/**
 	 * Add the my-apps endpoint.
 	 */
 	public function my_apps_endpoint() {
-		add_rewrite_rule( '^my-apps/?$', 'index.php?my_apps=1', 'top' );
+		$existing_rules = get_option( 'rewrite_rules' );
+		$rule = '^my-apps/?$';
+
+		add_rewrite_rule( $rule, 'index.php?my_apps=1', 'top' );
+
+		if ( empty( $existing_rules[ $rule ] ) ) {
+			global $wp_rewrite;
+			$wp_rewrite->flush_rules();
+		}
 	}
 
 	/**

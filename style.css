@@ -1,5 +1,6 @@
 body.my-apps-launcher {
-	margin: 2em 0;
+	margin: 0;
+	margin-top: 3.5em;
 	padding: 0;
 	font-family: Arial, sans-serif;
 	background-color: rgba(52, 152, 219, 0.5);
@@ -8,13 +9,13 @@ body.my-apps-launcher {
 body.my-apps-launcher .app {
 	display: flex;
 	flex-wrap: wrap;
-	justify-content: flex-start;
+	justify-content: center;
+	gap: 2px;
 }
 
 body.my-apps-launcher .app-icon {
 	width: 100px;
 	text-align: center;
-	margin: 10px;
 	border-radius: 10px;
 	cursor: pointer;
 }
@@ -51,17 +52,23 @@ body.my-apps-launcher div.dashicons {
 	height: 24px;
 }
 
-.settings_page_my-apps table thead th.checkbox {
-	width: 8em;
-}
-.settings_page_my-apps table thead th.icon {
-	width: 30px;
-}
+.settings_page_my-apps table thead th.checkbox,
+.settings_page_my-apps table thead th.icon,
 .settings_page_my-apps table thead th.move {
-	width: 6em;
+	width: 40px;
+	overflow: hidden;
 }
-.settings_page_my-apps table thead th.plugin {
+
+.settings_page_my-apps table thead th.plugin,
+.settings_page_my-apps table tbody td.plugin {
 	width: 20em;
+}
+
+@media screen and (max-width: 782px) {
+	.settings_page_my-apps table thead th.plugin,
+	.settings_page_my-apps table tbody td.plugin {
+		display: none;
+	}
 }
 .settings_page_my-apps table tr button {
 	color: #999;

@@ -1,0 +1,78 @@
+body.my-apps-launcher {
+	margin: 2em 0;
+	padding: 0;
+	font-family: Arial, sans-serif;
+	background-color: rgba(52, 152, 219, 0.5);
+}
+
+body.my-apps-launcher .app {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+}
+
+body.my-apps-launcher .app-icon {
+	width: 100px;
+	text-align: center;
+	margin: 10px;
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+body.my-apps-launcher .app-icon img, body.my-apps-launcher div.dashicons {
+	vertical-align: bottom;
+	width: 80px;
+	height: 80px;
+	border-radius: 10px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+	background-color: #fff;
+}
+
+body.my-apps-launcher .app-title {
+	font-size: 16px;
+	color: #fff;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+	margin: 0;
+	margin-top: 5px;
+}
+
+body.my-apps-launcher a:any-link {
+	text-decoration: none;
+}
+
+body.my-apps-launcher div.dashicons {
+	font-size: 80px;
+	color: #000;
+}
+
+.settings_page_my-apps table img, .settings_page_my-apps table div.dashicons {
+	vertical-align: middle;
+	width: 24px;
+	height: 24px;
+}
+
+.settings_page_my-apps table thead th.checkbox {
+	width: 8em;
+}
+.settings_page_my-apps table thead th.icon {
+	width: 30px;
+}
+.settings_page_my-apps table thead th.move {
+	width: 6em;
+}
+.settings_page_my-apps table thead th.plugin {
+	width: 20em;
+}
+.settings_page_my-apps table tr button {
+	color: #999;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+}
+
+.settings_page_my-apps table tr:first-child button.move-up,
+.settings_page_my-apps table tr:last-child button.move-down {
+	visibility: hidden;
+}
+
+

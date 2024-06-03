@@ -13,7 +13,13 @@ A WordPress app launcher.
 
 Plugins that act like local apps can register to be shown in this launcher.
 
-![Screen Recording](img/wordpress-apps.gif)
+![Screen Recording](assets/my-apps-screenrecording.gif)
+
+### Screenshots
+
+![The Launcher](assets/screenshot-1.png)
+
+![Settings](assets/screenshot-2.png)
 
 ### Code Example
 

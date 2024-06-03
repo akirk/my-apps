@@ -1,0 +1,10 @@
+assets	export-ignore
+*.scss	export-ignore
+.git*	export-ignore
+.gitignore	export-ignore
+.vscode	export-ignore
+comments.json	export-ignore
+composer.lock	export-ignore
+img	export-ignore
+tests	export-ignore
+vendor	export-ignore

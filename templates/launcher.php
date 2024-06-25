@@ -6,6 +6,7 @@
  */
 
 namespace My_Apps;
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -21,22 +22,22 @@ namespace My_Apps;
 <body class="my-apps-launcher">
 	<div class="app">
 <?php
-foreach ( My_Apps::get_apps() as $plugin ) {
-	if ( isset( $plugin['icon_url'] ) ) {
+foreach ( My_Apps::get_apps() as $_plugin ) {
+	if ( isset( $_plugin['icon_url'] ) ) {
 		?>
 		<div class="app-icon">
-			<a href="<?php echo esc_url( $plugin['url'] ); ?>">
-			<img src="<?php echo esc_attr( $plugin['icon_url'] ); ?>" alt='<?php echo esc_attr( $plugin['name'] ); ?>'>
-			<p class="app-title"><?php echo esc_html( $plugin['name'] ); ?></p>
+			<a href="<?php echo esc_url( $_plugin['url'] ); ?>">
+			<img src="<?php echo esc_attr( $_plugin['icon_url'] ); ?>" alt='<?php echo esc_attr( $_plugin['name'] ); ?>'>
+			<p class="app-title"><?php echo esc_html( $_plugin['name'] ); ?></p>
 			</a>
 		</div>
 		<?php
-	} elseif ( isset( $plugin['dashicons'] ) ) {
+	} elseif ( isset( $_plugin['dashicons'] ) ) {
 		?>
 		<div class="app-icon">
-			<a href="<?php echo esc_url( $plugin['url'] ); ?>">
-			<div class="dashicons <?php echo esc_attr( $plugin['dashicons'] ); ?>"></div>
-			<p class="app-title"><?php echo esc_html( $plugin['name'] ); ?></p>
+			<a href="<?php echo esc_url( $_plugin['url'] ); ?>">
+			<div class="dashicons <?php echo esc_attr( $_plugin['dashicons'] ); ?>"></div>
+			<p class="app-title"><?php echo esc_html( $_plugin['name'] ); ?></p>
 			</a>
 		</div>
 		<?php

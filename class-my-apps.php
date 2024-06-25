@@ -28,8 +28,6 @@ class My_Apps {
 		$this->enqueue_styles();
 	}
 
-
-
 	/**
 	 * Ensure that the admin bar is also shown in the mobile view.
 	 */
@@ -72,7 +70,7 @@ class My_Apps {
 	}
 
 	public function process_admin() {
-		if ( ! isset( $_POST['my_apps_plugins'] ) ) {
+		if ( ! isset( $_POST['my_apps_plugins'] ) || ! isset( $_POST['my_apps_hide_plugins'] ) ) {
 			return;
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -83,11 +81,13 @@ class My_Apps {
 			return;
 		}
 
-		$sort = array_map( 'sanitize_text_field', array_flip( $_POST['my_apps_plugins'] ) );
+		// We sanitize each item of the array.
+		$sort = array_map( 'sanitize_text_field', array_flip( wp_unslash( $_POST['my_apps_plugins'] ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		update_option( 'my_apps_sort', $sort );
 
-		$hide_plugins = array_map( 'sanitize_text_field', $_POST['my_apps_hide_plugins'] );
-		$hide_plugins = array_diff( array_flip($sort), $hide_plugins );
+		// We sanitize each item of the array.
+		$hide_plugins = array_map( 'sanitize_text_field', wp_unslash( $_POST['my_apps_hide_plugins'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$hide_plugins = array_diff( array_flip( $sort ), $hide_plugins );
 		update_option( 'my_apps_hide_plugins', $hide_plugins );
 	}
 
@@ -161,17 +161,20 @@ class My_Apps {
 										<a href="<?php echo esc_url( $data['url'] ); ?>"><?php echo esc_html( $data['name'] ); ?></a>
 									</td>
 									<td class="plugin">
-										<?php if (isset ($data['plugin']['Name'] ) ) :
+										<?php
+										if ( isset( $data['plugin']['Name'] ) ) :
 											$url = add_query_arg(
 												array(
-												'tab' => 'plugin-information',
-												'plugin' => $data['plugin']['slug'],
-												'TB_iframe' => true,
-											),admin_url( 'plugin-install.php' ) );
+													'tab' => 'plugin-information',
+													'plugin' => $data['plugin']['slug'],
+													'TB_iframe' => true,
+												),
+												admin_url( 'plugin-install.php' )
+											);
 
 											?>
-											<a href="<?php echo \esc_url_raw( $url ); ?>" class="thickbox open-plugin-details-modal plugin" target="_blank"><?php echo esc_html($data['plugin']['Name'] ); ?></a>
-										<?php else: ?>
+											<a href="<?php echo \esc_url_raw( $url ); ?>" class="thickbox open-plugin-details-modal plugin" target="_blank"><?php echo esc_html( $data['plugin']['Name'] ); ?></a>
+										<?php else : ?>
 											<?php esc_html_e( 'Unknown', 'my-apps' ); ?>
 										<?php endif; ?>
 									</td>
@@ -225,7 +228,7 @@ class My_Apps {
 				include plugin_dir_path( __FILE__ ) . 'templates/launcher.php';
 				exit;
 			} else {
-				wp_redirect( wp_login_url() );
+				wp_safe_redirect( wp_login_url() );
 				exit;
 			}
 		}
@@ -289,7 +292,7 @@ class My_Apps {
 					$reflection = new \ReflectionFunction( $function );
 					$which = $reflection->getFileName();
 				} elseif ( is_object( $function ) ) {
-					if ( 'Closure' === get_class($function) ) {
+					if ( 'Closure' === get_class( $function ) ) {
 						$reflection = new \ReflectionFunction( $function );
 						$which = $reflection->getFileName();
 					} else {

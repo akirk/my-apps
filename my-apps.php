@@ -15,6 +15,7 @@
  */
 
 namespace My_Apps;
+
 define( 'MY_APPS_VERSION', '1.0.0' );
 
 require_once __DIR__ . '/class-my-apps.php';

@@ -1,3 +1,16 @@
+#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
+	line-height: 24px;
+	font-size: 20px;
+}
+@media screen and (max-width: 782px) {
+	#wpadminbar li#wp-admin-bar-my-apps {
+		display: block;
+	}
+	#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
+		font-size: 32px;
+	}
+}
+
 body.my-apps-launcher {
 	margin: 0;
 	margin-top: 3.5em;

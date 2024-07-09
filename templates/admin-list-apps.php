@@ -83,7 +83,7 @@ namespace My_Apps;
 								);
 
 								?>
-								<a href="<?php echo \esc_url_raw( $url ); ?>" class="thickbox open-plugin-details-modal plugin" target="_blank"><?php echo esc_html( $data['plugin']['Name'] ); ?></a>
+								<a href="<?php echo esc_url( $url ); ?>" class="thickbox open-plugin-details-modal plugin" target="_blank"><?php echo esc_html( $data['plugin']['Name'] ); ?></a>
 							<?php elseif ( isset( $data['user'] ) ) : ?>
 								<?php echo esc_html( $data['user']->display_name ); ?>
 							<?php else : ?>

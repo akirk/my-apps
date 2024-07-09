@@ -32,21 +32,6 @@ class My_Apps {
 	 * Ensure that the admin bar is also shown in the mobile view.
 	 */
 	public function admin_bar_css() {
-		?><style>
-#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
-	line-height: 24px;
-	font-size: 20px;
-}
-@media screen and (max-width: 782px) {
-	#wpadminbar li#wp-admin-bar-my-apps {
-		display: block;
-	}
-	#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
-		font-size: 32px;
-	}
-}
-</style>
-		<?php
 	}
 
 	/**

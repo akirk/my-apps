@@ -6,7 +6,6 @@
  * Version: 1.0.0
  * Requires PHP: 5.6
  * Description: WordPress apps launcher
- * Version: 1.0.0
  *
  * License: GPL2
  * Text Domain: my-apps

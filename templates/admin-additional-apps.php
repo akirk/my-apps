@@ -9,8 +9,7 @@ namespace My_Apps;
 
 $dashicons = explode(
 	PHP_EOL,
-	<<<DASHICONS
-dashicons-before
+'dashicons-before
 dashicons-admin-appearance
 dashicons-admin-collapse
 dashicons-admin-comments
@@ -359,8 +358,7 @@ dashicons-format-links
 dashicons-format-standard
 dashicons-post-trash
 dashicons-share1
-dashicons-welcome-edit-page
-DASHICONS
+dashicons-welcome-edit-page'
 );
 ?>
 <h2><?php esc_html_e( 'Additional Apps', 'my-apps' ); ?></h2>

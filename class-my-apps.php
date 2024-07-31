@@ -56,7 +56,7 @@ class My_Apps {
 
 	public function process_admin() {
 		if ( isset( $_POST['_wpnonce'] ) && ! check_admin_referer( 'my-apps' ) ) {
-			wp_die( __( 'Invalid nonce', 'my-apps' ) );
+			wp_die( esc_html__( 'Invalid nonce', 'my-apps' ) );
 		}
 
 		if ( ! current_user_can( 'manage_options' ) ) {

@@ -33,6 +33,11 @@ body.my-apps-launcher .app-icon {
 	cursor: pointer;
 }
 
+body.my-apps-launcher .emoji {
+	font-size: 70px;
+	line-height: 82px;
+}
+
 body.my-apps-launcher .app-icon img, body.my-apps-launcher div.dashicons {
 	vertical-align: bottom;
 	width: 80px;

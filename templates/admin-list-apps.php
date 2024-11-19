@@ -64,7 +64,7 @@ namespace My_Apps;
 							<?php elseif ( ! empty( $data['dashicon'] ) ) : ?>
 								<div class="dashicons <?php echo esc_attr( $data['dashicon'] ); ?>"></div>
 							<?php elseif ( ! empty( $data['emoji'] ) ) : ?>
-								<div class="emoji"><?php echo esc_html( $data['emoji'] ); ?>"></div>
+								<div class="emoji"><?php echo esc_html( $data['emoji'] ); ?></div>
 							<?php endif; ?>
 						</td>
 						<td>

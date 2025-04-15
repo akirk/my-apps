@@ -100,4 +100,8 @@ body.my-apps-launcher div.dashicons {
 	visibility: hidden;
 }
 
+.settings_page_my-apps #edit-app {
+	display: none;
+}
+
 

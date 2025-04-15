@@ -76,60 +76,72 @@ class My_Apps {
 			return;
 		}
 
-		if ( isset( $_POST['my_app_name'] ) && is_array( $_POST['my_app_name'] ) ) {
-			$additional_apps = array();
-			$keys = array_keys( wp_unslash( $_POST['my_app_name'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-			foreach ( $keys as $i ) {
-				$name = false;
-				if ( isset( $_POST['my_app_name'][ $i ] ) ) {
-					$name = sanitize_text_field( wp_unslash( $_POST['my_app_name'][ $i ] ) );
+		if ( isset( $_POST['my_app_name'] ) ) {
+			$additional_apps = get_option( 'my_apps_additional_apps', array() );
+			$k = false;
+			if ( isset( $_POST['my_app_id'] ) ) {
+				$k = sanitize_text_field( wp_unslash( $_POST['my_app_id'] ) );
+				if ( ! isset( $additional_apps[ $k ] ) ) {
+					$k = false;
 				}
-				$url = false;
-				if ( isset( $_POST['my_app_url'][ $i ] ) ) {
-					$url = sanitize_text_field( wp_unslash( $_POST['my_app_url'][ $i ] ) );
-				}
+			}
+			if ( isset( $_POST['my_app_name'] ) ) {
+				$name = sanitize_text_field( wp_unslash( $_POST['my_app_name'] ) );
+			}
+			$url = false;
+			if ( isset( $_POST['my_app_url'] ) ) {
+				$url = sanitize_text_field( wp_unslash( $_POST['my_app_url'] ) );
+			}
 
-				$user = false;
-				if ( isset( $_POST['my_app_user'][ $i ] ) ) {
-					$user = sanitize_text_field( wp_unslash( $_POST['my_app_user'][ $i ] ) );
-				}
+			$user = false;
+			if ( isset( $_POST['my_app_user'] ) ) {
+				$user = sanitize_text_field( wp_unslash( $_POST['my_app_user'] ) );
+			}
 
-				$icon_url = false;
-				if ( ! empty( $_POST['my_app_icon_url'][ $i ] ) ) {
-					$icon_url = sanitize_text_field( wp_unslash( $_POST['my_app_icon_url'][ $i ] ) );
-				}
+			$icon_url = false;
+			if ( ! empty( $_POST['my_app_icon_url'] ) ) {
+				$icon_url = sanitize_text_field( wp_unslash( $_POST['my_app_icon_url'] ) );
+			}
 
-				$dashicon = false;
-				if ( ! empty( $_POST['my_app_dashicon'][ $i ] ) ) {
-					$dashicon = sanitize_text_field( wp_unslash( $_POST['my_app_dashicon'][ $i ] ) );
-				}
+			$dashicon = false;
+			if ( ! empty( $_POST['my_app_dashicon'] ) ) {
+				$dashicon = sanitize_text_field( wp_unslash( $_POST['my_app_dashicon'] ) );
+			}
 
-				$emoji = false;
-				if ( ! empty( $_POST['my_app_emoji'][ $i ] ) ) {
-					$emoji = sanitize_text_field( wp_unslash( $_POST['my_app_emoji'][ $i ] ) );
-				}
+			$emoji = false;
+			if ( ! empty( $_POST['my_app_emoji'] ) ) {
+				$emoji = sanitize_text_field( wp_unslash( $_POST['my_app_emoji'] ) );
+			}
 
-				if ( end( $keys ) === $i && isset( $_POST['icon_type'] ) ) {
-					switch ( sanitize_text_field( wp_unslash( $_POST['icon_type'] ) ) ) {
-						case 'icon':
-							$dashicon = false;
-							$emoji = false;
-							break;
-						case 'dashicon':
-							$icon_url = false;
-							$emoji = false;
-							break;
-						case 'emoji':
-							$icon_url = false;
-							$dashicon = false;
-							break;
-					}
+			if ( isset( $_POST['icon_type'] ) ) {
+				switch ( sanitize_text_field( wp_unslash( $_POST['icon_type'] ) ) ) {
+					case 'icon':
+						$dashicon = false;
+						$emoji = false;
+						break;
+					case 'dashicon':
+						$icon_url = false;
+						$emoji = false;
+						break;
+					case 'emoji':
+						$icon_url = false;
+						$dashicon = false;
+						break;
 				}
+			}
 
-				if ( empty( $name ) || empty( $url ) || ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) ) ) {
-					continue;
-				}
-
+			if ( empty( $name ) || empty( $url ) || ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) ) ) {
+				unset( $additional_apps[ $k ] );
+			} elseif ( isset( $additional_apps[ $k ] ) )  {
+				$additional_apps[ $k ] = array(
+					'name'     => $name,
+					'url'      => $url,
+					'icon_url' => $icon_url,
+					'dashicon' => $dashicon,
+					'emoji'    => $emoji,
+					'user'     => $user,
+				);
+			} else {
 				$additional_apps[] = array(
 					'name'     => $name,
 					'url'      => $url,

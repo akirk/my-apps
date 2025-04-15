@@ -390,21 +390,22 @@ dashicons-welcome-edit-page'
 					<tr>
 						<td>
 							<?php if ( ! empty( $data['icon_url'] ) ) : ?>
-								<input type="hidden" class="my_app_icon_url" name="my_app_icon_url[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $data['icon_url'] ); ?>">
+								<input type="hidden" class="my_app_icon_url" value="<?php echo esc_attr( $data['icon_url'] ); ?>">
 								<img src="<?php echo esc_attr( $data['icon_url'] ); ?>" alt='<?php echo esc_attr( $data['name'] ); ?>' width="24" height="24">
 							<?php elseif ( ! empty( $data['dashicon'] ) ) : ?>
-								<input type="hidden" class="my_app_dashicon" name="my_app_dashicon[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $data['dashicon'] ); ?>">
+								<input type="hidden" class="my_app_dashicon" value="<?php echo esc_attr( $data['dashicon'] ); ?>">
 								<div class="dashicons <?php echo esc_attr( $data['dashicon'] ); ?>"></div>
 							<?php elseif ( ! empty( $data['emoji'] ) ) : ?>
-								<input type="hidden" class="my_app_emoji" name="my_app_emoji[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $data['emoji'] ); ?>">
-								<div class="emoji"><?php echo esc_html( $data['dashicons'] ); ?>"></div>
+								<input type="hidden" class="my_app_emoji" value="<?php echo esc_attr( $data['emoji'] ); ?>">
+								<div class="emoji"><?php echo esc_html( $data['emoji'] ); ?></div>
 							<?php endif; ?>
 						</td>
 						<td>
 							<a href="<?php echo esc_url( $data['url'] ); ?>"><?php echo esc_html( $data['name'] ); ?></a>
-							<input type="hidden" class="my_app_name" name="my_app_name[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $data['name'] ); ?>">
-							<input type="hidden" class="my_app_url" name="my_app_url[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( $data['url'] ); ?>">
-							<input type="hidden" class="my_app_user" name="my_app_user[<?php echo esc_attr( $i ); ?>]" value="<?php echo esc_attr( empty( $data['user'] ) ? '' : $data['user'] ); ?>">
+							<input type="hidden" class="my_app_id" value="<?php echo esc_attr( $i ); ?>">
+							<input type="hidden" class="my_app_name" value="<?php echo esc_attr( $data['name'] ); ?>">
+							<input type="hidden" class="my_app_url" value="<?php echo esc_attr( $data['url'] ); ?>">
+							<input type="hidden" class="my_app_user" value="<?php echo esc_attr( empty( $data['user'] ) ? '' : $data['user'] ); ?>">
 						</td>
 						<td>
 							<a href="" class="edit-additional-app"><?php esc_html_e( 'Edit', 'my-apps' ); ?></a>
@@ -415,6 +416,7 @@ dashicons-welcome-edit-page'
 		</tbody>
 	</table>
 	<?php endif; ?>
+	<a href="" class="add-additional-app"><?php esc_html_e( 'Add App', 'my-apps' ); ?></a>
 	<?php
 	if ( ! isset( $edit ) ) {
 		$edit = array(
@@ -428,31 +430,32 @@ dashicons-welcome-edit-page'
 		);
 	}
 	?>
-	<input type="hidden" class="my_app_user" name="my_app_user[]" value="<?php echo esc_attr( $edit['user'] ); ?>">
+	<input type="hidden" class="my_app_user" name="my_app_user" value="<?php echo esc_attr( $edit['user'] ); ?>">
 	<table class="form-table" id="edit-app">
 		<tr>
 			<th>Name</th>
 			<td>
-				<input type="text" class="my_app_name" name="my_app_name[]" required value="<?php echo esc_attr( $edit['name'] ); ?>">
+				<input type="text" class="my_app_name" name="my_app_name" required value="<?php echo esc_attr( $edit['name'] ); ?>">
+				<input type="hidden" class="my_app_id" name="my_app_id" value="">
 			</td>
 		</tr>
 		<tr>
 			<th>URL</th>
 			<td>
-				<input type="url" class="my_app_url" name="my_app_url[]" required value="<?php echo esc_attr( $edit['url'] ); ?>">
+				<input type="url" class="my_app_url" name="my_app_url" required value="<?php echo esc_attr( $edit['url'] ); ?>">
 			</td>
 		</tr>
 		<tr>
 			<th rowspan="3">Icon</th>
 			<td>
 				<label><input type="radio" name="icon_type" value="icon" <?php checked( (bool) $edit['icon_url'] ); ?>> URL </label>
-				<input type="url" class="my_app_icon_url" name="my_app_icon_url[]" value="<?php echo esc_attr( $edit['icon_url'] ); ?>">
+				<input type="url" class="my_app_icon_url" name="my_app_icon_url" value="<?php echo esc_attr( $edit['icon_url'] ); ?>">
 			</td>
 		</tr>
 		<tr>
 			<td>
 				<label><input type="radio" name="icon_type" value="dashicon" <?php checked( (bool) $edit['dashicon'] || ( ! $edit['icon_url'] && ! $edit['emoji'] ) ); ?>> Dashicon </label>
-				<select class="my_app_dashicon" name="my_app_dashicon[]">
+				<select class="my_app_dashicon" name="my_app_dashicon">
 					<?php foreach ( $dashicons as $dashicon ) : ?>
 						<option value="<?php echo esc_attr( $dashicon ); ?>"><?php echo esc_html( $dashicon ); ?></option>
 					<?php endforeach; ?>
@@ -462,7 +465,7 @@ dashicons-welcome-edit-page'
 		<tr>
 			<td>
 				<label><input type="radio" name="icon_type" value="emoji" <?php checked( (bool) $edit['emoji'] ); ?>> Emoji </label>
-				<input type="url" class="my_app_emoji" name="my_app_emoji[]" value="<?php echo esc_attr( $edit['emoji'] ); ?>">
+				<input type="text" class="my_app_emoji" name="my_app_emoji" value="<?php echo esc_attr( $edit['emoji'] ); ?>">
 			</td>
 		</tr>
 	</table>

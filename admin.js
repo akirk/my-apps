@@ -1,4 +1,4 @@
-jQuery( document ).ready( function( $ ) {
+jQuery( document ).ready( function ( $ ) {
 	const fields = [
 		'input.my_app_id',
 		'input.my_app_name',
@@ -8,33 +8,33 @@ jQuery( document ).ready( function( $ ) {
 		'input.my_app_emoji',
 	];
 
-	$( '.move-up' ).on( 'click', function( e ) {
+	$( '.move-up' ).on( 'click', function ( e ) {
 		e.preventDefault();
 		const $this = $( this );
 		const $row = $this.closest( 'tr' );
-		if ( ! $row.prev().length ) {
+		if ( !$row.prev().length ) {
 			return;
 		}
 		$row.prev().before( $row );
 	} );
-	$( '.move-down' ).on( 'click', function( e ) {
+	$( '.move-down' ).on( 'click', function ( e ) {
 		e.preventDefault();
 		const $this = $( this );
 		const $row = $this.closest( 'tr' );
-		if ( ! $row.next().length ) {
+		if ( !$row.next().length ) {
 			return;
 		}
 		$row.next().after( $row );
 	} );
 
-	$( '.delete-additional-app' ).on( 'click', function( e ) {
+	$( '.delete-additional-app' ).on( 'click', function ( e ) {
 		e.preventDefault();
 		const $this = $( this );
 		$this.closest( 'tr' ).remove();
 		$this.closest( 'form' ).submit();
 	} );
 
-	$( '.add-additional-app' ).on( 'click', function( e ) {
+	$( '.add-additional-app' ).on( 'click', function ( e ) {
 		e.preventDefault();
 		const $this = $( this );
 		const $edit = $( '#edit-app' );
@@ -43,14 +43,14 @@ jQuery( document ).ready( function( $ ) {
 			$edit.find( field ).val( '' );
 		}
 	} );
-	$( '#edit-app input.my_app_icon_url, #edit-app input.my_app_emoji, #edit-app input.my_app_dashicon' ).on( 'keyup', function( e ) {
-		$('#edit-app input[name=icon_type][value=icon]' ).attr( 'checked', e.target.classList.contains( 'my_app_icon_url' ) );
-		$('#edit-app input[name=icon_type][value=dashicon]' ).attr( 'checked', e.target.classList.contains( 'my_app_dashicon' ) );
-		$('#edit-app input[name=icon_type][value=emoji]' ).attr( 'checked', e.target.classList.contains( 'my_app_emoji' ) );
-	}
+	$( '#edit-app input.my_app_icon_url, #edit-app input.my_app_emoji, #edit-app input.my_app_dashicon' ).on( 'keyup', function ( e ) {
+		$( '#edit-app input[name=icon_type][value=icon]' ).attr( 'checked', e.target.classList.contains( 'my_app_icon_url' ) );
+		$( '#edit-app input[name=icon_type][value=dashicon]' ).attr( 'checked', e.target.classList.contains( 'my_app_dashicon' ) );
+		$( '#edit-app input[name=icon_type][value=emoji]' ).attr( 'checked', e.target.classList.contains( 'my_app_emoji' ) );
+	} );
 
 
-	$( '.edit-additional-app' ).on( 'click', function( e ) {
+	$( '.edit-additional-app' ).on( 'click', function ( e ) {
 		e.preventDefault();
 		const $this = $( this );
 		const $row = $this.closest( 'tr' );
@@ -71,5 +71,5 @@ jQuery( document ).ready( function( $ ) {
 		}
 
 		$row.hide();
-	});
+	} );
 } );

@@ -17,6 +17,13 @@ class My_Apps {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 		add_action( 'wp_enqueue_styles', array( $this, 'enqueue_styles' ) );
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
+
+		// AJAX handlers for launcher
+		add_action( 'wp_ajax_my_apps_save_order', array( $this, 'ajax_save_order' ) );
+		add_action( 'wp_ajax_my_apps_hide', array( $this, 'ajax_hide_app' ) );
+		add_action( 'wp_ajax_my_apps_add', array( $this, 'ajax_add_app' ) );
+		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
+		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
 	}
 
 	public function enqueue_styles() {
@@ -213,7 +220,7 @@ class My_Apps {
 		global $wp_query;
 		if ( isset( $wp_query->query_vars['my_apps'] ) ) {
 			if ( is_user_logged_in() ) {
-				$this->enqueue_styles();
+				$this->enqueue_launcher_assets();
 				include plugin_dir_path( __FILE__ ) . 'templates/launcher.php';
 				exit;
 			} else {
@@ -222,6 +229,211 @@ class My_Apps {
 			}
 		}
 		return $template;
+	}
+
+	/**
+	 * Enqueue launcher assets (scripts and styles).
+	 */
+	public function enqueue_launcher_assets() {
+		$this->enqueue_styles();
+
+		wp_enqueue_style( 'dashicons' );
+
+		wp_enqueue_script(
+			'sortablejs',
+			plugin_dir_url( __FILE__ ) . 'sortable.min.js',
+			array(),
+			'1.15.6',
+			true
+		);
+
+		wp_enqueue_script(
+			'my-apps-launcher',
+			plugin_dir_url( __FILE__ ) . 'launcher.js',
+			array( 'sortablejs' ),
+			MY_APPS_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'my-apps-launcher',
+			'myAppsConfig',
+			array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'my_apps_launcher' ),
+				'i18n'    => array(
+					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * AJAX: Save app order.
+	 */
+	public function ajax_save_order() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$order = isset( $_POST['order'] ) ? json_decode( sanitize_text_field( wp_unslash( $_POST['order'] ) ), true ) : array();
+
+		if ( ! is_array( $order ) ) {
+			wp_send_json_error( 'Invalid order' );
+		}
+
+		$sort = array();
+		foreach ( $order as $index => $slug ) {
+			$sort[ sanitize_text_field( $slug ) ] = $index;
+		}
+
+		update_option( 'my_apps_sort', $sort );
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Hide an app.
+	 */
+	public function ajax_hide_app() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$slug = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
+
+		if ( empty( $slug ) ) {
+			wp_send_json_error( 'Invalid slug' );
+		}
+
+		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
+		if ( ! in_array( $slug, $hide_plugins, true ) ) {
+			$hide_plugins[] = $slug;
+			update_option( 'my_apps_hide_plugins', $hide_plugins );
+		}
+
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Save background preference.
+	 */
+	public function ajax_save_background() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$background = isset( $_POST['background'] ) ? sanitize_text_field( wp_unslash( $_POST['background'] ) ) : '';
+
+		$valid_backgrounds = array(
+			'gradient-purple', 'gradient-blue', 'gradient-green', 'gradient-orange',
+			'gradient-pink', 'gradient-dark', 'gradient-sunset', 'gradient-ocean',
+			'solid-gray', 'solid-blue', 'solid-green', 'solid-red', 'solid-purple', 'solid-dark',
+		);
+
+		if ( ! in_array( $background, $valid_backgrounds, true ) ) {
+			wp_send_json_error( 'Invalid background' );
+		}
+
+		update_option( 'my_apps_background', $background );
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Add a new app.
+	 */
+	public function ajax_add_app() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+		$url = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
+		$icon_url = isset( $_POST['icon_url'] ) ? esc_url_raw( wp_unslash( $_POST['icon_url'] ) ) : '';
+		$dashicon = isset( $_POST['dashicon'] ) ? sanitize_text_field( wp_unslash( $_POST['dashicon'] ) ) : '';
+		$emoji = isset( $_POST['emoji'] ) ? sanitize_text_field( wp_unslash( $_POST['emoji'] ) ) : '';
+
+		if ( empty( $name ) || empty( $url ) ) {
+			wp_send_json_error( 'Name and URL are required' );
+		}
+
+		if ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) ) {
+			wp_send_json_error( 'An icon is required' );
+		}
+
+		$additional_apps = get_option( 'my_apps_additional_apps', array() );
+
+		$slug = 'custom-' . sanitize_title( $name ) . '-' . count( $additional_apps );
+
+		$new_app = array(
+			'name'     => $name,
+			'url'      => $url,
+			'icon_url' => $icon_url ?: false,
+			'dashicon' => $dashicon ?: false,
+			'emoji'    => $emoji ?: false,
+			'user'     => get_current_user_id(),
+		);
+
+		$additional_apps[ $slug ] = $new_app;
+		update_option( 'my_apps_additional_apps', $additional_apps );
+
+		wp_send_json_success(
+			array(
+				'slug'     => $slug,
+				'name'     => $name,
+				'url'      => $url,
+				'icon_url' => $icon_url ?: null,
+				'dashicon' => $dashicon ?: null,
+				'emoji'    => $emoji ?: null,
+			)
+		);
+	}
+
+	/**
+	 * AJAX: Unhide an app.
+	 */
+	public function ajax_unhide_app() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$slug = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
+
+		if ( empty( $slug ) ) {
+			wp_send_json_error( 'Invalid slug' );
+		}
+
+		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
+		$hide_plugins = array_filter( $hide_plugins, function( $s ) use ( $slug ) {
+			return $s !== $slug;
+		} );
+		update_option( 'my_apps_hide_plugins', array_values( $hide_plugins ) );
+
+		$apps = self::get_apps();
+		if ( isset( $apps[ $slug ] ) ) {
+			$app = $apps[ $slug ];
+			wp_send_json_success(
+				array(
+					'slug'     => $slug,
+					'name'     => $app['name'],
+					'url'      => $app['url'],
+					'icon_url' => ! empty( $app['icon_url'] ) ? $app['icon_url'] : null,
+					'dashicon' => ! empty( $app['dashicon'] ) ? $app['dashicon'] : null,
+					'emoji'    => ! empty( $app['emoji'] ) ? $app['emoji'] : null,
+				)
+			);
+		}
+
+		wp_send_json_success();
 	}
 
 	/**

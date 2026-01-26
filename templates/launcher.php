@@ -157,51 +157,65 @@ if ( $background === 'custom' && $custom_bg ) {
 	<div class="modal-overlay" id="add-app-modal">
 		<div class="modal">
 			<div class="modal-header">
-				<h2><?php esc_html_e( 'Add Link', 'my-apps' ); ?></h2>
+				<h2><?php esc_html_e( 'Add App', 'my-apps' ); ?></h2>
 				<button type="button" class="modal-close">&times;</button>
 			</div>
-			<form id="add-app-form">
-				<div class="form-group">
-					<label for="app-name"><?php esc_html_e( 'Name', 'my-apps' ); ?></label>
-					<input type="text" id="app-name" name="name" required>
+			<div class="modal-tabs">
+				<button type="button" class="modal-tab active" data-tab="admin-menu"><?php esc_html_e( 'Admin Menu', 'my-apps' ); ?></button>
+				<button type="button" class="modal-tab" data-tab="custom"><?php esc_html_e( 'Custom Link', 'my-apps' ); ?></button>
+			</div>
+			<div class="modal-tab-content" id="tab-admin-menu">
+				<div class="admin-menu-search">
+					<input type="text" id="admin-menu-search" placeholder="<?php esc_attr_e( 'Search menu items...', 'my-apps' ); ?>">
 				</div>
-				<div class="form-group">
-					<label for="app-url"><?php esc_html_e( 'URL', 'my-apps' ); ?></label>
-					<input type="url" id="app-url" name="url" required placeholder="https://">
+				<div class="admin-menu-tree" id="admin-menu-tree">
+					<div class="admin-menu-loading"><?php esc_html_e( 'Loading...', 'my-apps' ); ?></div>
 				</div>
-				<div class="form-group">
-					<label><?php esc_html_e( 'Icon', 'my-apps' ); ?></label>
-					<div class="icon-type-tabs">
-						<button type="button" class="icon-tab active" data-type="emoji"><?php esc_html_e( 'Emoji', 'my-apps' ); ?></button>
-						<button type="button" class="icon-tab" data-type="url"><?php esc_html_e( 'Image URL', 'my-apps' ); ?></button>
-						<button type="button" class="icon-tab" data-type="dashicon"><?php esc_html_e( 'Dashicon', 'my-apps' ); ?></button>
+			</div>
+			<div class="modal-tab-content hidden" id="tab-custom">
+				<form id="add-app-form">
+					<div class="form-group">
+						<label for="app-name"><?php esc_html_e( 'Name', 'my-apps' ); ?></label>
+						<input type="text" id="app-name" name="name" required>
 					</div>
-					<div class="icon-input-group">
-						<input type="hidden" id="app-emoji" name="emoji">
-						<div class="icon-input emoji-picker-container active">
-							<div class="emoji-search">
-								<input type="text" id="emoji-search" placeholder="<?php esc_attr_e( 'Search emoji...', 'my-apps' ); ?>">
-							</div>
-							<div class="emoji-picker" id="emoji-picker"></div>
+					<div class="form-group">
+						<label for="app-url"><?php esc_html_e( 'URL', 'my-apps' ); ?></label>
+						<input type="url" id="app-url" name="url" required placeholder="https://">
+					</div>
+					<div class="form-group">
+						<label><?php esc_html_e( 'Icon', 'my-apps' ); ?></label>
+						<div class="icon-type-tabs">
+							<button type="button" class="icon-tab active" data-type="emoji"><?php esc_html_e( 'Emoji', 'my-apps' ); ?></button>
+							<button type="button" class="icon-tab" data-type="url"><?php esc_html_e( 'Image URL', 'my-apps' ); ?></button>
+							<button type="button" class="icon-tab" data-type="dashicon"><?php esc_html_e( 'Dashicon', 'my-apps' ); ?></button>
 						</div>
-						<input type="url" id="app-icon-url" name="icon_url" class="icon-input" placeholder="https://example.com/icon.png">
-						<input type="hidden" id="app-dashicon" name="dashicon">
-						<div class="icon-input dashicon-picker-container">
-							<div class="dashicon-search">
-								<input type="text" id="dashicon-search" placeholder="<?php esc_attr_e( 'Search icons...', 'my-apps' ); ?>">
+						<div class="icon-input-group">
+							<input type="hidden" id="app-emoji" name="emoji">
+							<div class="icon-input emoji-picker-container active">
+								<div class="emoji-search">
+									<input type="text" id="emoji-search" placeholder="<?php esc_attr_e( 'Search emoji...', 'my-apps' ); ?>">
+								</div>
+								<div class="emoji-picker" id="emoji-picker"></div>
 							</div>
-							<div class="dashicon-picker" id="dashicon-picker"></div>
+							<input type="url" id="app-icon-url" name="icon_url" class="icon-input" placeholder="https://example.com/icon.png">
+							<input type="hidden" id="app-dashicon" name="dashicon">
+							<div class="icon-input dashicon-picker-container">
+								<div class="dashicon-search">
+									<input type="text" id="dashicon-search" placeholder="<?php esc_attr_e( 'Search icons...', 'my-apps' ); ?>">
+								</div>
+								<div class="dashicon-picker" id="dashicon-picker"></div>
+							</div>
+						</div>
+						<div class="icon-preview">
+							<div class="preview-box" id="icon-preview"></div>
 						</div>
 					</div>
-					<div class="icon-preview">
-						<div class="preview-box" id="icon-preview"></div>
+					<div class="form-actions">
+						<button type="button" class="btn-cancel"><?php esc_html_e( 'Cancel', 'my-apps' ); ?></button>
+						<button type="submit" class="btn-add"><?php esc_html_e( 'Add Link', 'my-apps' ); ?></button>
 					</div>
-				</div>
-				<div class="form-actions">
-					<button type="button" class="btn-cancel"><?php esc_html_e( 'Cancel', 'my-apps' ); ?></button>
-					<button type="submit" class="btn-add"><?php esc_html_e( 'Add Link', 'my-apps' ); ?></button>
-				</div>
-			</form>
+				</form>
+			</div>
 		</div>
 	</div>
 

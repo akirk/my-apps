@@ -13,8 +13,11 @@
 	const hiddenBtn = document.querySelector('.hidden-btn');
 	const hiddenAppsList = document.getElementById('hidden-apps-list');
 	const body = document.body;
+	const adminMenuTree = document.getElementById('admin-menu-tree');
+	const adminMenuSearch = document.getElementById('admin-menu-search');
 
 	let isEditMode = false;
+	let adminMenuData = null;
 	let sortable = null;
 	let longPressTimer = null;
 	let contextTarget = null;
@@ -261,6 +264,283 @@
 		initEmojiPicker();
 		initDashiconPicker();
 		bindEvents();
+		bindModalTabEvents();
+	}
+
+	function bindModalTabEvents() {
+		document.querySelectorAll('.modal-tab').forEach(function(tab) {
+			tab.addEventListener('click', function() {
+				var tabName = tab.dataset.tab;
+
+				document.querySelectorAll('.modal-tab').forEach(function(t) {
+					t.classList.remove('active');
+				});
+				tab.classList.add('active');
+
+				document.querySelectorAll('.modal-tab-content').forEach(function(content) {
+					content.classList.add('hidden');
+				});
+				document.getElementById('tab-' + tabName).classList.remove('hidden');
+
+				if (tabName === 'admin-menu' && !adminMenuData) {
+					loadAdminMenu();
+				}
+			});
+		});
+
+		if (adminMenuSearch) {
+			adminMenuSearch.addEventListener('input', function() {
+				filterAdminMenu(adminMenuSearch.value);
+			});
+		}
+	}
+
+	function loadAdminMenu() {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_get_admin_menu');
+		formData.append('nonce', myAppsConfig.nonce);
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (data.success) {
+				adminMenuData = data.data;
+				renderAdminMenuTree(adminMenuData);
+			} else {
+				while (adminMenuTree.firstChild) {
+					adminMenuTree.removeChild(adminMenuTree.firstChild);
+				}
+				var errorEl = document.createElement('div');
+				errorEl.className = 'admin-menu-empty';
+				errorEl.textContent = 'Failed to load menu';
+				adminMenuTree.appendChild(errorEl);
+			}
+		})
+		.catch(function() {
+			while (adminMenuTree.firstChild) {
+				adminMenuTree.removeChild(adminMenuTree.firstChild);
+			}
+			var errorEl = document.createElement('div');
+			errorEl.className = 'admin-menu-empty';
+			errorEl.textContent = 'Failed to load menu';
+			adminMenuTree.appendChild(errorEl);
+		});
+	}
+
+	function createDashicon(iconClass) {
+		var span = document.createElement('span');
+		span.className = 'dashicons ' + iconClass;
+		return span;
+	}
+
+	function createIconElement(dashicon) {
+		var iconEl = document.createElement('span');
+		iconEl.className = 'admin-menu-icon';
+
+		if (dashicon && dashicon.indexOf('dashicons-') === 0) {
+			iconEl.appendChild(createDashicon(dashicon));
+		} else if (dashicon && (dashicon.indexOf('http') === 0 || dashicon.indexOf('data:') === 0)) {
+			var img = document.createElement('img');
+			img.src = dashicon;
+			img.alt = '';
+			iconEl.appendChild(img);
+		} else {
+			iconEl.appendChild(createDashicon('dashicons-admin-generic'));
+		}
+		return iconEl;
+	}
+
+	function createToggleSvg() {
+		var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		svg.setAttribute('viewBox', '0 0 24 24');
+		var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		path.setAttribute('d', 'M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z');
+		svg.appendChild(path);
+		return svg;
+	}
+
+	function renderAdminMenuTree(menuData, filter) {
+		filter = (filter || '').toLowerCase();
+
+		while (adminMenuTree.firstChild) {
+			adminMenuTree.removeChild(adminMenuTree.firstChild);
+		}
+
+		var hasResults = false;
+
+		menuData.forEach(function(parent) {
+			var matchesFilter = !filter || parent.name.toLowerCase().indexOf(filter) !== -1;
+			var matchingChildren = [];
+
+			if (parent.children && parent.children.length > 0) {
+				matchingChildren = parent.children.filter(function(child) {
+					return !filter || child.name.toLowerCase().indexOf(filter) !== -1;
+				});
+			}
+
+			if (!matchesFilter && matchingChildren.length === 0) {
+				return;
+			}
+
+			hasResults = true;
+
+			var parentEl = document.createElement('div');
+			parentEl.className = 'admin-menu-parent';
+			if (!parent.children || parent.children.length === 0) {
+				parentEl.classList.add('no-children');
+			}
+			if (filter && matchingChildren.length > 0) {
+				parentEl.classList.add('expanded');
+			}
+
+			var headerEl = document.createElement('button');
+			headerEl.type = 'button';
+			headerEl.className = 'admin-menu-parent-header';
+
+			var toggleEl = document.createElement('span');
+			toggleEl.className = 'admin-menu-toggle';
+			toggleEl.appendChild(createToggleSvg());
+			headerEl.appendChild(toggleEl);
+
+			headerEl.appendChild(createIconElement(parent.dashicon));
+
+			var nameEl = document.createElement('span');
+			nameEl.className = 'admin-menu-name';
+			nameEl.textContent = parent.name;
+			headerEl.appendChild(nameEl);
+
+			var addBtn = document.createElement('button');
+			addBtn.type = 'button';
+			addBtn.className = 'admin-menu-add';
+			addBtn.textContent = '+';
+			addBtn.title = 'Add ' + parent.name;
+			addBtn.addEventListener('click', function(e) {
+				e.stopPropagation();
+				addAdminMenuItem(parent, addBtn);
+			});
+			headerEl.appendChild(addBtn);
+
+			headerEl.addEventListener('click', function(e) {
+				if (e.target.closest('.admin-menu-add')) return;
+				if (parent.children && parent.children.length > 0) {
+					parentEl.classList.toggle('expanded');
+				}
+			});
+
+			parentEl.appendChild(headerEl);
+
+			if (parent.children && parent.children.length > 0) {
+				var childrenEl = document.createElement('div');
+				childrenEl.className = 'admin-menu-children';
+
+				var childrenToShow = filter ? matchingChildren : parent.children;
+				childrenToShow.forEach(function(child) {
+					var itemEl = document.createElement('button');
+					itemEl.type = 'button';
+					itemEl.className = 'admin-menu-item';
+
+					itemEl.appendChild(createIconElement(child.dashicon));
+
+					var childNameEl = document.createElement('span');
+					childNameEl.className = 'admin-menu-name';
+					childNameEl.textContent = child.name;
+					itemEl.appendChild(childNameEl);
+
+					var childAddBtn = document.createElement('button');
+					childAddBtn.type = 'button';
+					childAddBtn.className = 'admin-menu-add';
+					childAddBtn.textContent = '+';
+					childAddBtn.title = 'Add ' + child.name;
+					childAddBtn.addEventListener('click', function(e) {
+						e.stopPropagation();
+						addAdminMenuItem(child, childAddBtn);
+					});
+					itemEl.appendChild(childAddBtn);
+
+					itemEl.addEventListener('click', function(e) {
+						if (e.target.closest('.admin-menu-add')) return;
+						addAdminMenuItem(child, childAddBtn);
+					});
+
+					childrenEl.appendChild(itemEl);
+				});
+
+				parentEl.appendChild(childrenEl);
+			}
+
+			adminMenuTree.appendChild(parentEl);
+		});
+
+		if (!hasResults) {
+			var emptyEl = document.createElement('div');
+			emptyEl.className = 'admin-menu-empty';
+			emptyEl.textContent = 'No menu items found';
+			adminMenuTree.appendChild(emptyEl);
+		}
+	}
+
+	function filterAdminMenu(filter) {
+		if (adminMenuData) {
+			renderAdminMenuTree(adminMenuData, filter);
+		}
+	}
+
+	function addAdminMenuItem(item, btn) {
+		var dashicon = item.dashicon;
+		if (dashicon && dashicon.indexOf('dashicons-') !== 0 && dashicon.indexOf('http') !== 0 && dashicon.indexOf('data:') !== 0) {
+			dashicon = 'dashicons-admin-generic';
+		}
+
+		var iconData = {};
+		if (dashicon && dashicon.indexOf('dashicons-') === 0) {
+			iconData.dashicon = dashicon;
+		} else if (dashicon && (dashicon.indexOf('http') === 0 || dashicon.indexOf('data:') === 0)) {
+			iconData.icon_url = dashicon;
+		} else {
+			iconData.dashicon = 'dashicons-admin-generic';
+		}
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_add');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('name', item.name);
+		formData.append('url', item.url);
+		Object.keys(iconData).forEach(function(key) {
+			formData.append(key, iconData[key]);
+		});
+
+		btn.classList.add('added');
+		btn.textContent = '✓';
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (data.success) {
+				var newApp = createAppElement(data.data);
+				var addBtn = document.querySelector('.add-app-btn');
+				container.insertBefore(newApp, addBtn);
+
+				setTimeout(function() {
+					btn.classList.remove('added');
+					btn.textContent = '+';
+				}, 1500);
+			} else {
+				btn.classList.remove('added');
+				btn.textContent = '+';
+				alert(data.data || 'Error adding app');
+			}
+		})
+		.catch(function() {
+			btn.classList.remove('added');
+			btn.textContent = '+';
+			alert('Network error');
+		});
 	}
 
 	function initEmojiPicker() {
@@ -695,8 +975,32 @@
 
 	function openAddModal() {
 		addAppModal.classList.add('active');
+
+		// Reset to Admin Menu tab
+		document.querySelectorAll('.modal-tab').forEach(function(t) {
+			t.classList.remove('active');
+		});
+		document.querySelector('.modal-tab[data-tab="admin-menu"]').classList.add('active');
+		document.querySelectorAll('.modal-tab-content').forEach(function(c) {
+			c.classList.add('hidden');
+		});
+		document.getElementById('tab-admin-menu').classList.remove('hidden');
+
+		// Load admin menu if not loaded
+		if (!adminMenuData) {
+			loadAdminMenu();
+		}
+
+		// Reset search
+		if (adminMenuSearch) {
+			adminMenuSearch.value = '';
+			if (adminMenuData) {
+				renderAdminMenuTree(adminMenuData);
+			}
+		}
+
+		// Reset custom form
 		addAppForm.reset();
-		document.getElementById('app-name').focus();
 
 		// Reset icon tabs to emoji
 		document.querySelectorAll('.icon-tab').forEach(function(t) {

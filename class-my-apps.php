@@ -24,6 +24,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_add', array( $this, 'ajax_add_app' ) );
 		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
+		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
 	}
 
 	public function enqueue_styles() {
@@ -394,6 +395,118 @@ class My_Apps {
 				'emoji'    => $emoji ?: null,
 			)
 		);
+	}
+
+	/**
+	 * AJAX: Get admin menu structure for the launcher.
+	 */
+	public function ajax_get_admin_menu() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		global $menu, $submenu;
+
+		// Menu isn't loaded during AJAX, so we need to trigger it
+		if ( empty( $menu ) ) {
+			// Set up a minimal screen object required by menu.php
+			require_once ABSPATH . 'wp-admin/includes/screen.php';
+			require_once ABSPATH . 'wp-admin/includes/class-wp-screen.php';
+			set_current_screen( 'dashboard' );
+
+			// Load plugin administration functions
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+			// Initialize menu arrays
+			$menu = array();
+			$submenu = array();
+
+			// Fire the admin_menu action to let plugins register their menus
+			require ABSPATH . 'wp-admin/menu.php';
+		}
+
+		$menu_data = array();
+
+		if ( ! is_array( $menu ) ) {
+			wp_send_json_success( $menu_data );
+		}
+
+		foreach ( $menu as $position => $item ) {
+			if ( empty( $item[0] ) || empty( $item[2] ) ) {
+				continue;
+			}
+
+			// Skip separators
+			if ( ! empty( $item[4] ) && strpos( $item[4], 'wp-menu-separator' ) !== false ) {
+				continue;
+			}
+
+			// Check capability
+			if ( ! empty( $item[1] ) && ! current_user_can( $item[1] ) ) {
+				continue;
+			}
+
+			$menu_slug = $item[2];
+			$menu_name = wp_strip_all_tags( $item[0] );
+			$menu_icon = ! empty( $item[6] ) ? $item[6] : 'dashicons-admin-generic';
+
+			// Handle special icon values
+			if ( 'none' === $menu_icon || 'div' === $menu_icon ) {
+				$menu_icon = 'dashicons-admin-generic';
+			}
+
+			// Build URL
+			if ( strpos( $menu_slug, '.php' ) !== false ) {
+				$menu_url = admin_url( $menu_slug );
+			} else {
+				$menu_url = admin_url( 'admin.php?page=' . $menu_slug );
+			}
+
+			$menu_entry = array(
+				'name'     => $menu_name,
+				'url'      => $menu_url,
+				'dashicon' => $menu_icon,
+				'children' => array(),
+			);
+
+			// Get submenus
+			if ( ! empty( $submenu[ $menu_slug ] ) && is_array( $submenu[ $menu_slug ] ) ) {
+				foreach ( $submenu[ $menu_slug ] as $sub_item ) {
+					if ( empty( $sub_item[0] ) || empty( $sub_item[2] ) ) {
+						continue;
+					}
+
+					// Check capability
+					if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
+						continue;
+					}
+
+					$sub_name = wp_strip_all_tags( $sub_item[0] );
+					$sub_slug = $sub_item[2];
+
+					// Build submenu URL
+					if ( strpos( $sub_slug, '.php' ) !== false ) {
+						$sub_url = admin_url( $sub_slug );
+					} elseif ( strpos( $menu_slug, '.php' ) !== false ) {
+						$sub_url = admin_url( $menu_slug . '?page=' . $sub_slug );
+					} else {
+						$sub_url = admin_url( 'admin.php?page=' . $sub_slug );
+					}
+
+					$menu_entry['children'][] = array(
+						'name'     => $sub_name,
+						'url'      => $sub_url,
+						'dashicon' => $menu_icon,
+					);
+				}
+			}
+
+			$menu_data[] = $menu_entry;
+		}
+
+		wp_send_json_success( $menu_data );
 	}
 
 	/**

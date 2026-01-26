@@ -3,7 +3,7 @@
  * Plugin Name: My Apps
  * Plugin author: Alex Kirk
  * Plugin URI: https://github.com/akirk/my-apps
- * Version: 1.1.0
+ * Version: 1.2.0
  * Requires PHP: 5.6
  * Description: WordPress apps launcher
  *
@@ -15,7 +15,7 @@
 
 namespace My_Apps;
 
-define( 'MY_APPS_VERSION', '1.1.0' );
+define( 'MY_APPS_VERSION', '1.2.0' );
 
 require_once __DIR__ . '/class-my-apps.php';
 require_once __DIR__ . '/default-apps.php';

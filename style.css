@@ -434,7 +434,7 @@ body.edit-mode .add-app-btn {
 }
 
 #add-app-form {
-	padding: 20px;
+	padding: 0;
 }
 
 .form-group {
@@ -903,4 +903,231 @@ body.edit-mode .hidden-count {
 
 .hidden-app-item:hover .restore-icon {
 	opacity: 1;
+}
+
+/* Modal Tabs */
+.modal-tabs {
+	display: flex;
+	border-bottom: 1px solid #eee;
+}
+
+.modal-tab {
+	flex: 1;
+	padding: 12px 16px;
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 500;
+	color: #666;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+	transition: all 0.2s;
+}
+
+.modal-tab:hover {
+	color: #333;
+	background: #f9f9f9;
+}
+
+.modal-tab.active {
+	color: #667eea;
+	border-bottom-color: #667eea;
+}
+
+.modal-tab-content {
+	padding: 16px 20px;
+}
+
+.modal-tab-content.hidden {
+	display: none;
+}
+
+/* Admin Menu Tree */
+.admin-menu-search {
+	margin-bottom: 12px;
+}
+
+.admin-menu-search input {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	font-size: 14px;
+	box-sizing: border-box;
+}
+
+.admin-menu-search input:focus {
+	outline: none;
+	border-color: #667eea;
+	box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.admin-menu-tree {
+	max-height: 400px;
+	overflow-y: auto;
+	border: 1px solid #eee;
+	border-radius: 8px;
+}
+
+.admin-menu-loading {
+	padding: 40px 20px;
+	text-align: center;
+	color: #888;
+}
+
+.admin-menu-parent {
+	border-bottom: 1px solid #eee;
+}
+
+.admin-menu-parent:last-child {
+	border-bottom: none;
+}
+
+.admin-menu-parent-header {
+	display: flex;
+	align-items: center;
+	padding: 10px 12px;
+	cursor: pointer;
+	background: #f9f9f9;
+	transition: background 0.15s;
+	gap: 10px;
+	border: none;
+	width: 100%;
+	text-align: left;
+	font-size: 14px;
+}
+
+.admin-menu-parent-header:hover {
+	background: #f0f0f0;
+}
+
+.admin-menu-parent.expanded > .admin-menu-parent-header {
+	background: #e8e8e8;
+}
+
+.admin-menu-toggle {
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	transition: transform 0.2s;
+}
+
+.admin-menu-toggle svg {
+	width: 12px;
+	height: 12px;
+	fill: #666;
+}
+
+.admin-menu-parent.expanded > .admin-menu-parent-header .admin-menu-toggle {
+	transform: rotate(90deg);
+}
+
+.admin-menu-parent.no-children > .admin-menu-parent-header .admin-menu-toggle {
+	visibility: hidden;
+}
+
+.admin-menu-icon {
+	width: 24px;
+	height: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.admin-menu-icon .dashicons {
+	font-size: 20px;
+	width: 20px;
+	height: 20px;
+	line-height: 20px;
+	color: #555;
+}
+
+.admin-menu-icon img {
+	width: 20px;
+	height: 20px;
+	border-radius: 4px;
+}
+
+.admin-menu-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: #333;
+}
+
+.admin-menu-add {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: #667eea;
+	color: #fff;
+	border: none;
+	cursor: pointer;
+	font-size: 18px;
+	line-height: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	transition: opacity 0.15s, background 0.15s;
+	flex-shrink: 0;
+}
+
+.admin-menu-parent-header:hover .admin-menu-add,
+.admin-menu-item:hover .admin-menu-add {
+	opacity: 1;
+}
+
+.admin-menu-add:hover {
+	background: #5a6fd6;
+}
+
+.admin-menu-add.added {
+	background: #10b981;
+	opacity: 1;
+}
+
+.admin-menu-children {
+	display: none;
+	background: #fff;
+}
+
+.admin-menu-parent.expanded > .admin-menu-children {
+	display: block;
+}
+
+.admin-menu-item {
+	display: flex;
+	align-items: center;
+	padding: 8px 12px 8px 46px;
+	cursor: pointer;
+	transition: background 0.15s;
+	gap: 10px;
+	border: none;
+	width: 100%;
+	text-align: left;
+	font-size: 13px;
+	background: transparent;
+}
+
+.admin-menu-item:hover {
+	background: #f5f5f5;
+}
+
+.admin-menu-item .admin-menu-name {
+	font-size: 13px;
+	color: #555;
+}
+
+.admin-menu-empty {
+	padding: 40px 20px;
+	text-align: center;
+	color: #888;
+	font-size: 14px;
 }

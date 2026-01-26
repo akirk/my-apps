@@ -407,23 +407,28 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		global $menu, $submenu;
+		global $menu, $submenu, $_wp_menu_nopriv, $_wp_submenu_nopriv, $_registered_pages, $_parent_pages;
 
 		// Menu isn't loaded during AJAX, so we need to trigger it
 		if ( empty( $menu ) ) {
-			// Set up a minimal screen object required by menu.php
-			require_once ABSPATH . 'wp-admin/includes/screen.php';
-			require_once ABSPATH . 'wp-admin/includes/class-wp-screen.php';
-			set_current_screen( 'dashboard' );
-
-			// Load plugin administration functions
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-
-			// Initialize menu arrays
+			// Initialize required globals before including any menu files
 			$menu = array();
 			$submenu = array();
+			$_wp_menu_nopriv = array();
+			$_wp_submenu_nopriv = array();
+			$_registered_pages = array();
+			$_parent_pages = array();
 
-			// Fire the admin_menu action to let plugins register their menus
+			// Load required admin includes
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			require_once ABSPATH . 'wp-admin/includes/screen.php';
+			require_once ABSPATH . 'wp-admin/includes/class-wp-screen.php';
+
+			// Set up screen
+			set_current_screen( 'dashboard' );
+
+			// Build the admin menu - this populates $menu and $submenu
+			// and fires admin_menu action for plugins
 			require ABSPATH . 'wp-admin/menu.php';
 		}
 

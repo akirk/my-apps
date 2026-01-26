@@ -1,0 +1,24 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "App Launcher",
+		"description": "Adds an app launcher to your WordPress (git version)",
+		"author": "Alex Kirk"
+	},
+	"landingPage": "/my-apps/",
+	"login": true,
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "git:directory",
+				"url": "https://github.com/akirk/my-apps",
+				"ref": "main",
+				"refType": "branch"
+			},
+			"options": {
+				"targetFolderName": "my-apps"
+			}
+		}
+	]
+}

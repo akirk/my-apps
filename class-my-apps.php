@@ -436,8 +436,14 @@ class My_Apps {
 			$pagenow = 'index.php';
 
 			// Build the admin menu - this populates $menu and $submenu
-			// and fires admin_menu action for plugins
-			require ABSPATH . 'wp-admin/menu.php';
+			// and fires admin_menu action for plugins.
+			// Wrap in try/catch because some plugins register admin_menu
+			// callbacks that aren't fully loaded during AJAX context.
+			try {
+				require ABSPATH . 'wp-admin/menu.php';
+			} catch ( \Throwable $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+				// Menu was partially built, continue with what we have.
+			}
 
 			$pagenow = $orig_pagenow;
 		}

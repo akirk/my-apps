@@ -1749,7 +1749,23 @@
 
 				var recipeIntro = document.createElement('p');
 				recipeIntro.className = 'app-detail-recipe-intro';
-				recipeIntro.textContent = 'This app is installed by running the following blueprint:';
+				recipeIntro.appendChild(document.createTextNode('This app is installed by running the following '));
+				var blueprintLink = document.createElement('a');
+				blueprintLink.href = blueprintUrl;
+				blueprintLink.target = '_blank';
+				blueprintLink.rel = 'noopener noreferrer';
+				blueprintLink.className = 'app-detail-recipe-link';
+				blueprintLink.textContent = 'blueprint';
+				recipeIntro.appendChild(blueprintLink);
+				recipeIntro.appendChild(document.createTextNode(' ('));
+				var stepLibLink = document.createElement('a');
+				stepLibLink.href = 'https://akirk.github.io/playground-step-library/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+				stepLibLink.target = '_blank';
+				stepLibLink.rel = 'noopener noreferrer';
+				stepLibLink.className = 'app-detail-recipe-link';
+				stepLibLink.textContent = 'view in Step Library';
+				recipeIntro.appendChild(stepLibLink);
+				recipeIntro.appendChild(document.createTextNode('):'));
 				recipeSection.appendChild(recipeIntro);
 
 				var recipeList = document.createElement('ol');

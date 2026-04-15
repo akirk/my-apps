@@ -260,9 +260,10 @@ class My_Apps {
 			'my-apps-launcher',
 			'myAppsConfig',
 			array(
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'my_apps_launcher' ),
-				'i18n'    => array(
+				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+				'nonce'        => wp_create_nonce( 'my_apps_launcher' ),
+				'isPlayground' => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
+				'i18n'         => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
 				),
 			)
@@ -411,6 +412,8 @@ class My_Apps {
 
 		// Menu isn't loaded during AJAX, so we need to trigger it
 		if ( empty( $menu ) ) {
+			global $pagenow;
+
 			// Initialize required globals before including any menu files
 			$menu = array();
 			$submenu = array();
@@ -427,9 +430,16 @@ class My_Apps {
 			// Set up screen
 			set_current_screen( 'dashboard' );
 
+			// Set $pagenow to a valid admin page so that
+			// user_can_access_admin_page() in menu.php doesn't wp_die().
+			$orig_pagenow = $pagenow;
+			$pagenow = 'index.php';
+
 			// Build the admin menu - this populates $menu and $submenu
 			// and fires admin_menu action for plugins
 			require ABSPATH . 'wp-admin/menu.php';
+
+			$pagenow = $orig_pagenow;
 		}
 
 		$menu_data = array();

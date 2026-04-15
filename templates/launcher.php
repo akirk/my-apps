@@ -68,13 +68,26 @@ if ( $background === 'custom' && $custom_bg ) {
 			</div>
 		<?php endforeach; ?>
 
-		<div class="app-icon add-app-btn" title="<?php esc_attr_e( 'Add Link', 'my-apps' ); ?>">
+		<div class="app-icon add-app-btn" title="<?php esc_attr_e( 'Add', 'my-apps' ); ?>">
 			<div class="add-icon">+</div>
 			<p class="app-title"><?php esc_html_e( 'Add', 'my-apps' ); ?></p>
+			<div class="add-dropdown" id="add-dropdown">
+				<button type="button" class="add-dropdown-item" data-action="install-software">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+					<?php esc_html_e( 'Install New App', 'my-apps' ); ?>
+				</button>
+				<button type="button" class="add-dropdown-item" data-action="add-link">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+					<?php esc_html_e( 'Add Link', 'my-apps' ); ?>
+				</button>
+			</div>
 		</div>
 	</div>
 
 	<div class="bottom-toolbar">
+		<a href="<?php echo esc_url( home_url( '/welcome/' ) ); ?>" class="toolbar-btn info-btn" title="<?php esc_attr_e( 'About', 'my-apps' ); ?>">
+			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+		</a>
 		<button type="button" class="toolbar-btn hidden-btn" title="<?php esc_attr_e( 'Hidden Apps', 'my-apps' ); ?>" data-count="<?php echo count( $hidden_apps ); ?>">
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
 			<?php if ( count( $hidden_apps ) > 0 ) : ?>
@@ -215,6 +228,30 @@ if ( $background === 'custom' && $custom_bg ) {
 						<button type="submit" class="btn-add"><?php esc_html_e( 'Add Link', 'my-apps' ); ?></button>
 					</div>
 				</form>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-overlay" id="install-software-modal">
+		<div class="modal modal-wide">
+			<div class="app-store-layout">
+				<nav class="app-store-sidebar" id="app-store-sidebar">
+					<div class="app-store-search">
+						<input type="text" id="app-store-search" placeholder="<?php esc_attr_e( 'Search', 'my-apps' ); ?>">
+					</div>
+					<ul class="app-store-nav" id="app-store-nav">
+						<li class="app-store-nav-item active" data-category="all"><?php esc_html_e( 'Discover', 'my-apps' ); ?></li>
+					</ul>
+				</nav>
+				<div class="app-store-main">
+					<div class="app-store-main-header">
+						<h2 id="app-store-heading"><?php esc_html_e( 'Discover', 'my-apps' ); ?></h2>
+						<button type="button" class="modal-close">&times;</button>
+					</div>
+					<div class="app-store-content" id="app-store-content">
+						<div class="app-store-loading"><?php esc_html_e( 'Loading apps...', 'my-apps' ); ?></div>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>

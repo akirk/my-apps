@@ -856,6 +856,40 @@
 					}
 				}
 			});
+
+			var iconSizeSlider = document.getElementById('setting-icon-size');
+			var spacingSlider = document.getElementById('setting-spacing');
+
+			if (iconSizeSlider) {
+				iconSizeSlider.value = localStorage.getItem('my_apps_icon_size') || '60';
+				iconSizeSlider.addEventListener('input', function() {
+					applyAppSize(this.value);
+					localStorage.setItem('my_apps_icon_size', this.value);
+				});
+			}
+
+			if (spacingSlider) {
+				spacingSlider.value = localStorage.getItem('my_apps_spacing') || '16';
+				spacingSlider.addEventListener('input', function() {
+					applySpacing(this.value);
+					localStorage.setItem('my_apps_spacing', this.value);
+				});
+			}
+
+			var gridColumnsSlider = document.getElementById('setting-grid-columns');
+			var gridColumnsValue = document.getElementById('grid-columns-value');
+			if (gridColumnsSlider) {
+				gridColumnsSlider.value = localStorage.getItem('my_apps_grid_columns') || '6';
+				if (gridColumnsValue) gridColumnsValue.textContent = gridColumnsSlider.value;
+				gridColumnsSlider.addEventListener('input', function() {
+					applyGridColumns(this.value);
+					localStorage.setItem('my_apps_grid_columns', this.value);
+					if (gridColumnsValue) gridColumnsValue.textContent = this.value;
+				});
+			}
+
+			// Set initial visibility of grid-only settings
+			updateLayoutButtons();
 		}
 
 		// Hidden apps popup
@@ -984,6 +1018,10 @@
 		updateLayoutButtons();
 	}
 
+	function applyGridColumns(cols) {
+		container.style.setProperty('--grid-columns', cols);
+	}
+
 	function updateLayoutButtons() {
 		if (!settingsDropdown) return;
 		var mode = localStorage.getItem('my_apps_layout') || 'flow';
@@ -994,14 +1032,32 @@
 				item.classList.toggle('active', mode === 'grid');
 			}
 		});
+		var gridOnly = document.getElementById('settings-grid-only');
+		if (gridOnly) {
+			gridOnly.style.display = mode === 'grid' ? '' : 'none';
+		}
 	}
 
-	// Restore layout on load
+	function applyAppSize(size) {
+		container.style.setProperty('--app-size', size + 'px');
+	}
+
+	function applySpacing(gap) {
+		container.style.setProperty('--app-gap', gap + 'px');
+	}
+
+	// Restore settings on load
 	(function() {
 		var layout = localStorage.getItem('my_apps_layout');
 		if (layout === 'grid') {
 			container.classList.add('layout-grid');
 		}
+		var cols = localStorage.getItem('my_apps_grid_columns');
+		if (cols) applyGridColumns(cols);
+		var size = localStorage.getItem('my_apps_icon_size');
+		if (size) applyAppSize(size);
+		var gap = localStorage.getItem('my_apps_spacing');
+		if (gap) applySpacing(gap);
 	})();
 
 	function handleExport() {

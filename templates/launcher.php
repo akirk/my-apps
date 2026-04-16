@@ -107,6 +107,20 @@ if ( $background === 'custom' && $custom_bg ) {
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
 					<?php esc_html_e( 'Grid', 'my-apps' ); ?>
 				</button>
+				<div class="settings-grid-only" id="settings-grid-only">
+					<div class="settings-dropdown-section"><?php esc_html_e( 'Columns', 'my-apps' ); ?> <span id="grid-columns-value"></span></div>
+					<div class="settings-dropdown-slider">
+						<input type="range" id="setting-grid-columns" min="3" max="12" step="1" value="6">
+					</div>
+				</div>
+				<div class="settings-dropdown-section"><?php esc_html_e( 'Icon Size', 'my-apps' ); ?></div>
+				<div class="settings-dropdown-slider">
+					<input type="range" id="setting-icon-size" min="40" max="100" step="5" value="60">
+				</div>
+				<div class="settings-dropdown-section"><?php esc_html_e( 'Spacing', 'my-apps' ); ?></div>
+				<div class="settings-dropdown-slider">
+					<input type="range" id="setting-spacing" min="4" max="40" step="2" value="16">
+				</div>
 				<div class="settings-dropdown-divider"></div>
 				<button type="button" class="settings-dropdown-item" data-action="export">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>

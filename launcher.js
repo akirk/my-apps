@@ -95,6 +95,92 @@
 		}, 3000);
 	}
 
+	// ── Pending Install (auto-add app after blueprint install) ──
+	var PENDING_INSTALL_KEY = 'my_apps_pending_install';
+
+	function savePendingInstall(app, blueprintUrl, gradient) {
+		localStorage.setItem(PENDING_INSTALL_KEY, JSON.stringify({
+			title: app.title,
+			description: app.description || '',
+			blueprintUrl: blueprintUrl,
+			gradient: gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)'
+		}));
+	}
+
+	function checkPendingInstall() {
+		var raw = localStorage.getItem(PENDING_INSTALL_KEY);
+		if (!raw) return;
+		localStorage.removeItem(PENDING_INSTALL_KEY);
+
+		var pending;
+		try {
+			pending = JSON.parse(raw);
+		} catch (e) {
+			return;
+		}
+
+		// Check if an app with the same name already exists
+		var existingNames = [];
+		container.querySelectorAll('.app-title').forEach(function(el) {
+			existingNames.push(el.textContent.trim().toLowerCase());
+		});
+		if (existingNames.indexOf(pending.title.toLowerCase()) !== -1) {
+			showToast(pending.title + ' installed');
+			return;
+		}
+
+		// No new icon appeared — create one from the blueprint metadata
+		// Try to derive a landing page URL from the blueprint
+		var customBlueprints = getCustomBlueprints();
+		var blueprintPath = null;
+		Object.keys(customBlueprints).forEach(function(path) {
+			if (getBlueprintUrl(path) === pending.blueprintUrl) {
+				blueprintPath = path;
+			}
+		});
+
+		var blueprintPromise = blueprintPath && customBlueprints[blueprintPath]
+			? Promise.resolve(customBlueprints[blueprintPath].blueprint)
+			: fetch(pending.blueprintUrl).then(function(res) { return res.json(); });
+
+		blueprintPromise.then(function(blueprint) {
+			var landingPage = blueprint.landingPage;
+			if (!landingPage) {
+				showToast(pending.title + ' installed');
+				return;
+			}
+			var appUrl = landingPage.indexOf('http') === 0
+				? landingPage
+				: window.location.origin + landingPage;
+
+			var formData = new FormData();
+			formData.append('action', 'my_apps_add');
+			formData.append('nonce', myAppsConfig.nonce);
+			formData.append('name', pending.title);
+			formData.append('url', appUrl);
+			// Prefer icon from blueprint meta, fall back to gradient
+			if (blueprint.meta && blueprint.meta.icon) {
+				formData.append('icon_url', blueprint.meta.icon);
+			} else {
+				formData.append('gradient', pending.gradient);
+			}
+
+			fetch(myAppsConfig.ajaxUrl, {
+				method: 'POST',
+				body: formData
+			})
+			.then(function(res) { return res.json(); })
+			.then(function(data) {
+				if (data.success) {
+					showToast(pending.title + ' installed and added');
+					setTimeout(function() { window.location.reload(); }, 1000);
+				}
+			});
+		}).catch(function() {
+			showToast(pending.title + ' installed');
+		});
+	}
+
 	var emojis = [
 		{ emoji: '📱', keywords: 'phone mobile smartphone device' },
 		{ emoji: '💻', keywords: 'laptop computer mac pc device' },
@@ -338,6 +424,7 @@
 		bindEvents();
 		bindModalTabEvents();
 		checkDeepLink();
+		checkPendingInstall();
 	}
 
 	function bindModalTabEvents() {
@@ -1640,6 +1727,16 @@
 		pluginDirLink.textContent = 'Plugin Directory';
 		pluginDirLi.appendChild(pluginDirLink);
 		appStoreNav.appendChild(pluginDirLi);
+
+		var submitLi = document.createElement('li');
+		submitLi.className = 'app-store-nav-item app-store-nav-external';
+		var submitLink = document.createElement('a');
+		submitLink.href = 'https://github.com/WordPress/blueprints/';
+		submitLink.target = '_blank';
+		submitLink.rel = 'noopener noreferrer';
+		submitLink.textContent = 'Submit an App';
+		submitLi.appendChild(submitLink);
+		appStoreNav.appendChild(submitLi);
 	}
 
 	function handleBlueprintPaste(e) {
@@ -1901,14 +1998,17 @@
 				installBtn.type = 'button';
 				installBtn.className = 'app-store-install-btn';
 				installBtn.textContent = 'Install';
-				installBtn.addEventListener('click', function(e) {
-					e.stopPropagation();
-					window.parent.postMessage({
-						type: 'relay',
-						relayType: 'install-blueprint',
-						blueprintUrl: blueprintUrl
-					}, '*');
-				});
+				(function(a, bUrl, g) {
+					installBtn.addEventListener('click', function(e) {
+						e.stopPropagation();
+						savePendingInstall(a, bUrl, g);
+						window.parent.postMessage({
+							type: 'relay',
+							relayType: 'install-blueprint',
+							blueprintUrl: bUrl
+						}, '*');
+					});
+				})(app, blueprintUrl, gradient);
 				actionsEl.appendChild(installBtn);
 			}
 
@@ -2075,6 +2175,7 @@
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
 			installBtn.textContent = 'Install';
 			installBtn.addEventListener('click', function() {
+				savePendingInstall(app, blueprintUrl, gradient);
 				window.parent.postMessage({
 					type: 'relay',
 					relayType: 'install-blueprint',

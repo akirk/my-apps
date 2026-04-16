@@ -175,6 +175,30 @@ body.edit-mode .done-btn {
 	color: #333;
 }
 
+.app-gradient-icon {
+	width: var(--app-size, 60px);
+	height: var(--app-size, 60px);
+	border-radius: 14px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 auto;
+	color: rgba(255, 255, 255, 0.9);
+}
+
+.app-gradient-icon svg {
+	width: 65%;
+	height: 65%;
+}
+
+.app-gradient-icon-small {
+	width: 24px;
+	height: 24px;
+	border-radius: 6px;
+	box-shadow: none;
+}
+
 .app-icon .emoji {
 	font-size: calc(var(--app-size, 60px) * 0.83);
 	line-height: var(--app-size, 60px);

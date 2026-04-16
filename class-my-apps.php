@@ -166,11 +166,7 @@ class My_Apps {
 			wp_send_json_error( 'Invalid order' );
 		}
 
-		$sort = array();
-		foreach ( $order as $index => $slug ) {
-			$sort[ sanitize_text_field( $slug ) ] = $index;
-		}
-
+		$sort = array_map( 'sanitize_text_field', array_values( $order ) );
 		update_option( 'my_apps_sort', $sort );
 		wp_send_json_success();
 	}
@@ -278,12 +274,13 @@ class My_Apps {
 		$icon_url = isset( $_POST['icon_url'] ) ? esc_url_raw( wp_unslash( $_POST['icon_url'] ) ) : '';
 		$dashicon = isset( $_POST['dashicon'] ) ? sanitize_text_field( wp_unslash( $_POST['dashicon'] ) ) : '';
 		$emoji = isset( $_POST['emoji'] ) ? sanitize_text_field( wp_unslash( $_POST['emoji'] ) ) : '';
+		$gradient = isset( $_POST['gradient'] ) ? sanitize_text_field( wp_unslash( $_POST['gradient'] ) ) : '';
 
 		if ( empty( $name ) || empty( $url ) ) {
 			wp_send_json_error( 'Name and URL are required' );
 		}
 
-		if ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) ) {
+		if ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) && empty( $gradient ) ) {
 			wp_send_json_error( 'An icon is required' );
 		}
 
@@ -297,6 +294,7 @@ class My_Apps {
 			'icon_url' => $icon_url ?: false,
 			'dashicon' => $dashicon ?: false,
 			'emoji'    => $emoji ?: false,
+			'gradient' => $gradient ?: false,
 			'user'     => get_current_user_id(),
 		);
 
@@ -305,7 +303,7 @@ class My_Apps {
 
 		// Give the new app a sort position at the end.
 		$sort = get_option( 'my_apps_sort', array() );
-		$sort[ $slug ] = empty( $sort ) ? 0 : max( $sort ) + 1;
+		$sort[] = $slug;
 		update_option( 'my_apps_sort', $sort );
 
 		wp_send_json_success(
@@ -661,7 +659,7 @@ class My_Apps {
 			if ( ! isset( $data['url'], $data['name'] ) ) {
 				continue;
 			}
-			if ( ! isset( $data['icon_url'] ) && ! isset( $data['dashicon'] ) ) {
+			if ( ! isset( $data['icon_url'] ) && ! isset( $data['dashicon'] ) && empty( $data['gradient'] ) && empty( $data['emoji'] ) ) {
 				continue;
 			}
 			$data['plugin'] = 'unknown';
@@ -682,17 +680,20 @@ class My_Apps {
 		}
 
 		$sort = get_option( 'my_apps_sort', array() );
+		// Support both array format [slug, slug, ...] and legacy hash {slug: position}
+		if ( ! empty( $sort ) && ! isset( $sort[0] ) ) {
+			// Legacy hash format — convert to array
+			asort( $sort );
+			$sort = array_keys( $sort );
+			update_option( 'my_apps_sort', $sort );
+		}
+		$sort_index = array_flip( $sort );
+		$max = count( $sort );
 		uksort(
 			$plugins,
-			function ( $a, $b ) use ( $sort ) {
-				$sort_a = 0;
-				if ( isset( $sort[ $a ] ) ) {
-					$sort_a = $sort[ $a ];
-				}
-				$sort_b = 0;
-				if ( isset( $sort[ $b ] ) ) {
-					$sort_b = $sort[ $b ];
-				}
+			function ( $a, $b ) use ( $sort_index, $max ) {
+				$sort_a = isset( $sort_index[ $a ] ) ? $sort_index[ $a ] : $max;
+				$sort_b = isset( $sort_index[ $b ] ) ? $sort_index[ $b ] : $max;
 				return $sort_a <=> $sort_b;
 			}
 		);

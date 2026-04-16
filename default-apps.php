@@ -11,15 +11,15 @@ function write_post( $apps ) {
 	return $apps;
 }
 
-function settings( $apps ) {
-	$apps['settings'] = array(
-		'name'     => 'Settings',
-		'dashicon' => 'dashicons-admin-settings',
-		'url'      => admin_url( 'options-general.php?page=my-apps' ),
+function about( $apps ) {
+	$apps['about'] = array(
+		'name'     => 'About',
+		'dashicon' => 'dashicons-info-outline',
+		'url'      => home_url( '/welcome/' ),
 	);
 
 	return $apps;
 }
 
 add_filter( 'my_apps_plugins', __NAMESPACE__ . '\write_post' );
-add_filter( 'my_apps_plugins', __NAMESPACE__ . '\settings' );
+add_filter( 'my_apps_plugins', __NAMESPACE__ . '\about' );

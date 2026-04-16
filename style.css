@@ -117,6 +117,12 @@ body.edit-mode .done-btn {
 	margin: 0 auto;
 }
 
+.apps-container.layout-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, 106px);
+	justify-content: center;
+}
+
 /* App Icon */
 .app-icon {
 	width: 90px;
@@ -1115,6 +1121,26 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .settings-dropdown-item svg {
 	flex-shrink: 0;
+}
+
+.settings-dropdown-item.active {
+	color: #3858e9;
+	font-weight: 600;
+}
+
+.settings-dropdown-section {
+	padding: 6px 16px 2px;
+	font-size: 11px;
+	font-weight: 600;
+	color: #757575;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.settings-dropdown-divider {
+	height: 1px;
+	background: #e0e0e0;
+	margin: 6px 0;
 }
 
 /* Background Picker */

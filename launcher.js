@@ -837,16 +837,23 @@
 			settingsBtn.addEventListener('click', function(e) {
 				if (e.target.closest('.settings-dropdown')) return;
 				settingsDropdown.classList.toggle('active');
+				if (settingsDropdown.classList.contains('active')) {
+					updateLayoutButtons();
+				}
 			});
 			settingsDropdown.addEventListener('click', function(e) {
 				var item = e.target.closest('.settings-dropdown-item');
 				if (!item) return;
-				settingsDropdown.classList.remove('active');
 				var action = item.dataset.action;
-				if (action === 'export') {
-					handleExport();
-				} else if (action === 'import') {
-					handleImport();
+				if (action === 'layout-flow' || action === 'layout-grid') {
+					setLayout(action === 'layout-grid' ? 'grid' : 'flow');
+				} else {
+					settingsDropdown.classList.remove('active');
+					if (action === 'export') {
+						handleExport();
+					} else if (action === 'import') {
+						handleImport();
+					}
 				}
 			});
 		}
@@ -966,6 +973,36 @@
 
 		closeBgPicker();
 	}
+
+	function setLayout(mode) {
+		if (mode === 'grid') {
+			container.classList.add('layout-grid');
+		} else {
+			container.classList.remove('layout-grid');
+		}
+		localStorage.setItem('my_apps_layout', mode);
+		updateLayoutButtons();
+	}
+
+	function updateLayoutButtons() {
+		if (!settingsDropdown) return;
+		var mode = localStorage.getItem('my_apps_layout') || 'flow';
+		settingsDropdown.querySelectorAll('.settings-dropdown-item').forEach(function(item) {
+			if (item.dataset.action === 'layout-flow') {
+				item.classList.toggle('active', mode === 'flow');
+			} else if (item.dataset.action === 'layout-grid') {
+				item.classList.toggle('active', mode === 'grid');
+			}
+		});
+	}
+
+	// Restore layout on load
+	(function() {
+		var layout = localStorage.getItem('my_apps_layout');
+		if (layout === 'grid') {
+			container.classList.add('layout-grid');
+		}
+	})();
 
 	function handleExport() {
 		var formData = new FormData();

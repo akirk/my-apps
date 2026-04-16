@@ -13,7 +13,6 @@ class My_Apps {
 		add_action( 'wp_head', array( $this, 'admin_bar_css' ), 50 );
 		add_action( 'admin_head', array( $this, 'admin_bar_css' ), 50 );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 1 );
-		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 		add_action( 'wp_enqueue_styles', array( $this, 'enqueue_styles' ) );
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
@@ -25,6 +24,8 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
+		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
+		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
 	}
 
 	public function enqueue_styles() {
@@ -55,134 +56,6 @@ class My_Apps {
 				'href'  => home_url( '/my-apps/' ),
 			)
 		);
-	}
-
-	public function admin_menu() {
-		add_options_page( 'My Apps', 'My Apps', 'manage_options', 'my-apps', array( $this, 'admin_page' ) );
-		add_action( 'load-settings_page_my-apps', array( $this, 'process_admin' ) );
-	}
-
-	public function process_admin() {
-		if ( isset( $_POST['_wpnonce'] ) && ! check_admin_referer( 'my-apps' ) ) {
-			wp_die( esc_html__( 'Invalid nonce', 'my-apps' ) );
-		}
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-
-		if ( isset( $_POST['my_apps_plugins'] ) && ! empty( $_POST['my_apps_hide_plugins'] ) ) {
-			// We sanitize each item of the array.
-			$sort = array_map( 'sanitize_text_field', array_flip( wp_unslash( $_POST['my_apps_plugins'] ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-			update_option( 'my_apps_sort', $sort );
-
-			// We sanitize each item of the array.
-			$hide_plugins = array_map( 'sanitize_text_field', wp_unslash( $_POST['my_apps_hide_plugins'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-			$hide_plugins = array_diff( array_flip( $sort ), $hide_plugins );
-			update_option( 'my_apps_hide_plugins', $hide_plugins );
-
-			return;
-		}
-
-		if ( isset( $_POST['my_app_name'] ) ) {
-			$additional_apps = get_option( 'my_apps_additional_apps', array() );
-			$k = false;
-			if ( isset( $_POST['my_app_id'] ) ) {
-				$k = sanitize_text_field( wp_unslash( $_POST['my_app_id'] ) );
-				if ( ! isset( $additional_apps[ $k ] ) ) {
-					$k = false;
-				}
-			}
-			if ( isset( $_POST['my_app_name'] ) ) {
-				$name = sanitize_text_field( wp_unslash( $_POST['my_app_name'] ) );
-			}
-			$url = false;
-			if ( isset( $_POST['my_app_url'] ) ) {
-				$url = sanitize_text_field( wp_unslash( $_POST['my_app_url'] ) );
-			}
-
-			$user = false;
-			if ( isset( $_POST['my_app_user'] ) ) {
-				$user = sanitize_text_field( wp_unslash( $_POST['my_app_user'] ) );
-			}
-
-			$icon_url = false;
-			if ( ! empty( $_POST['my_app_icon_url'] ) ) {
-				$icon_url = sanitize_text_field( wp_unslash( $_POST['my_app_icon_url'] ) );
-			}
-
-			$dashicon = false;
-			if ( ! empty( $_POST['my_app_dashicon'] ) ) {
-				$dashicon = sanitize_text_field( wp_unslash( $_POST['my_app_dashicon'] ) );
-			}
-
-			$emoji = false;
-			if ( ! empty( $_POST['my_app_emoji'] ) ) {
-				$emoji = sanitize_text_field( wp_unslash( $_POST['my_app_emoji'] ) );
-			}
-
-			if ( isset( $_POST['icon_type'] ) ) {
-				switch ( sanitize_text_field( wp_unslash( $_POST['icon_type'] ) ) ) {
-					case 'icon':
-						$dashicon = false;
-						$emoji = false;
-						break;
-					case 'dashicon':
-						$icon_url = false;
-						$emoji = false;
-						break;
-					case 'emoji':
-						$icon_url = false;
-						$dashicon = false;
-						break;
-				}
-			}
-
-			if ( empty( $name ) || empty( $url ) || ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) ) ) {
-				unset( $additional_apps[ $k ] );
-			} elseif ( isset( $additional_apps[ $k ] ) )  {
-				$additional_apps[ $k ] = array(
-					'name'     => $name,
-					'url'      => $url,
-					'icon_url' => $icon_url,
-					'dashicon' => $dashicon,
-					'emoji'    => $emoji,
-					'user'     => $user,
-				);
-			} else {
-				$additional_apps[] = array(
-					'name'     => $name,
-					'url'      => $url,
-					'icon_url' => $icon_url,
-					'dashicon' => $dashicon,
-					'emoji'    => $emoji,
-					'user'     => $user,
-				);
-			}
-
-			update_option( 'my_apps_additional_apps', $additional_apps );
-		}
-	}
-
-
-	public function admin_page() {
-		wp_enqueue_script( 'plugin-install' );
-		add_thickbox();
-		wp_enqueue_script( 'updates' );
-
-		$apps = self::get_apps();
-		$additional_apps = get_option( 'my_apps_additional_apps', array() );
-		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
-
-		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'My Apps', 'my-apps' ); ?></h1>
-			<?php
-				include __DIR__ . '/templates/admin-list-apps.php';
-				include __DIR__ . '/templates/admin-additional-apps.php';
-			?>
-		</div>
-		<?php
 	}
 
 	/**
@@ -565,6 +438,58 @@ class My_Apps {
 					'emoji'    => ! empty( $app['emoji'] ) ? $app['emoji'] : null,
 				)
 			);
+		}
+
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Export settings.
+	 */
+	public function ajax_export() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Not allowed' );
+		}
+
+		wp_send_json_success(
+			array(
+				'sort'            => get_option( 'my_apps_sort', array() ),
+				'hide_plugins'    => get_option( 'my_apps_hide_plugins', array() ),
+				'additional_apps' => get_option( 'my_apps_additional_apps', array() ),
+				'background'      => get_option( 'my_apps_background', 'gradient-purple' ),
+			)
+		);
+	}
+
+	/**
+	 * AJAX: Import settings.
+	 */
+	public function ajax_import() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Not allowed' );
+		}
+
+		$data = isset( $_POST['data'] ) ? json_decode( sanitize_text_field( wp_unslash( $_POST['data'] ) ), true ) : null;
+
+		if ( ! is_array( $data ) ) {
+			wp_send_json_error( 'Invalid data' );
+		}
+
+		if ( isset( $data['sort'] ) && is_array( $data['sort'] ) ) {
+			update_option( 'my_apps_sort', $data['sort'] );
+		}
+		if ( isset( $data['hide_plugins'] ) && is_array( $data['hide_plugins'] ) ) {
+			update_option( 'my_apps_hide_plugins', $data['hide_plugins'] );
+		}
+		if ( isset( $data['additional_apps'] ) && is_array( $data['additional_apps'] ) ) {
+			update_option( 'my_apps_additional_apps', $data['additional_apps'] );
+		}
+		if ( isset( $data['background'] ) && is_string( $data['background'] ) ) {
+			update_option( 'my_apps_background', $data['background'] );
 		}
 
 		wp_send_json_success();

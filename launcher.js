@@ -9,6 +9,8 @@
 	const addAppForm = document.getElementById('add-app-form');
 	const bgPicker = document.getElementById('bg-picker');
 	const bgBtn = document.querySelector('.bg-btn');
+	const settingsBtn = document.querySelector('.settings-btn');
+	const settingsDropdown = document.getElementById('settings-dropdown');
 	const hiddenPopup = document.getElementById('hidden-popup');
 	const hiddenBtn = document.querySelector('.hidden-btn');
 	const hiddenAppsList = document.getElementById('hidden-apps-list');
@@ -825,7 +827,29 @@
 			if (!hiddenPopup.contains(e.target) && !hiddenBtn.contains(e.target)) {
 				closeHiddenPopup();
 			}
+			if (settingsDropdown && !settingsBtn.contains(e.target)) {
+				settingsDropdown.classList.remove('active');
+			}
 		});
+
+		// Settings dropdown
+		if (settingsBtn && settingsDropdown) {
+			settingsBtn.addEventListener('click', function(e) {
+				if (e.target.closest('.settings-dropdown')) return;
+				settingsDropdown.classList.toggle('active');
+			});
+			settingsDropdown.addEventListener('click', function(e) {
+				var item = e.target.closest('.settings-dropdown-item');
+				if (!item) return;
+				settingsDropdown.classList.remove('active');
+				var action = item.dataset.action;
+				if (action === 'export') {
+					handleExport();
+				} else if (action === 'import') {
+					handleImport();
+				}
+			});
+		}
 
 		// Hidden apps popup
 		hiddenBtn.addEventListener('click', toggleHiddenPopup);
@@ -941,6 +965,72 @@
 		});
 
 		closeBgPicker();
+	}
+
+	function handleExport() {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_export');
+		formData.append('nonce', myAppsConfig.nonce);
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (data.success) {
+				var json = JSON.stringify(data.data, null, 2);
+				var blob = new Blob([json], { type: 'application/json' });
+				var url = URL.createObjectURL(blob);
+				var a = document.createElement('a');
+				a.href = url;
+				a.download = 'my-apps-settings.json';
+				a.click();
+				URL.revokeObjectURL(url);
+				showToast('Settings exported');
+			}
+		});
+	}
+
+	function handleImport() {
+		var input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.json';
+		input.addEventListener('change', function() {
+			var file = input.files[0];
+			if (!file) return;
+
+			var reader = new FileReader();
+			reader.onload = function(e) {
+				try {
+					JSON.parse(e.target.result);
+				} catch (err) {
+					showToast('Invalid JSON file');
+					return;
+				}
+
+				var formData = new FormData();
+				formData.append('action', 'my_apps_import');
+				formData.append('nonce', myAppsConfig.nonce);
+				formData.append('data', e.target.result);
+
+				fetch(myAppsConfig.ajaxUrl, {
+					method: 'POST',
+					body: formData
+				})
+				.then(function(res) { return res.json(); })
+				.then(function(data) {
+					if (data.success) {
+						showToast('Settings imported');
+						setTimeout(function() { window.location.reload(); }, 1000);
+					} else {
+						showToast('Import failed');
+					}
+				});
+			};
+			reader.readAsText(file);
+		});
+		input.click();
 	}
 
 	function enterEditMode() {

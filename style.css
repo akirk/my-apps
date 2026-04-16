@@ -1072,6 +1072,51 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	fill: currentColor;
 }
 
+/* Settings Dropdown */
+.settings-btn {
+	position: relative;
+}
+
+.settings-dropdown {
+	position: absolute;
+	bottom: calc(100% + 8px);
+	right: 0;
+	background: #fff;
+	border-radius: 10px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+	padding: 6px 0;
+	min-width: 150px;
+	display: none;
+	z-index: 200;
+}
+
+.settings-dropdown.active {
+	display: block;
+}
+
+.settings-dropdown-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 10px 16px;
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: 14px;
+	color: #333;
+	white-space: nowrap;
+	text-align: left;
+}
+
+.settings-dropdown-item:hover {
+	background: #f0f0f0;
+}
+
+.settings-dropdown-item svg {
+	flex-shrink: 0;
+}
+
 /* Background Picker */
 .bg-picker-popup {
 	position: fixed;

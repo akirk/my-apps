@@ -98,7 +98,26 @@
 	// ── Pending Install (auto-add app after blueprint install) ──
 	var PENDING_INSTALL_KEY = 'my_apps_pending_install';
 
-	function savePendingInstall(app, blueprintUrl) {
+	function makeAppIconUrl(gradient) {
+		var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">' +
+			'<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+			gradientToStops(gradient) +
+			'</linearGradient></defs>' +
+			'<rect width="120" height="120" rx="20" fill="url(#g)"/>' +
+			'<g transform="translate(20,20) scale(3.33)" fill="rgba(255,255,255,0.9)">' +
+			'<path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/>' +
+			'</g></svg>';
+		return 'data:image/svg+xml;base64,' + btoa(svg);
+	}
+
+	function gradientToStops(gradient) {
+		// Parse "linear-gradient(135deg, #color1 0%, #color2 100%)" into SVG stops
+		var match = gradient.match(/#[0-9a-fA-F]{3,8}/g);
+		if (!match || match.length < 2) return '<stop offset="0" stop-color="#89f7fe"/><stop offset="1" stop-color="#66a6ff"/>';
+		return '<stop offset="0" stop-color="' + match[0] + '"/><stop offset="1" stop-color="' + match[1] + '"/>';
+	}
+
+	function savePendingInstall(app, blueprintUrl, gradient) {
 		var currentSlugs = [];
 		container.querySelectorAll('.app-icon[data-slug]').forEach(function(el) {
 			currentSlugs.push(el.dataset.slug);
@@ -107,7 +126,8 @@
 			title: app.title,
 			description: app.description || '',
 			slugsBefore: currentSlugs,
-			blueprintUrl: blueprintUrl
+			blueprintUrl: blueprintUrl,
+			iconUrl: makeAppIconUrl(gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)')
 		}));
 	}
 
@@ -159,12 +179,15 @@
 				? landingPage
 				: window.location.origin + landingPage;
 
+			// Use icon from blueprint meta if available, otherwise the generated one
+			var iconUrl = (blueprint.meta && blueprint.meta.icon) || pending.iconUrl;
+
 			var formData = new FormData();
 			formData.append('action', 'my_apps_add');
 			formData.append('nonce', myAppsConfig.nonce);
 			formData.append('name', pending.title);
 			formData.append('url', appUrl);
-			formData.append('emoji', '\uD83D\uDCE6'); // 📦
+			formData.append('icon_url', iconUrl);
 
 			fetch(myAppsConfig.ajaxUrl, {
 				method: 'POST',
@@ -184,7 +207,7 @@
 			formData.append('nonce', myAppsConfig.nonce);
 			formData.append('name', pending.title);
 			formData.append('url', window.location.origin + '/');
-			formData.append('emoji', '\uD83D\uDCE6'); // 📦
+			formData.append('icon_url', pending.iconUrl);
 
 			fetch(myAppsConfig.ajaxUrl, {
 				method: 'POST',
@@ -2007,17 +2030,17 @@
 				installBtn.type = 'button';
 				installBtn.className = 'app-store-install-btn';
 				installBtn.textContent = 'Install';
-				(function(a, bUrl) {
+				(function(a, bUrl, g) {
 					installBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
-						savePendingInstall(a, bUrl);
+						savePendingInstall(a, bUrl, g);
 						window.parent.postMessage({
 							type: 'relay',
 							relayType: 'install-blueprint',
 							blueprintUrl: bUrl
 						}, '*');
 					});
-				})(app, blueprintUrl);
+				})(app, blueprintUrl, gradient);
 				actionsEl.appendChild(installBtn);
 			}
 
@@ -2184,7 +2207,7 @@
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
 			installBtn.textContent = 'Install';
 			installBtn.addEventListener('click', function() {
-				savePendingInstall(app, blueprintUrl);
+				savePendingInstall(app, blueprintUrl, gradient);
 				window.parent.postMessage({
 					type: 'relay',
 					relayType: 'install-blueprint',

@@ -1518,9 +1518,7 @@
 				installBtn.textContent = 'Install';
 				installBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
-					var url = new URL(window.location.origin);
-					url.searchParams.set('blueprint-url', blueprintUrl);
-					window.location.href = url.toString();
+					handleAppInstall(blueprintUrl, null, installBtn);
 				});
 				actionsEl.appendChild(installBtn);
 			}
@@ -2065,10 +2063,10 @@
 
 	function handleAppInstall(blueprintUrl, infoEl, btn) {
 		if (isPlayground) {
-			// On Playground: navigate directly
-			var url = new URL(window.location.origin);
+			// On Playground: navigate in the top frame
+			var url = new URL(window.top.location.origin);
 			url.searchParams.set('blueprint-url', blueprintUrl);
-			window.location.href = url.toString();
+			window.top.location.href = url.toString();
 		} else {
 			// Elsewhere: show the blueprint URL for manual use
 			if (infoEl.classList.contains('active')) {

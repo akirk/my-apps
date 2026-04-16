@@ -149,6 +149,12 @@
 				showToast(pending.title + ' installed');
 				return;
 			}
+
+			if (!confirm('Add "' + pending.title + '" to your apps?')) {
+				showToast(pending.title + ' installed');
+				return;
+			}
+
 			var appUrl = landingPage.indexOf('http') === 0
 				? landingPage
 				: window.location.origin + landingPage;
@@ -172,7 +178,7 @@
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
 				if (data.success) {
-					showToast(pending.title + ' installed and added');
+					showToast(pending.title + ' added');
 					setTimeout(function() { window.location.reload(); }, 1000);
 				}
 			});

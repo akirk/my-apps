@@ -24,6 +24,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
+		add_action( 'wp_ajax_my_apps_save_display', array( $this, 'ajax_save_display' ) );
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
 		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
 	}
@@ -136,6 +137,12 @@ class My_Apps {
 				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
 				'nonce'        => wp_create_nonce( 'my_apps_launcher' ),
 				'isPlayground' => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
+				'display'      => get_option( 'my_apps_display', array(
+					'layout'       => 'flow',
+					'icon_size'    => 60,
+					'spacing'      => 16,
+					'grid_columns' => 6,
+				) ),
 				'i18n'         => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
 				),
@@ -220,6 +227,43 @@ class My_Apps {
 	}
 
 	/**
+	 * AJAX: Save display settings.
+	 */
+	public function ajax_save_display() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$display = get_option( 'my_apps_display', array(
+			'layout'       => 'flow',
+			'icon_size'    => 60,
+			'spacing'      => 16,
+			'grid_columns' => 6,
+		) );
+
+		if ( isset( $_POST['layout'] ) ) {
+			$layout = sanitize_text_field( wp_unslash( $_POST['layout'] ) );
+			if ( in_array( $layout, array( 'flow', 'grid' ), true ) ) {
+				$display['layout'] = $layout;
+			}
+		}
+		if ( isset( $_POST['icon_size'] ) ) {
+			$display['icon_size'] = max( 40, min( 100, intval( $_POST['icon_size'] ) ) );
+		}
+		if ( isset( $_POST['spacing'] ) ) {
+			$display['spacing'] = max( 4, min( 40, intval( $_POST['spacing'] ) ) );
+		}
+		if ( isset( $_POST['grid_columns'] ) ) {
+			$display['grid_columns'] = max( 3, min( 12, intval( $_POST['grid_columns'] ) ) );
+		}
+
+		update_option( 'my_apps_display', $display );
+		wp_send_json_success();
+	}
+
+	/**
 	 * AJAX: Add a new app.
 	 */
 	public function ajax_add_app() {
@@ -258,6 +302,11 @@ class My_Apps {
 
 		$additional_apps[ $slug ] = $new_app;
 		update_option( 'my_apps_additional_apps', $additional_apps );
+
+		// Give the new app a sort position at the end.
+		$sort = get_option( 'my_apps_sort', array() );
+		$sort[ $slug ] = empty( $sort ) ? 0 : max( $sort ) + 1;
+		update_option( 'my_apps_sort', $sort );
 
 		wp_send_json_success(
 			array(
@@ -459,6 +508,12 @@ class My_Apps {
 				'hide_plugins'    => get_option( 'my_apps_hide_plugins', array() ),
 				'additional_apps' => get_option( 'my_apps_additional_apps', array() ),
 				'background'      => get_option( 'my_apps_background', 'gradient-purple' ),
+				'display'         => get_option( 'my_apps_display', array(
+					'layout'       => 'flow',
+					'icon_size'    => 60,
+					'spacing'      => 16,
+					'grid_columns' => 6,
+				) ),
 			)
 		);
 	}
@@ -490,6 +545,9 @@ class My_Apps {
 		}
 		if ( isset( $data['background'] ) && is_string( $data['background'] ) ) {
 			update_option( 'my_apps_background', $data['background'] );
+		}
+		if ( isset( $data['display'] ) && is_array( $data['display'] ) ) {
+			update_option( 'my_apps_display', $data['display'] );
 		}
 
 		wp_send_json_success();
@@ -599,7 +657,7 @@ class My_Apps {
 		}
 
 		$additional_apps = get_option( 'my_apps_additional_apps', array() );
-		foreach ( $additional_apps as $data ) {
+		foreach ( $additional_apps as $slug => $data ) {
 			if ( ! isset( $data['url'], $data['name'] ) ) {
 				continue;
 			}
@@ -615,7 +673,7 @@ class My_Apps {
 					unset( $data['user'] );
 				}
 			}
-			$plugins[] = $data;
+			$plugins[ $slug ] = $data;
 		}
 
 		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );

@@ -837,18 +837,59 @@
 			settingsBtn.addEventListener('click', function(e) {
 				if (e.target.closest('.settings-dropdown')) return;
 				settingsDropdown.classList.toggle('active');
+				if (settingsDropdown.classList.contains('active')) {
+					updateLayoutButtons();
+				}
 			});
 			settingsDropdown.addEventListener('click', function(e) {
 				var item = e.target.closest('.settings-dropdown-item');
 				if (!item) return;
-				settingsDropdown.classList.remove('active');
 				var action = item.dataset.action;
-				if (action === 'export') {
-					handleExport();
-				} else if (action === 'import') {
-					handleImport();
+				if (action === 'layout-flow' || action === 'layout-grid') {
+					setLayout(action === 'layout-grid' ? 'grid' : 'flow');
+				} else {
+					settingsDropdown.classList.remove('active');
+					if (action === 'export') {
+						handleExport();
+					} else if (action === 'import') {
+						handleImport();
+					}
 				}
 			});
+
+			var iconSizeSlider = document.getElementById('setting-icon-size');
+			var spacingSlider = document.getElementById('setting-spacing');
+
+			if (iconSizeSlider) {
+				iconSizeSlider.value = displaySettings.icon_size || '60';
+				iconSizeSlider.addEventListener('input', function() {
+					applyAppSize(this.value);
+					saveDisplay('icon_size', this.value);
+				});
+			}
+
+			if (spacingSlider) {
+				spacingSlider.value = displaySettings.spacing || '16';
+				spacingSlider.addEventListener('input', function() {
+					applySpacing(this.value);
+					saveDisplay('spacing', this.value);
+				});
+			}
+
+			var gridColumnsSlider = document.getElementById('setting-grid-columns');
+			var gridColumnsValue = document.getElementById('grid-columns-value');
+			if (gridColumnsSlider) {
+				gridColumnsSlider.value = displaySettings.grid_columns || '6';
+				if (gridColumnsValue) gridColumnsValue.textContent = gridColumnsSlider.value;
+				gridColumnsSlider.addEventListener('input', function() {
+					applyGridColumns(this.value);
+					saveDisplay('grid_columns', this.value);
+					if (gridColumnsValue) gridColumnsValue.textContent = this.value;
+				});
+			}
+
+			// Set initial visibility of grid-only settings
+			updateLayoutButtons();
 		}
 
 		// Hidden apps popup
@@ -967,6 +1008,65 @@
 		closeBgPicker();
 	}
 
+	var displaySettings = (typeof myAppsConfig !== 'undefined' && myAppsConfig.display) || {};
+
+	function saveDisplay(key, value) {
+		displaySettings[key] = value;
+		var formData = new FormData();
+		formData.append('action', 'my_apps_save_display');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append(key, value);
+		fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData });
+	}
+
+	function setLayout(mode) {
+		if (mode === 'grid') {
+			container.classList.add('layout-grid');
+		} else {
+			container.classList.remove('layout-grid');
+		}
+		saveDisplay('layout', mode);
+		updateLayoutButtons();
+	}
+
+	function applyGridColumns(cols) {
+		container.style.setProperty('--grid-columns', cols);
+	}
+
+	function updateLayoutButtons() {
+		if (!settingsDropdown) return;
+		var mode = displaySettings.layout || 'flow';
+		settingsDropdown.querySelectorAll('.settings-dropdown-item').forEach(function(item) {
+			if (item.dataset.action === 'layout-flow') {
+				item.classList.toggle('active', mode === 'flow');
+			} else if (item.dataset.action === 'layout-grid') {
+				item.classList.toggle('active', mode === 'grid');
+			}
+		});
+		var gridOnly = document.getElementById('settings-grid-only');
+		if (gridOnly) {
+			gridOnly.style.display = mode === 'grid' ? 'block' : 'none';
+		}
+	}
+
+	function applyAppSize(size) {
+		container.style.setProperty('--app-size', size + 'px');
+	}
+
+	function applySpacing(gap) {
+		container.style.setProperty('--app-gap', gap + 'px');
+	}
+
+	// Restore settings on load
+	(function() {
+		if (displaySettings.layout === 'grid') {
+			container.classList.add('layout-grid');
+		}
+		if (displaySettings.grid_columns) applyGridColumns(displaySettings.grid_columns);
+		if (displaySettings.icon_size) applyAppSize(displaySettings.icon_size);
+		if (displaySettings.spacing) applySpacing(displaySettings.spacing);
+	})();
+
 	function handleExport() {
 		var formData = new FormData();
 		formData.append('action', 'my_apps_export');
@@ -979,7 +1079,15 @@
 		.then(function(res) { return res.json(); })
 		.then(function(data) {
 			if (data.success) {
-				var json = JSON.stringify(data.data, null, 2);
+				var exportData = data.data;
+				exportData.display = {
+					layout: localStorage.getItem('my_apps_layout') || 'flow',
+					icon_size: localStorage.getItem('my_apps_icon_size') || '60',
+					spacing: localStorage.getItem('my_apps_spacing') || '16',
+					grid_columns: localStorage.getItem('my_apps_grid_columns') || '6',
+					custom_blueprints: localStorage.getItem(CUSTOM_BLUEPRINTS_KEY) || '{}'
+				};
+				var json = JSON.stringify(exportData, null, 2);
 				var blob = new Blob([json], { type: 'application/json' });
 				var url = URL.createObjectURL(blob);
 				var a = document.createElement('a');

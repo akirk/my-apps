@@ -85,9 +85,6 @@ if ( $background === 'custom' && $custom_bg ) {
 	</div>
 
 	<div class="bottom-toolbar">
-		<a href="<?php echo esc_url( home_url( '/welcome/' ) ); ?>" class="toolbar-btn info-btn" title="<?php esc_attr_e( 'About', 'my-apps' ); ?>">
-			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-		</a>
 		<button type="button" class="toolbar-btn hidden-btn" title="<?php esc_attr_e( 'Hidden Apps', 'my-apps' ); ?>" data-count="<?php echo count( $hidden_apps ); ?>">
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
 			<?php if ( count( $hidden_apps ) > 0 ) : ?>
@@ -101,6 +98,30 @@ if ( $background === 'custom' && $custom_bg ) {
 		<div class="toolbar-btn settings-btn" role="button" tabindex="0" title="<?php esc_attr_e( 'Settings', 'my-apps' ); ?>">
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
 			<div class="settings-dropdown" id="settings-dropdown">
+				<div class="settings-dropdown-section"><?php esc_html_e( 'Layout', 'my-apps' ); ?></div>
+				<button type="button" class="settings-dropdown-item" data-action="layout-flow">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v2H3zm0 4h12v2H3zm0 4h18v2H3zm0 4h12v2H3z"/></svg>
+					<?php esc_html_e( 'Flow', 'my-apps' ); ?>
+				</button>
+				<button type="button" class="settings-dropdown-item" data-action="layout-grid">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
+					<?php esc_html_e( 'Grid', 'my-apps' ); ?>
+				</button>
+				<div class="settings-grid-only" id="settings-grid-only">
+					<div class="settings-dropdown-section"><?php esc_html_e( 'Columns', 'my-apps' ); ?> <span id="grid-columns-value"></span></div>
+					<div class="settings-dropdown-slider">
+						<input type="range" id="setting-grid-columns" min="3" max="12" step="1" value="6">
+					</div>
+				</div>
+				<div class="settings-dropdown-section"><?php esc_html_e( 'Icon Size', 'my-apps' ); ?></div>
+				<div class="settings-dropdown-slider">
+					<input type="range" id="setting-icon-size" min="40" max="100" step="5" value="60">
+				</div>
+				<div class="settings-dropdown-section"><?php esc_html_e( 'Spacing', 'my-apps' ); ?></div>
+				<div class="settings-dropdown-slider">
+					<input type="range" id="setting-spacing" min="4" max="40" step="2" value="16">
+				</div>
+				<div class="settings-dropdown-divider"></div>
 				<button type="button" class="settings-dropdown-item" data-action="export">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
 					<?php esc_html_e( 'Export', 'my-apps' ); ?>

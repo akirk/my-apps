@@ -99,14 +99,9 @@
 	var PENDING_INSTALL_KEY = 'my_apps_pending_install';
 
 	function savePendingInstall(app, blueprintUrl, gradient) {
-		var currentSlugs = [];
-		container.querySelectorAll('.app-icon[data-slug]').forEach(function(el) {
-			currentSlugs.push(el.dataset.slug);
-		});
 		localStorage.setItem(PENDING_INSTALL_KEY, JSON.stringify({
 			title: app.title,
 			description: app.description || '',
-			slugsBefore: currentSlugs,
 			blueprintUrl: blueprintUrl,
 			gradient: gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)'
 		}));
@@ -117,11 +112,6 @@
 		if (!raw) return;
 		localStorage.removeItem(PENDING_INSTALL_KEY);
 
-		// Prevent re-processing on subsequent reloads
-		var lastInstalled = localStorage.getItem('my_apps_last_installed');
-		if (lastInstalled === raw) return;
-		localStorage.setItem('my_apps_last_installed', raw);
-
 		var pending;
 		try {
 			pending = JSON.parse(raw);
@@ -129,25 +119,7 @@
 			return;
 		}
 
-		// Compare current slugs and URLs to the snapshot
-		var currentSlugs = [];
-		var currentUrls = [];
-		container.querySelectorAll('.app-icon[data-slug]').forEach(function(el) {
-			currentSlugs.push(el.dataset.slug);
-			if (el.dataset.url) currentUrls.push(el.dataset.url);
-		});
-
-		var newSlugs = currentSlugs.filter(function(s) {
-			return pending.slugsBefore.indexOf(s) === -1;
-		});
-
-		// A new app was already added by the plugin itself — nothing to do
-		if (newSlugs.length > 0) {
-			showToast(pending.title + ' installed');
-			return;
-		}
-
-		// Also check if an app with a matching name already exists
+		// Check if an app with the same name already exists
 		var existingNames = [];
 		container.querySelectorAll('.app-title').forEach(function(el) {
 			existingNames.push(el.textContent.trim().toLowerCase());

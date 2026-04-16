@@ -517,6 +517,18 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	white-space: nowrap;
 }
 
+.app-store-badge-modified {
+	color: #9a6700;
+	background: #fff8c5;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+
+.app-store-badge-modified:hover {
+	color: #953800;
+	background: #ffd8b5;
+}
+
 .app-store-author {
 	font-size: 11px;
 	color: #a7aaad;
@@ -766,6 +778,28 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	fill: currentColor;
 }
 
+/* Toast */
+.my-apps-toast {
+	position: fixed;
+	bottom: 20px;
+	left: 50%;
+	transform: translateX(-50%) translateY(20px);
+	background: rgba(0, 0, 0, 0.85);
+	color: #fff;
+	padding: 10px 20px;
+	border-radius: 8px;
+	font-size: 14px;
+	z-index: 10000;
+	opacity: 0;
+	transition: opacity 0.3s, transform 0.3s;
+	pointer-events: none;
+}
+
+.my-apps-toast.visible {
+	opacity: 1;
+	transform: translateX(-50%) translateY(0);
+}
+
 /* Screenshots */
 .app-detail-screenshots {
 	display: flex;
@@ -855,6 +889,29 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .app-detail-recipe-link:hover {
 	text-decoration: underline;
+}
+
+.app-detail-recipe-source {
+	font-size: 12px;
+	color: #757575;
+}
+
+.app-detail-recipe-source a {
+	font-size: 12px;
+	color: #757575;
+	text-transform: none;
+	word-break: break-all;
+}
+
+.app-detail-recipe-source a:hover {
+	color: #3858e9;
+}
+
+.app-detail-recipe-ref {
+	font-size: 12px;
+	background: #f0f0f0;
+	padding: 1px 5px;
+	border-radius: 4px;
 }
 
 .app-detail-landing-path {

@@ -31,6 +31,68 @@
 	const APPS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 
+	// ── Custom Blueprint Storage (localStorage) ─────────────
+	var CUSTOM_BLUEPRINTS_KEY = 'my_apps_custom_blueprints';
+
+	function getCustomBlueprints() {
+		try {
+			return JSON.parse(localStorage.getItem(CUSTOM_BLUEPRINTS_KEY)) || {};
+		} catch (e) {
+			return {};
+		}
+	}
+
+	function saveCustomBlueprint(path, meta, blueprint, overrides) {
+		var custom = getCustomBlueprints();
+		custom[path] = { meta: meta, blueprint: blueprint, overrides: overrides || null };
+		localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
+	}
+
+	function deleteCustomBlueprint(path) {
+		var custom = getCustomBlueprints();
+		delete custom[path];
+		localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
+	}
+
+	function mergeCustomBlueprints(data) {
+		var custom = getCustomBlueprints();
+		Object.keys(custom).forEach(function(path) {
+			var entry = custom[path];
+			// If this overrides an existing app, replace it
+			if (entry.overrides && data[entry.overrides]) {
+				delete data[entry.overrides];
+			}
+			data[path] = entry.meta;
+			data[path]._custom = true;
+			if (entry.overrides) {
+				data[path]._overrides = entry.overrides;
+			}
+		});
+		return data;
+	}
+
+	function getBlueprintUrl(path) {
+		var custom = getCustomBlueprints();
+		if (custom[path]) {
+			return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(custom[path].blueprint))));
+		}
+		return APPS_BASE_URL + path;
+	}
+
+	function showToast(message) {
+		var existing = document.querySelector('.my-apps-toast');
+		if (existing) existing.remove();
+		var toast = document.createElement('div');
+		toast.className = 'my-apps-toast';
+		toast.textContent = message;
+		document.body.appendChild(toast);
+		setTimeout(function() { toast.classList.add('visible'); }, 10);
+		setTimeout(function() {
+			toast.classList.remove('visible');
+			setTimeout(function() { toast.remove(); }, 300);
+		}, 3000);
+	}
+
 	var emojis = [
 		{ emoji: '📱', keywords: 'phone mobile smartphone device' },
 		{ emoji: '💻', keywords: 'laptop computer mac pc device' },
@@ -1334,9 +1396,9 @@
 		fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
-				appStoreData = data;
-				buildAppStoreNav(data);
-				renderAppStore(data);
+				appStoreData = mergeCustomBlueprints(data);
+				buildAppStoreNav(appStoreData);
+				renderAppStore(appStoreData);
 				bindAppStoreEvents();
 			})
 			.catch(function() {
@@ -1368,7 +1430,89 @@
 		});
 	}
 
+	function handleBlueprintPaste(e) {
+		var text = (e.clipboardData || window.clipboardData).getData('text');
+		if (!text) return;
+
+		var blueprint;
+		try {
+			blueprint = JSON.parse(text);
+		} catch (err) {
+			showToast('Pasted text is not valid JSON');
+			return;
+		}
+
+		// Validate it looks like a blueprint
+		if (!blueprint.steps && !blueprint.meta && !(blueprint.$schema && blueprint.$schema.indexOf('blueprint') !== -1)) {
+			showToast('Pasted JSON is not a valid blueprint');
+			return;
+		}
+
+		e.preventDefault();
+
+		var meta = blueprint.meta || {};
+		var title = meta.title || 'Untitled App';
+		var description = meta.description || '';
+		var author = meta.author || '';
+
+		// Check for existing app with matching title
+		var matchedPath = null;
+		if (appStoreData) {
+			Object.keys(appStoreData).forEach(function(path) {
+				if (appStoreData[path].title === title) {
+					matchedPath = path;
+				}
+			});
+		}
+
+		// Grab original categories before removing
+		var originalCategories = (matchedPath && appStoreData[matchedPath])
+			? appStoreData[matchedPath].categories
+			: null;
+
+		// Resolve the true original path (follow existing override chain)
+		var overridesPath = matchedPath;
+		if (matchedPath && appStoreData[matchedPath]._overrides) {
+			overridesPath = appStoreData[matchedPath]._overrides;
+		}
+
+		// Use the original path as key for overrides, generate new key for custom apps
+		var customPath = overridesPath || ('custom/' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
+
+		if (matchedPath) {
+			if (!confirm('An app named "' + title + '" already exists. Override it with your pasted blueprint?')) {
+				return;
+			}
+			// Only delete if the key changes (avoid re-inserting at end)
+			if (matchedPath !== customPath) {
+				delete appStoreData[matchedPath];
+			}
+		}
+
+		var appMeta = {
+			title: title,
+			description: description,
+			author: author,
+			categories: originalCategories || ['Custom']
+		};
+
+		// Only set overridesPath if this actually overrides a non-custom app
+		var actualOverrides = (overridesPath && overridesPath !== customPath) ? overridesPath : null;
+		saveCustomBlueprint(customPath, appMeta, blueprint, actualOverrides);
+
+		// Merge into current data
+		appMeta._custom = true;
+		if (actualOverrides) appMeta._overrides = actualOverrides;
+		appStoreData[customPath] = appMeta;
+
+		buildAppStoreNav(appStoreData);
+		renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+		showToast(matchedPath ? '"' + title + '" overridden with custom blueprint' : '"' + title + '" added');
+	}
+
 	function bindAppStoreEvents() {
+		installSoftwareModal.addEventListener('paste', handleBlueprintPaste);
+
 		appStoreNav.addEventListener('click', function(e) {
 			var item = e.target.closest('.app-store-nav-item');
 			if (!item) return;
@@ -1443,7 +1587,7 @@
 			}
 
 			hasResults = true;
-			var blueprintUrl = APPS_BASE_URL + path;
+			var blueprintUrl = getBlueprintUrl(path);
 
 			var itemEl = document.createElement('div');
 			itemEl.className = 'app-store-item';
@@ -1500,6 +1644,31 @@
 			badgeEl.className = 'app-store-badge';
 			badgeEl.textContent = 'Free, open source';
 			metaEl.appendChild(badgeEl);
+
+			if (app._custom) {
+				var modBadge = document.createElement('span');
+				modBadge.className = 'app-store-badge app-store-badge-modified';
+				modBadge.dataset.label = app._overrides ? 'Modified' : 'Custom';
+				modBadge.dataset.hoverLabel = app._overrides ? 'Revert' : 'Remove';
+				modBadge.textContent = modBadge.dataset.label;
+				modBadge.addEventListener('mouseenter', function() { modBadge.textContent = modBadge.dataset.hoverLabel; });
+				modBadge.addEventListener('mouseleave', function() { modBadge.textContent = modBadge.dataset.label; });
+				(function(badgeEl, p) {
+					badgeEl.addEventListener('click', function(e) {
+						e.stopPropagation();
+						deleteCustomBlueprint(p);
+						fetch(APPS_INDEX_URL)
+							.then(function(res) { return res.json(); })
+							.then(function(data) {
+								appStoreData = mergeCustomBlueprints(data);
+								buildAppStoreNav(appStoreData);
+								renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+								showToast(app._overrides ? 'Original restored' : 'Custom app removed');
+							});
+					});
+				})(modBadge, path);
+				metaEl.appendChild(modBadge);
+			}
 
 			if (app.author) {
 				var authorEl = document.createElement('span');
@@ -1647,6 +1816,29 @@
 		badge.textContent = 'Free, open source';
 		metaRow.appendChild(badge);
 
+		if (app._custom) {
+			var detailModBadge = document.createElement('span');
+			detailModBadge.className = 'app-store-badge app-store-badge-modified';
+			detailModBadge.dataset.label = app._overrides ? 'Modified' : 'Custom';
+			detailModBadge.dataset.hoverLabel = app._overrides ? 'Revert' : 'Remove';
+			detailModBadge.textContent = detailModBadge.dataset.label;
+			detailModBadge.addEventListener('mouseenter', function() { detailModBadge.textContent = detailModBadge.dataset.hoverLabel; });
+			detailModBadge.addEventListener('mouseleave', function() { detailModBadge.textContent = detailModBadge.dataset.label; });
+			detailModBadge.addEventListener('click', function() {
+				deleteCustomBlueprint(appPath);
+				fetch(APPS_INDEX_URL)
+					.then(function(res) { return res.json(); })
+					.then(function(data) {
+						appStoreData = mergeCustomBlueprints(data);
+						buildAppStoreNav(appStoreData);
+						closeAppDetail();
+						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+						showToast(app._overrides ? 'Original restored' : 'Custom app removed');
+					});
+			});
+			metaRow.appendChild(detailModBadge);
+		}
+
 		if (app.categories && app.categories.length) {
 			var catSpan = document.createElement('span');
 			catSpan.className = 'app-detail-categories';
@@ -1753,8 +1945,12 @@
 		appStoreContent.appendChild(detail);
 
 		// Fetch the individual blueprint to show recipe steps
-		fetch(blueprintUrl)
-			.then(function(res) { return res.json(); })
+		var customBlueprints = getCustomBlueprints();
+		var blueprintPromise = customBlueprints[appPath]
+			? Promise.resolve(customBlueprints[appPath].blueprint)
+			: fetch(blueprintUrl).then(function(res) { return res.json(); });
+
+		blueprintPromise
 			.then(function(blueprint) {
 				recipeLoading.remove();
 
@@ -1805,6 +2001,46 @@
 						link.textContent = pluginInfo.name;
 						li.appendChild(link);
 
+						if (step.pluginData) {
+							var sourceEl = document.createElement('span');
+							sourceEl.className = 'app-detail-recipe-source';
+							if (step.pluginData.resource === 'wordpress.org/plugins') {
+								sourceEl.textContent = ' from wordpress.org';
+							} else if (step.pluginData.resource === 'git:directory') {
+								sourceEl.textContent = ' from git';
+								if (step.pluginData.url) {
+									sourceEl.appendChild(document.createTextNode(' '));
+									var srcLink = document.createElement('a');
+									srcLink.href = step.pluginData.url;
+									srcLink.target = '_blank';
+									srcLink.rel = 'noopener noreferrer';
+									srcLink.className = 'app-detail-recipe-link';
+									srcLink.textContent = step.pluginData.url.replace(/https?:\/\//, '');
+									sourceEl.appendChild(srcLink);
+								}
+								if (step.pluginData.ref) {
+									var refLabel = step.pluginData.refType || 'ref';
+									sourceEl.appendChild(document.createTextNode(' (' + refLabel + ': '));
+									var refCode = document.createElement('code');
+									refCode.className = 'app-detail-recipe-ref';
+									refCode.textContent = step.pluginData.ref;
+									sourceEl.appendChild(refCode);
+									sourceEl.appendChild(document.createTextNode(')'));
+								}
+							} else if (step.pluginData.url) {
+								sourceEl.textContent = ' from URL';
+								var urlLink = document.createElement('a');
+								urlLink.href = step.pluginData.url;
+								urlLink.target = '_blank';
+								urlLink.rel = 'noopener noreferrer';
+								urlLink.className = 'app-detail-recipe-link';
+								urlLink.textContent = step.pluginData.url.replace(/https?:\/\//, '');
+								sourceEl.appendChild(document.createTextNode(' '));
+								sourceEl.appendChild(urlLink);
+							}
+							li.appendChild(sourceEl);
+						}
+
 						// Fetch GitHub info if available
 						if (pluginInfo.githubRepo) {
 							fetchGithubInfo(pluginInfo.githubRepo, li);
@@ -1819,6 +2055,46 @@
 						themeLink.className = 'app-detail-recipe-link';
 						themeLink.textContent = themeInfo.name;
 						li.appendChild(themeLink);
+
+						if (step.themeData) {
+							var themeSourceEl = document.createElement('span');
+							themeSourceEl.className = 'app-detail-recipe-source';
+							if (step.themeData.resource === 'wordpress.org/themes') {
+								themeSourceEl.textContent = ' from wordpress.org';
+							} else if (step.themeData.resource === 'git:directory') {
+								themeSourceEl.textContent = ' from git';
+								if (step.themeData.url) {
+									themeSourceEl.appendChild(document.createTextNode(' '));
+									var themeSrcLink = document.createElement('a');
+									themeSrcLink.href = step.themeData.url;
+									themeSrcLink.target = '_blank';
+									themeSrcLink.rel = 'noopener noreferrer';
+									themeSrcLink.className = 'app-detail-recipe-link';
+									themeSrcLink.textContent = step.themeData.url.replace(/https?:\/\//, '');
+									themeSourceEl.appendChild(themeSrcLink);
+								}
+								if (step.themeData.ref) {
+									var themeRefLabel = step.themeData.refType || 'ref';
+									themeSourceEl.appendChild(document.createTextNode(' (' + themeRefLabel + ': '));
+									var themeRefCode = document.createElement('code');
+									themeRefCode.className = 'app-detail-recipe-ref';
+									themeRefCode.textContent = step.themeData.ref;
+									themeSourceEl.appendChild(themeRefCode);
+									themeSourceEl.appendChild(document.createTextNode(')'));
+								}
+							} else if (step.themeData.url) {
+								themeSourceEl.textContent = ' from URL';
+								var themeUrlLink = document.createElement('a');
+								themeUrlLink.href = step.themeData.url;
+								themeUrlLink.target = '_blank';
+								themeUrlLink.rel = 'noopener noreferrer';
+								themeUrlLink.className = 'app-detail-recipe-link';
+								themeUrlLink.textContent = step.themeData.url.replace(/https?:\/\//, '');
+								themeSourceEl.appendChild(document.createTextNode(' '));
+								themeSourceEl.appendChild(themeUrlLink);
+							}
+							li.appendChild(themeSourceEl);
+						}
 					} else if (step.step === 'runPHP') {
 						var caption = (step.progress && step.progress.caption) || 'Run PHP code';
 						li.appendChild(document.createTextNode(caption + ' '));
@@ -2034,7 +2310,7 @@
 
 		if (appParam && appStoreData && appStoreData[appParam]) {
 			var app = appStoreData[appParam];
-			var blueprintUrl = APPS_BASE_URL + appParam;
+			var blueprintUrl = getBlueprintUrl(appParam);
 			var cats = app.categories || [];
 			var gradient = defaultGradient;
 			for (var i = cats.length - 1; i >= 0; i--) {
@@ -2067,7 +2343,7 @@
 					clearInterval(checkInterval);
 					if (appStoreData[appParam]) {
 						var app = appStoreData[appParam];
-						var blueprintUrl = APPS_BASE_URL + appParam;
+						var blueprintUrl = getBlueprintUrl(appParam);
 						var cats = app.categories || [];
 						var gradient = defaultGradient;
 						for (var i = cats.length - 1; i >= 0; i--) {

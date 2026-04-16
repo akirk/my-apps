@@ -31,6 +31,68 @@
 	const APPS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 
+	// ── Custom Blueprint Storage (localStorage) ─────────────
+	var CUSTOM_BLUEPRINTS_KEY = 'my_apps_custom_blueprints';
+
+	function getCustomBlueprints() {
+		try {
+			return JSON.parse(localStorage.getItem(CUSTOM_BLUEPRINTS_KEY)) || {};
+		} catch (e) {
+			return {};
+		}
+	}
+
+	function saveCustomBlueprint(path, meta, blueprint, overrides) {
+		var custom = getCustomBlueprints();
+		custom[path] = { meta: meta, blueprint: blueprint, overrides: overrides || null };
+		localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
+	}
+
+	function deleteCustomBlueprint(path) {
+		var custom = getCustomBlueprints();
+		delete custom[path];
+		localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
+	}
+
+	function mergeCustomBlueprints(data) {
+		var custom = getCustomBlueprints();
+		Object.keys(custom).forEach(function(path) {
+			var entry = custom[path];
+			// If this overrides an existing app, replace it
+			if (entry.overrides && data[entry.overrides]) {
+				delete data[entry.overrides];
+			}
+			data[path] = entry.meta;
+			data[path]._custom = true;
+			if (entry.overrides) {
+				data[path]._overrides = entry.overrides;
+			}
+		});
+		return data;
+	}
+
+	function getBlueprintUrl(path) {
+		var custom = getCustomBlueprints();
+		if (custom[path]) {
+			return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(custom[path].blueprint))));
+		}
+		return APPS_BASE_URL + path;
+	}
+
+	function showToast(message) {
+		var existing = document.querySelector('.my-apps-toast');
+		if (existing) existing.remove();
+		var toast = document.createElement('div');
+		toast.className = 'my-apps-toast';
+		toast.textContent = message;
+		document.body.appendChild(toast);
+		setTimeout(function() { toast.classList.add('visible'); }, 10);
+		setTimeout(function() {
+			toast.classList.remove('visible');
+			setTimeout(function() { toast.remove(); }, 300);
+		}, 3000);
+	}
+
 	var emojis = [
 		{ emoji: '📱', keywords: 'phone mobile smartphone device' },
 		{ emoji: '💻', keywords: 'laptop computer mac pc device' },
@@ -1334,9 +1396,9 @@
 		fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
-				appStoreData = data;
-				buildAppStoreNav(data);
-				renderAppStore(data);
+				appStoreData = mergeCustomBlueprints(data);
+				buildAppStoreNav(appStoreData);
+				renderAppStore(appStoreData);
 				bindAppStoreEvents();
 			})
 			.catch(function() {
@@ -1368,7 +1430,84 @@
 		});
 	}
 
+	function handleBlueprintPaste(e) {
+		var text = (e.clipboardData || window.clipboardData).getData('text');
+		if (!text) return;
+
+		var blueprint;
+		try {
+			blueprint = JSON.parse(text);
+		} catch (err) {
+			return; // Not JSON, ignore silently
+		}
+
+		// Validate it looks like a blueprint
+		if (!blueprint.steps && !blueprint.meta && !(blueprint.$schema && blueprint.$schema.indexOf('blueprint') !== -1)) {
+			return;
+		}
+
+		e.preventDefault();
+
+		var meta = blueprint.meta || {};
+		var title = meta.title || 'Untitled App';
+		var description = meta.description || '';
+		var author = meta.author || '';
+
+		// Check for existing app with matching title
+		var matchedPath = null;
+		if (appStoreData) {
+			Object.keys(appStoreData).forEach(function(path) {
+				if (appStoreData[path].title === title) {
+					matchedPath = path;
+				}
+			});
+		}
+
+		// Grab original categories before removing
+		var originalCategories = (matchedPath && appStoreData[matchedPath])
+			? appStoreData[matchedPath].categories
+			: null;
+
+		// Resolve the true original path (follow existing override chain)
+		var overridesPath = matchedPath;
+		if (matchedPath && appStoreData[matchedPath]._overrides) {
+			overridesPath = appStoreData[matchedPath]._overrides;
+		}
+
+		if (matchedPath) {
+			if (!confirm('An app named "' + title + '" already exists. Override it with your pasted blueprint?')) {
+				return;
+			}
+			delete appStoreData[matchedPath];
+		}
+
+		// Use the original path as key for overrides, generate new key for custom apps
+		var customPath = overridesPath || ('custom/' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
+
+		var appMeta = {
+			title: title,
+			description: description,
+			author: author,
+			categories: originalCategories || ['Custom']
+		};
+
+		// Only set overridesPath if this actually overrides a non-custom app
+		var actualOverrides = (overridesPath && overridesPath !== customPath) ? overridesPath : null;
+		saveCustomBlueprint(customPath, appMeta, blueprint, actualOverrides);
+
+		// Merge into current data
+		appMeta._custom = true;
+		if (actualOverrides) appMeta._overrides = actualOverrides;
+		appStoreData[customPath] = appMeta;
+
+		buildAppStoreNav(appStoreData);
+		renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+		showToast(matchedPath ? '"' + title + '" overridden with custom blueprint' : '"' + title + '" added');
+	}
+
 	function bindAppStoreEvents() {
+		installSoftwareModal.addEventListener('paste', handleBlueprintPaste);
+
 		appStoreNav.addEventListener('click', function(e) {
 			var item = e.target.closest('.app-store-nav-item');
 			if (!item) return;
@@ -1443,7 +1582,7 @@
 			}
 
 			hasResults = true;
-			var blueprintUrl = APPS_BASE_URL + path;
+			var blueprintUrl = getBlueprintUrl(path);
 
 			var itemEl = document.createElement('div');
 			itemEl.className = 'app-store-item';
@@ -1500,6 +1639,13 @@
 			badgeEl.className = 'app-store-badge';
 			badgeEl.textContent = 'Free, open source';
 			metaEl.appendChild(badgeEl);
+
+			if (app._custom) {
+				var modBadge = document.createElement('span');
+				modBadge.className = 'app-store-badge app-store-badge-modified';
+				modBadge.textContent = app._overrides ? 'Modified' : 'Custom';
+				metaEl.appendChild(modBadge);
+			}
 
 			if (app.author) {
 				var authorEl = document.createElement('span');
@@ -1707,6 +1853,27 @@
 		headerActions.appendChild(installBtn);
 		headerActions.appendChild(shareBtn);
 
+		if (app._custom) {
+			var restoreBtn = document.createElement('button');
+			restoreBtn.type = 'button';
+			restoreBtn.className = 'app-detail-restore-btn';
+			restoreBtn.textContent = app._overrides ? 'Restore Original' : 'Remove';
+			restoreBtn.addEventListener('click', function() {
+				deleteCustomBlueprint(appPath);
+				// Re-fetch and rebuild store data
+				fetch(APPS_INDEX_URL)
+					.then(function(res) { return res.json(); })
+					.then(function(data) {
+						appStoreData = mergeCustomBlueprints(data);
+						buildAppStoreNav(appStoreData);
+						closeAppDetail();
+						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+						showToast(app._overrides ? 'Original restored' : 'Custom app removed');
+					});
+			});
+			headerActions.appendChild(restoreBtn);
+		}
+
 		headerEl.appendChild(iconEl);
 		headerEl.appendChild(headerInfo);
 		headerEl.appendChild(headerActions);
@@ -1753,8 +1920,12 @@
 		appStoreContent.appendChild(detail);
 
 		// Fetch the individual blueprint to show recipe steps
-		fetch(blueprintUrl)
-			.then(function(res) { return res.json(); })
+		var customBlueprints = getCustomBlueprints();
+		var blueprintPromise = customBlueprints[appPath]
+			? Promise.resolve(customBlueprints[appPath].blueprint)
+			: fetch(blueprintUrl).then(function(res) { return res.json(); });
+
+		blueprintPromise
 			.then(function(blueprint) {
 				recipeLoading.remove();
 
@@ -2034,7 +2205,7 @@
 
 		if (appParam && appStoreData && appStoreData[appParam]) {
 			var app = appStoreData[appParam];
-			var blueprintUrl = APPS_BASE_URL + appParam;
+			var blueprintUrl = getBlueprintUrl(appParam);
 			var cats = app.categories || [];
 			var gradient = defaultGradient;
 			for (var i = cats.length - 1; i >= 0; i--) {
@@ -2067,7 +2238,7 @@
 					clearInterval(checkInterval);
 					if (appStoreData[appParam]) {
 						var app = appStoreData[appParam];
-						var blueprintUrl = APPS_BASE_URL + appParam;
+						var blueprintUrl = getBlueprintUrl(appParam);
 						var cats = app.categories || [];
 						var gradient = defaultGradient;
 						for (var i = cats.length - 1; i >= 0; i--) {

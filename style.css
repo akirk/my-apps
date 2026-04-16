@@ -1144,13 +1144,55 @@ body.my-apps-launcher .app-detail-share-btn:active {
 }
 
 .settings-dropdown-slider {
-	padding: 4px 16px 8px;
+	padding: 4px 16px 10px;
 }
 
 .settings-dropdown-slider input[type="range"] {
+	-webkit-appearance: none;
+	appearance: none;
 	width: 100%;
+	height: 20px;
 	margin: 0;
-	accent-color: #3858e9;
+	background: transparent;
+	border: 0;
+	outline: none;
+	cursor: pointer;
+}
+
+.settings-dropdown-slider input[type="range"]::-webkit-slider-runnable-track {
+	height: 4px;
+	background: #e0e0e0;
+	border-radius: 2px;
+}
+
+.settings-dropdown-slider input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: #3858e9;
+	border: none;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+	cursor: pointer;
+	margin-top: -5px;
+}
+
+.settings-dropdown-slider input[type="range"]::-moz-range-thumb {
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: #3858e9;
+	border: none;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+	cursor: pointer;
+}
+
+.settings-dropdown-slider input[type="range"]::-moz-range-track {
+	height: 4px;
+	background: #e0e0e0;
+	border-radius: 2px;
+	border: none;
 }
 
 .settings-grid-only {

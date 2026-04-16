@@ -1034,7 +1034,7 @@
 		});
 		var gridOnly = document.getElementById('settings-grid-only');
 		if (gridOnly) {
-			gridOnly.style.display = mode === 'grid' ? '' : 'none';
+			gridOnly.style.display = mode === 'grid' ? 'block' : 'none';
 		}
 	}
 

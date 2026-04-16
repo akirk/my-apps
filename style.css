@@ -520,6 +520,15 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 .app-store-badge-modified {
 	color: #9a6700;
 	background: #fff8c5;
+	cursor: pointer;
+	min-width: 52px;
+	text-align: center;
+	transition: all 0.15s;
+}
+
+.app-store-badge-modified:hover {
+	color: #fff;
+	background: #cf222e;
 }
 
 .app-store-author {
@@ -769,24 +778,6 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .app-detail-share-btn svg {
 	fill: currentColor;
-}
-
-.app-detail-restore-btn {
-	padding: 5px 14px;
-	border: 1px solid #d0d5dd;
-	border-radius: 14px;
-	background: #fff;
-	color: #9a6700;
-	font-size: 12px;
-	font-weight: 500;
-	cursor: pointer;
-	white-space: nowrap;
-	transition: all 0.15s;
-}
-
-.app-detail-restore-btn:hover {
-	background: #fff8c5;
-	border-color: #9a6700;
 }
 
 /* Toast */

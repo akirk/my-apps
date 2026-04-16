@@ -1648,7 +1648,25 @@
 			if (app._custom) {
 				var modBadge = document.createElement('span');
 				modBadge.className = 'app-store-badge app-store-badge-modified';
-				modBadge.textContent = app._overrides ? 'Modified' : 'Custom';
+				modBadge.dataset.label = app._overrides ? 'Modified' : 'Custom';
+				modBadge.dataset.hoverLabel = app._overrides ? 'Restore' : 'Remove';
+				modBadge.textContent = modBadge.dataset.label;
+				modBadge.addEventListener('mouseenter', function() { modBadge.textContent = modBadge.dataset.hoverLabel; });
+				modBadge.addEventListener('mouseleave', function() { modBadge.textContent = modBadge.dataset.label; });
+				(function(badgeEl, p) {
+					badgeEl.addEventListener('click', function(e) {
+						e.stopPropagation();
+						deleteCustomBlueprint(p);
+						fetch(APPS_INDEX_URL)
+							.then(function(res) { return res.json(); })
+							.then(function(data) {
+								appStoreData = mergeCustomBlueprints(data);
+								buildAppStoreNav(appStoreData);
+								renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+								showToast(app._overrides ? 'Original restored' : 'Custom app removed');
+							});
+					});
+				})(modBadge, path);
 				metaEl.appendChild(modBadge);
 			}
 
@@ -1798,6 +1816,29 @@
 		badge.textContent = 'Free, open source';
 		metaRow.appendChild(badge);
 
+		if (app._custom) {
+			var detailModBadge = document.createElement('span');
+			detailModBadge.className = 'app-store-badge app-store-badge-modified';
+			detailModBadge.dataset.label = app._overrides ? 'Modified' : 'Custom';
+			detailModBadge.dataset.hoverLabel = app._overrides ? 'Restore' : 'Remove';
+			detailModBadge.textContent = detailModBadge.dataset.label;
+			detailModBadge.addEventListener('mouseenter', function() { detailModBadge.textContent = detailModBadge.dataset.hoverLabel; });
+			detailModBadge.addEventListener('mouseleave', function() { detailModBadge.textContent = detailModBadge.dataset.label; });
+			detailModBadge.addEventListener('click', function() {
+				deleteCustomBlueprint(appPath);
+				fetch(APPS_INDEX_URL)
+					.then(function(res) { return res.json(); })
+					.then(function(data) {
+						appStoreData = mergeCustomBlueprints(data);
+						buildAppStoreNav(appStoreData);
+						closeAppDetail();
+						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+						showToast(app._overrides ? 'Original restored' : 'Custom app removed');
+					});
+			});
+			metaRow.appendChild(detailModBadge);
+		}
+
 		if (app.categories && app.categories.length) {
 			var catSpan = document.createElement('span');
 			catSpan.className = 'app-detail-categories';
@@ -1857,27 +1898,6 @@
 
 		headerActions.appendChild(installBtn);
 		headerActions.appendChild(shareBtn);
-
-		if (app._custom) {
-			var restoreBtn = document.createElement('button');
-			restoreBtn.type = 'button';
-			restoreBtn.className = 'app-detail-restore-btn';
-			restoreBtn.textContent = app._overrides ? 'Restore Original' : 'Remove';
-			restoreBtn.addEventListener('click', function() {
-				deleteCustomBlueprint(appPath);
-				// Re-fetch and rebuild store data
-				fetch(APPS_INDEX_URL)
-					.then(function(res) { return res.json(); })
-					.then(function(data) {
-						appStoreData = mergeCustomBlueprints(data);
-						buildAppStoreNav(appStoreData);
-						closeAppDetail();
-						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
-						showToast(app._overrides ? 'Original restored' : 'Custom app removed');
-					});
-			});
-			headerActions.appendChild(restoreBtn);
-		}
 
 		headerEl.appendChild(iconEl);
 		headerEl.appendChild(headerInfo);

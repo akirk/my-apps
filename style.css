@@ -521,14 +521,12 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	color: #9a6700;
 	background: #fff8c5;
 	cursor: pointer;
-	min-width: 52px;
-	text-align: center;
 	transition: all 0.15s;
 }
 
 .app-store-badge-modified:hover {
-	color: #fff;
-	background: #cf222e;
+	color: #953800;
+	background: #ffd8b5;
 }
 
 .app-store-author {

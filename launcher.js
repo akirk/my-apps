@@ -1649,7 +1649,7 @@
 				var modBadge = document.createElement('span');
 				modBadge.className = 'app-store-badge app-store-badge-modified';
 				modBadge.dataset.label = app._overrides ? 'Modified' : 'Custom';
-				modBadge.dataset.hoverLabel = app._overrides ? 'Restore' : 'Remove';
+				modBadge.dataset.hoverLabel = app._overrides ? 'Revert' : 'Remove';
 				modBadge.textContent = modBadge.dataset.label;
 				modBadge.addEventListener('mouseenter', function() { modBadge.textContent = modBadge.dataset.hoverLabel; });
 				modBadge.addEventListener('mouseleave', function() { modBadge.textContent = modBadge.dataset.label; });
@@ -1820,7 +1820,7 @@
 			var detailModBadge = document.createElement('span');
 			detailModBadge.className = 'app-store-badge app-store-badge-modified';
 			detailModBadge.dataset.label = app._overrides ? 'Modified' : 'Custom';
-			detailModBadge.dataset.hoverLabel = app._overrides ? 'Restore' : 'Remove';
+			detailModBadge.dataset.hoverLabel = app._overrides ? 'Revert' : 'Remove';
 			detailModBadge.textContent = detailModBadge.dataset.label;
 			detailModBadge.addEventListener('mouseenter', function() { detailModBadge.textContent = detailModBadge.dataset.hoverLabel; });
 			detailModBadge.addEventListener('mouseleave', function() { detailModBadge.textContent = detailModBadge.dataset.label; });

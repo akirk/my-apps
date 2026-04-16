@@ -1476,15 +1476,18 @@
 			overridesPath = appStoreData[matchedPath]._overrides;
 		}
 
+		// Use the original path as key for overrides, generate new key for custom apps
+		var customPath = overridesPath || ('custom/' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
+
 		if (matchedPath) {
 			if (!confirm('An app named "' + title + '" already exists. Override it with your pasted blueprint?')) {
 				return;
 			}
-			delete appStoreData[matchedPath];
+			// Only delete if the key changes (avoid re-inserting at end)
+			if (matchedPath !== customPath) {
+				delete appStoreData[matchedPath];
+			}
 		}
-
-		// Use the original path as key for overrides, generate new key for custom apps
-		var customPath = overridesPath || ('custom/' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
 
 		var appMeta = {
 			title: title,

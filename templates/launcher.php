@@ -42,6 +42,8 @@ if ( $background === 'custom' && $custom_bg ) {
 		</button>
 	</div>
 
+	<div class="greeting" id="greeting"></div>
+
 	<div class="apps-container" id="apps-container">
 		<?php
 		foreach ( $apps as $slug => $_plugin ) :

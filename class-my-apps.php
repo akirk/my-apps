@@ -278,12 +278,13 @@ class My_Apps {
 		$icon_url = isset( $_POST['icon_url'] ) ? esc_url_raw( wp_unslash( $_POST['icon_url'] ) ) : '';
 		$dashicon = isset( $_POST['dashicon'] ) ? sanitize_text_field( wp_unslash( $_POST['dashicon'] ) ) : '';
 		$emoji = isset( $_POST['emoji'] ) ? sanitize_text_field( wp_unslash( $_POST['emoji'] ) ) : '';
+		$gradient = isset( $_POST['gradient'] ) ? sanitize_text_field( wp_unslash( $_POST['gradient'] ) ) : '';
 
 		if ( empty( $name ) || empty( $url ) ) {
 			wp_send_json_error( 'Name and URL are required' );
 		}
 
-		if ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) ) {
+		if ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) && empty( $gradient ) ) {
 			wp_send_json_error( 'An icon is required' );
 		}
 
@@ -297,6 +298,7 @@ class My_Apps {
 			'icon_url' => $icon_url ?: false,
 			'dashicon' => $dashicon ?: false,
 			'emoji'    => $emoji ?: false,
+			'gradient' => $gradient ?: false,
 			'user'     => get_current_user_id(),
 		);
 
@@ -661,7 +663,7 @@ class My_Apps {
 			if ( ! isset( $data['url'], $data['name'] ) ) {
 				continue;
 			}
-			if ( ! isset( $data['icon_url'] ) && ! isset( $data['dashicon'] ) ) {
+			if ( ! isset( $data['icon_url'] ) && ! isset( $data['dashicon'] ) && empty( $data['gradient'] ) && empty( $data['emoji'] ) ) {
 				continue;
 			}
 			$data['plugin'] = 'unknown';

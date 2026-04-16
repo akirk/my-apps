@@ -51,6 +51,8 @@ if ( $background === 'custom' && $custom_bg ) {
 			$icon_html = '';
 			if ( ! empty( $_plugin['icon_url'] ) ) {
 				$icon_html = '<img src="' . esc_attr( $_plugin['icon_url'] ) . '" alt="' . esc_attr( $_plugin['name'] ) . '">';
+			} elseif ( ! empty( $_plugin['gradient'] ) ) {
+				$icon_html = '<div class="app-gradient-icon" style="background: ' . esc_attr( $_plugin['gradient'] ) . '"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/></svg></div>';
 			} elseif ( ! empty( $_plugin['dashicon'] ) ) {
 				$icon_html = '<div class="dashicons ' . esc_attr( $_plugin['dashicon'] ) . '"></div>';
 			} elseif ( ! empty( $_plugin['emoji'] ) ) {
@@ -145,6 +147,8 @@ if ( $background === 'custom' && $custom_bg ) {
 				$icon_html = '';
 				if ( ! empty( $app['icon_url'] ) ) {
 					$icon_html = '<img src="' . esc_attr( $app['icon_url'] ) . '" alt="">';
+				} elseif ( ! empty( $app['gradient'] ) ) {
+					$icon_html = '<span class="app-gradient-icon app-gradient-icon-small" style="background: ' . esc_attr( $app['gradient'] ) . '"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5z"/></svg></span>';
 				} elseif ( ! empty( $app['dashicon'] ) ) {
 					$icon_html = '<span class="dashicons ' . esc_attr( $app['dashicon'] ) . '"></span>';
 				} elseif ( ! empty( $app['emoji'] ) ) {

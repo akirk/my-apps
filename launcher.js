@@ -1978,6 +1978,37 @@
 						link.textContent = pluginInfo.name;
 						li.appendChild(link);
 
+						if (step.pluginData) {
+							var sourceEl = document.createElement('span');
+							sourceEl.className = 'app-detail-recipe-source';
+							if (step.pluginData.resource === 'wordpress.org/plugins') {
+								sourceEl.textContent = ' from wordpress.org';
+							} else if (step.pluginData.resource === 'git:directory') {
+								sourceEl.textContent = ' from git:directory';
+								if (step.pluginData.url) {
+									sourceEl.appendChild(document.createTextNode(' '));
+									var srcLink = document.createElement('a');
+									srcLink.href = step.pluginData.url;
+									srcLink.target = '_blank';
+									srcLink.rel = 'noopener noreferrer';
+									srcLink.className = 'app-detail-recipe-link';
+									srcLink.textContent = step.pluginData.url.replace(/https?:\/\//, '');
+									sourceEl.appendChild(srcLink);
+								}
+							} else if (step.pluginData.url) {
+								sourceEl.textContent = ' from URL';
+								var urlLink = document.createElement('a');
+								urlLink.href = step.pluginData.url;
+								urlLink.target = '_blank';
+								urlLink.rel = 'noopener noreferrer';
+								urlLink.className = 'app-detail-recipe-link';
+								urlLink.textContent = step.pluginData.url.replace(/https?:\/\//, '');
+								sourceEl.appendChild(document.createTextNode(' '));
+								sourceEl.appendChild(urlLink);
+							}
+							li.appendChild(sourceEl);
+						}
+
 						// Fetch GitHub info if available
 						if (pluginInfo.githubRepo) {
 							fetchGithubInfo(pluginInfo.githubRepo, li);
@@ -1992,6 +2023,37 @@
 						themeLink.className = 'app-detail-recipe-link';
 						themeLink.textContent = themeInfo.name;
 						li.appendChild(themeLink);
+
+						if (step.themeData) {
+							var themeSourceEl = document.createElement('span');
+							themeSourceEl.className = 'app-detail-recipe-source';
+							if (step.themeData.resource === 'wordpress.org/themes') {
+								themeSourceEl.textContent = ' from wordpress.org';
+							} else if (step.themeData.resource === 'git:directory') {
+								themeSourceEl.textContent = ' from git:directory';
+								if (step.themeData.url) {
+									themeSourceEl.appendChild(document.createTextNode(' '));
+									var themeSrcLink = document.createElement('a');
+									themeSrcLink.href = step.themeData.url;
+									themeSrcLink.target = '_blank';
+									themeSrcLink.rel = 'noopener noreferrer';
+									themeSrcLink.className = 'app-detail-recipe-link';
+									themeSrcLink.textContent = step.themeData.url.replace(/https?:\/\//, '');
+									themeSourceEl.appendChild(themeSrcLink);
+								}
+							} else if (step.themeData.url) {
+								themeSourceEl.textContent = ' from URL';
+								var themeUrlLink = document.createElement('a');
+								themeUrlLink.href = step.themeData.url;
+								themeUrlLink.target = '_blank';
+								themeUrlLink.rel = 'noopener noreferrer';
+								themeUrlLink.className = 'app-detail-recipe-link';
+								themeUrlLink.textContent = step.themeData.url.replace(/https?:\/\//, '');
+								themeSourceEl.appendChild(document.createTextNode(' '));
+								themeSourceEl.appendChild(themeUrlLink);
+							}
+							li.appendChild(themeSourceEl);
+						}
 					} else if (step.step === 'runPHP') {
 						var caption = (step.progress && step.progress.caption) || 'Run PHP code';
 						li.appendChild(document.createTextNode(caption + ' '));

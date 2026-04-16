@@ -902,6 +902,22 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	text-decoration: underline;
 }
 
+.app-detail-recipe-source {
+	font-size: 12px;
+	color: #757575;
+}
+
+.app-detail-recipe-source a {
+	font-size: 12px;
+	color: #757575;
+	text-transform: none;
+	word-break: break-all;
+}
+
+.app-detail-recipe-source a:hover {
+	color: #3858e9;
+}
+
 .app-detail-landing-path {
 	display: inline-block;
 	padding: 2px 8px;

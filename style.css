@@ -918,6 +918,13 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	color: #3858e9;
 }
 
+.app-detail-recipe-ref {
+	font-size: 12px;
+	background: #f0f0f0;
+	padding: 1px 5px;
+	border-radius: 4px;
+}
+
 .app-detail-landing-path {
 	display: inline-block;
 	padding: 2px 8px;

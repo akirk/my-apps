@@ -1984,7 +1984,7 @@
 							if (step.pluginData.resource === 'wordpress.org/plugins') {
 								sourceEl.textContent = ' from wordpress.org';
 							} else if (step.pluginData.resource === 'git:directory') {
-								sourceEl.textContent = ' from git:directory';
+								sourceEl.textContent = ' from git';
 								if (step.pluginData.url) {
 									sourceEl.appendChild(document.createTextNode(' '));
 									var srcLink = document.createElement('a');
@@ -1994,6 +1994,15 @@
 									srcLink.className = 'app-detail-recipe-link';
 									srcLink.textContent = step.pluginData.url.replace(/https?:\/\//, '');
 									sourceEl.appendChild(srcLink);
+								}
+								if (step.pluginData.ref) {
+									var refLabel = step.pluginData.refType || 'ref';
+									sourceEl.appendChild(document.createTextNode(' (' + refLabel + ': '));
+									var refCode = document.createElement('code');
+									refCode.className = 'app-detail-recipe-ref';
+									refCode.textContent = step.pluginData.ref;
+									sourceEl.appendChild(refCode);
+									sourceEl.appendChild(document.createTextNode(')'));
 								}
 							} else if (step.pluginData.url) {
 								sourceEl.textContent = ' from URL';
@@ -2030,7 +2039,7 @@
 							if (step.themeData.resource === 'wordpress.org/themes') {
 								themeSourceEl.textContent = ' from wordpress.org';
 							} else if (step.themeData.resource === 'git:directory') {
-								themeSourceEl.textContent = ' from git:directory';
+								themeSourceEl.textContent = ' from git';
 								if (step.themeData.url) {
 									themeSourceEl.appendChild(document.createTextNode(' '));
 									var themeSrcLink = document.createElement('a');
@@ -2040,6 +2049,15 @@
 									themeSrcLink.className = 'app-detail-recipe-link';
 									themeSrcLink.textContent = step.themeData.url.replace(/https?:\/\//, '');
 									themeSourceEl.appendChild(themeSrcLink);
+								}
+								if (step.themeData.ref) {
+									var themeRefLabel = step.themeData.refType || 'ref';
+									themeSourceEl.appendChild(document.createTextNode(' (' + themeRefLabel + ': '));
+									var themeRefCode = document.createElement('code');
+									themeRefCode.className = 'app-detail-recipe-ref';
+									themeRefCode.textContent = step.themeData.ref;
+									themeSourceEl.appendChild(themeRefCode);
+									themeSourceEl.appendChild(document.createTextNode(')'));
 								}
 							} else if (step.themeData.url) {
 								themeSourceEl.textContent = ' from URL';

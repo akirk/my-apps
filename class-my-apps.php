@@ -259,6 +259,11 @@ class My_Apps {
 		$additional_apps[ $slug ] = $new_app;
 		update_option( 'my_apps_additional_apps', $additional_apps );
 
+		// Give the new app a sort position at the end.
+		$sort = get_option( 'my_apps_sort', array() );
+		$sort[ $slug ] = empty( $sort ) ? 0 : max( $sort ) + 1;
+		update_option( 'my_apps_sort', $sort );
+
 		wp_send_json_success(
 			array(
 				'slug'     => $slug,
@@ -599,7 +604,7 @@ class My_Apps {
 		}
 
 		$additional_apps = get_option( 'my_apps_additional_apps', array() );
-		foreach ( $additional_apps as $data ) {
+		foreach ( $additional_apps as $slug => $data ) {
 			if ( ! isset( $data['url'], $data['name'] ) ) {
 				continue;
 			}
@@ -615,7 +620,7 @@ class My_Apps {
 					unset( $data['user'] );
 				}
 			}
-			$plugins[] = $data;
+			$plugins[ $slug ] = $data;
 		}
 
 		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );

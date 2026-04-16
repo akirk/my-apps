@@ -117,6 +117,11 @@
 		if (!raw) return;
 		localStorage.removeItem(PENDING_INSTALL_KEY);
 
+		// Prevent re-processing on subsequent reloads
+		var lastInstalled = localStorage.getItem('my_apps_last_installed');
+		if (lastInstalled === raw) return;
+		localStorage.setItem('my_apps_last_installed', raw);
+
 		var pending;
 		try {
 			pending = JSON.parse(raw);

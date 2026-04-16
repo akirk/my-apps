@@ -16,12 +16,20 @@
 	const adminMenuTree = document.getElementById('admin-menu-tree');
 	const adminMenuSearch = document.getElementById('admin-menu-search');
 
+	const addDropdown = document.getElementById('add-dropdown');
+	const installSoftwareModal = document.getElementById('install-software-modal');
+	const appStoreContent = document.getElementById('app-store-content');
+
 	let isEditMode = false;
 	let adminMenuData = null;
+	let appStoreData = null;
 	let sortable = null;
 	let longPressTimer = null;
 	let contextTarget = null;
 	const LONG_PRESS_DURATION = 500;
+	const APPS_INDEX_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/apps.json';
+	const APPS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
+	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 
 	var emojis = [
 		{ emoji: '📱', keywords: 'phone mobile smartphone device' },
@@ -265,6 +273,7 @@
 		initDashiconPicker();
 		bindEvents();
 		bindModalTabEvents();
+		checkDeepLink();
 	}
 
 	function bindModalTabEvents() {
@@ -672,7 +681,31 @@
 		container.addEventListener('click', handleHideClick);
 		container.addEventListener('click', handleAppClick);
 
-		document.querySelector('.add-app-btn').addEventListener('click', openAddModal);
+		document.querySelector('.add-app-btn').addEventListener('click', function(e) {
+			// Don't toggle dropdown if clicking inside it
+			if (e.target.closest('.add-dropdown')) return;
+			e.stopPropagation();
+			addDropdown.classList.toggle('active');
+		});
+
+		addDropdown.addEventListener('click', function(e) {
+			var item = e.target.closest('.add-dropdown-item');
+			if (!item) return;
+			e.stopPropagation();
+			addDropdown.classList.remove('active');
+			var action = item.dataset.action;
+			if (action === 'add-link') {
+				openAddModal();
+			} else if (action === 'install-software') {
+				openInstallSoftwareModal();
+			}
+		});
+
+		document.addEventListener('click', function(e) {
+			if (!e.target.closest('.add-app-btn')) {
+				addDropdown.classList.remove('active');
+			}
+		});
 
 		addAppModal.querySelector('.modal-close').addEventListener('click', closeAddModal);
 		addAppModal.querySelector('.btn-cancel').addEventListener('click', closeAddModal);
@@ -680,6 +713,11 @@
 			if (e.target === addAppModal) closeAddModal();
 		});
 		addAppForm.addEventListener('submit', handleAddApp);
+
+		installSoftwareModal.querySelector('.modal-close').addEventListener('click', closeInstallSoftwareModal);
+		installSoftwareModal.addEventListener('click', function(e) {
+			if (e.target === installSoftwareModal) closeInstallSoftwareModal();
+		});
 
 		document.querySelectorAll('.icon-tab').forEach(function(tab) {
 			tab.addEventListener('click', handleIconTabSwitch);
@@ -691,8 +729,18 @@
 
 		document.addEventListener('keydown', function(e) {
 			if (e.key === 'Escape') {
-				if (addAppModal.classList.contains('active')) {
+				if (installSoftwareModal.classList.contains('active')) {
+					// If on a detail page, go back to list first
+					var url = new URL(window.location);
+					if (url.searchParams.has('app')) {
+						closeAppDetail();
+						return;
+					}
+					closeInstallSoftwareModal();
+				} else if (addAppModal.classList.contains('active')) {
 					closeAddModal();
+				} else if (addDropdown.classList.contains('active')) {
+					addDropdown.classList.remove('active');
 				} else if (bgPicker.classList.contains('active')) {
 					closeBgPicker();
 				} else if (hiddenPopup.classList.contains('active')) {
@@ -975,6 +1023,7 @@
 
 	function openAddModal() {
 		addAppModal.classList.add('active');
+		document.body.style.overflow = 'hidden';
 
 		// Reset to Admin Menu tab
 		document.querySelectorAll('.modal-tab').forEach(function(t) {
@@ -1032,6 +1081,7 @@
 
 	function closeAddModal() {
 		addAppModal.classList.remove('active');
+		document.body.style.overflow = '';
 	}
 
 	function handleIconTabSwitch(e) {
@@ -1236,6 +1286,825 @@
 			method: 'POST',
 			body: formData
 		});
+	}
+
+	// ── Install Software (App Store) ─────────────────────────
+
+	var appStoreNav = document.getElementById('app-store-nav');
+	var appStoreSearchInput = document.getElementById('app-store-search');
+	var appStoreHeading = document.getElementById('app-store-heading');
+	var activeCategory = 'all';
+
+	function openInstallSoftwareModal() {
+		installSoftwareModal.classList.add('active');
+		document.body.style.overflow = 'hidden';
+		if (!appStoreData) {
+			loadAppStore();
+		}
+	}
+
+	function closeInstallSoftwareModal() {
+		installSoftwareModal.classList.remove('active');
+		document.body.style.overflow = '';
+
+		// Clean up ?app= param when closing the whole modal
+		var url = new URL(window.location);
+		if (url.searchParams.has('app')) {
+			url.searchParams.delete('app');
+			history.replaceState({}, '', url.toString());
+		}
+
+		// Reset to list view for next open
+		var sidebar = document.getElementById('app-store-sidebar');
+		sidebar.classList.remove('app-store-sidebar-hidden');
+		if (appStoreHeading) {
+			appStoreHeading.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+		}
+		if (appStoreData) {
+			renderAppStore(appStoreData, activeCategory, '');
+		}
+		if (appStoreSearchInput) {
+			appStoreSearchInput.value = '';
+		}
+	}
+
+	function loadAppStore() {
+		appStoreContent.innerHTML = '<div class="app-store-loading">Loading apps\u2026</div>';
+
+		fetch(APPS_INDEX_URL)
+			.then(function(res) { return res.json(); })
+			.then(function(data) {
+				appStoreData = data;
+				buildAppStoreNav(data);
+				renderAppStore(data);
+				bindAppStoreEvents();
+			})
+			.catch(function() {
+				appStoreContent.innerHTML = '<div class="app-store-error">Unable to load apps. Check your connection.</div>';
+			});
+	}
+
+	function buildAppStoreNav(data) {
+		var categories = new Set();
+		Object.keys(data).forEach(function(path) {
+			var cats = data[path].categories || [];
+			cats.forEach(function(c) { categories.add(c); });
+		});
+
+		// Keep "Discover" (all), then add each category
+		appStoreNav.innerHTML = '';
+		var discoverLi = document.createElement('li');
+		discoverLi.className = 'app-store-nav-item active';
+		discoverLi.dataset.category = 'all';
+		discoverLi.textContent = 'Discover';
+		appStoreNav.appendChild(discoverLi);
+
+		categories.forEach(function(cat) {
+			var li = document.createElement('li');
+			li.className = 'app-store-nav-item';
+			li.dataset.category = cat;
+			li.textContent = cat;
+			appStoreNav.appendChild(li);
+		});
+	}
+
+	function bindAppStoreEvents() {
+		appStoreNav.addEventListener('click', function(e) {
+			var item = e.target.closest('.app-store-nav-item');
+			if (!item) return;
+
+			appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
+				el.classList.remove('active');
+			});
+			item.classList.add('active');
+
+			activeCategory = item.dataset.category;
+			appStoreHeading.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+			filterAppStore();
+		});
+
+		appStoreSearchInput.addEventListener('input', function() {
+			filterAppStore();
+		});
+	}
+
+	function filterAppStore() {
+		var search = (appStoreSearchInput.value || '').toLowerCase();
+		renderAppStore(appStoreData, activeCategory, search);
+	}
+
+	function selectCategory(cat) {
+		activeCategory = cat;
+		appStoreHeading.textContent = cat;
+
+		// Update sidebar selection
+		appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
+			el.classList.toggle('active', el.dataset.category === cat);
+		});
+
+		filterAppStore();
+	}
+
+	var categoryGradients = {
+		'Productivity': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+		'Social':       'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+		'AI':           'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+		'Media':        'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+		'Utility':      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+		'Apps':         'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+	};
+
+	var defaultGradient = 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)';
+
+	function renderAppStore(data, category, search) {
+		category = category || 'all';
+		search = (search || '').toLowerCase();
+
+		var listEl = document.createElement('div');
+		listEl.className = 'app-store-list';
+
+		var wpIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/></svg>';
+
+		var hasResults = false;
+
+		Object.keys(data).forEach(function(path) {
+			var app = data[path];
+
+			// Category filter
+			if (category !== 'all') {
+				var cats = app.categories || [];
+				if (cats.indexOf(category) === -1) return;
+			}
+
+			// Search filter
+			if (search) {
+				var haystack = (app.title + ' ' + app.description + ' ' + (app.author || '')).toLowerCase();
+				if (haystack.indexOf(search) === -1) return;
+			}
+
+			hasResults = true;
+			var blueprintUrl = APPS_BASE_URL + path;
+
+			var itemEl = document.createElement('div');
+			itemEl.className = 'app-store-item';
+
+			var iconEl = document.createElement('div');
+			iconEl.className = 'app-store-icon';
+			iconEl.innerHTML = wpIconSvg;
+
+			// Pick gradient based on most specific category
+			var cats = app.categories || [];
+			var gradient = defaultGradient;
+			for (var i = cats.length - 1; i >= 0; i--) {
+				if (categoryGradients[cats[i]]) {
+					gradient = categoryGradients[cats[i]];
+					break;
+				}
+			}
+			iconEl.style.background = gradient;
+
+			var infoEl = document.createElement('div');
+			infoEl.className = 'app-store-info';
+
+			if (app.categories && app.categories.length > 0) {
+				var catEl = document.createElement('div');
+				catEl.className = 'app-store-category';
+				app.categories.forEach(function(cat, idx) {
+					if (idx > 0) {
+						catEl.appendChild(document.createTextNode(' \u00b7 '));
+					}
+					var catLink = document.createElement('span');
+					catLink.className = 'app-store-category-link';
+					catLink.textContent = cat;
+					catLink.addEventListener('click', function(e) {
+						e.stopPropagation();
+						selectCategory(cat);
+					});
+					catEl.appendChild(catLink);
+				});
+				infoEl.appendChild(catEl);
+			}
+
+			var titleEl = document.createElement('div');
+			titleEl.className = 'app-store-title';
+			titleEl.textContent = app.title;
+
+			var descEl = document.createElement('div');
+			descEl.className = 'app-store-description';
+			descEl.textContent = app.description;
+
+			var metaEl = document.createElement('div');
+			metaEl.className = 'app-store-meta';
+
+			var badgeEl = document.createElement('span');
+			badgeEl.className = 'app-store-badge';
+			badgeEl.textContent = 'Free, open source';
+			metaEl.appendChild(badgeEl);
+
+			if (app.author) {
+				var authorEl = document.createElement('span');
+				authorEl.className = 'app-store-author';
+				authorEl.textContent = 'by ' + app.author;
+				metaEl.appendChild(authorEl);
+			}
+
+			infoEl.appendChild(titleEl);
+			infoEl.appendChild(descEl);
+			infoEl.appendChild(metaEl);
+
+			var actionsEl = document.createElement('div');
+			actionsEl.className = 'app-store-actions';
+
+			if (isPlayground) {
+				var installBtn = document.createElement('button');
+				installBtn.type = 'button';
+				installBtn.className = 'app-store-install-btn';
+				installBtn.textContent = 'Install';
+				installBtn.addEventListener('click', function(e) {
+					e.stopPropagation();
+					window.parent.postMessage({
+						type: 'relay',
+						relayType: 'install-blueprint',
+						blueprintUrl: blueprintUrl
+					}, '*');
+				});
+				actionsEl.appendChild(installBtn);
+			}
+
+			itemEl.appendChild(iconEl);
+			itemEl.appendChild(infoEl);
+			itemEl.appendChild(actionsEl);
+
+			// Click title or icon to open detail page
+			titleEl.classList.add('app-store-title-link');
+			iconEl.classList.add('app-store-icon-link');
+			titleEl.addEventListener('click', function(e) {
+				e.stopPropagation();
+				openAppDetail(path, app, blueprintUrl, gradient);
+			});
+			iconEl.addEventListener('click', function(e) {
+				e.stopPropagation();
+				openAppDetail(path, app, blueprintUrl, gradient);
+			});
+
+			listEl.appendChild(itemEl);
+		});
+
+		appStoreContent.innerHTML = '';
+		if (hasResults) {
+			appStoreContent.appendChild(listEl);
+		} else {
+			var emptyEl = document.createElement('div');
+			emptyEl.className = 'app-store-error';
+			emptyEl.textContent = 'No apps found.';
+			appStoreContent.appendChild(emptyEl);
+		}
+	}
+
+	// ── App Detail Page ──────────────────────────────────────
+
+	function openAppDetail(appPath, app, blueprintUrl, gradient) {
+		// Push URL state so the detail page is shareable
+		var url = new URL(window.location);
+		url.searchParams.set('app', appPath);
+		history.pushState({ appDetail: appPath }, '', url.toString());
+
+		renderAppDetail(appPath, app, blueprintUrl, gradient);
+	}
+
+	function closeAppDetail() {
+		// Go back to the list — remove ?app param
+		var url = new URL(window.location);
+		if (url.searchParams.has('app')) {
+			url.searchParams.delete('app');
+			history.pushState({}, '', url.toString());
+		}
+
+		// Re-render the list
+		if (appStoreData) {
+			renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+		}
+
+		// Restore heading
+		appStoreHeading.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+
+		// Show sidebar
+		var sidebar = document.getElementById('app-store-sidebar');
+		sidebar.classList.remove('app-store-sidebar-hidden');
+	}
+
+	function renderAppDetail(appPath, app, blueprintUrl, gradient) {
+		var wpIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/></svg>';
+
+		// Hide sidebar — detail page is full-width in the main area
+		var sidebar = document.getElementById('app-store-sidebar');
+		sidebar.classList.add('app-store-sidebar-hidden');
+
+		// Update heading to back button + share
+		appStoreHeading.innerHTML = '';
+
+		var backBtn = document.createElement('button');
+		backBtn.type = 'button';
+		backBtn.className = 'app-detail-back';
+		backBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>';
+		backBtn.addEventListener('click', closeAppDetail);
+
+		var headingText = document.createElement('span');
+		headingText.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+
+		appStoreHeading.appendChild(backBtn);
+		appStoreHeading.appendChild(headingText);
+
+		// Build detail content
+		var detail = document.createElement('div');
+		detail.className = 'app-detail';
+
+		// ── Header row: icon + title + install ──
+		var headerEl = document.createElement('div');
+		headerEl.className = 'app-detail-header';
+
+		var iconEl = document.createElement('div');
+		iconEl.className = 'app-detail-icon';
+		iconEl.innerHTML = wpIconSvg;
+		iconEl.style.background = gradient;
+
+		var headerInfo = document.createElement('div');
+		headerInfo.className = 'app-detail-header-info';
+
+		var titleEl = document.createElement('h3');
+		titleEl.className = 'app-detail-title';
+		titleEl.textContent = app.title;
+
+		var subtitleEl = document.createElement('div');
+		subtitleEl.className = 'app-detail-subtitle';
+		subtitleEl.textContent = app.author ? 'by ' + app.author : '';
+
+		var metaRow = document.createElement('div');
+		metaRow.className = 'app-detail-meta-row';
+
+		var badge = document.createElement('span');
+		badge.className = 'app-store-badge';
+		badge.textContent = 'Free, open source';
+		metaRow.appendChild(badge);
+
+		if (app.categories && app.categories.length) {
+			var catSpan = document.createElement('span');
+			catSpan.className = 'app-detail-categories';
+			catSpan.textContent = app.categories.join(' \u00b7 ');
+			metaRow.appendChild(catSpan);
+		}
+
+		headerInfo.appendChild(titleEl);
+		headerInfo.appendChild(subtitleEl);
+		headerInfo.appendChild(metaRow);
+
+		var headerActions = document.createElement('div');
+		headerActions.className = 'app-detail-header-actions';
+
+		var blueprintInfoEl = document.createElement('div');
+		blueprintInfoEl.className = 'app-store-blueprint-info';
+
+		var installBtn;
+		if (isPlayground) {
+			installBtn = document.createElement('button');
+			installBtn.type = 'button';
+			installBtn.className = 'app-store-install-btn app-detail-install-btn';
+			installBtn.textContent = 'Install';
+			installBtn.addEventListener('click', function() {
+				window.parent.postMessage({
+					type: 'relay',
+					relayType: 'install-blueprint',
+					blueprintUrl: blueprintUrl
+				}, '*');
+			});
+		} else {
+			installBtn = document.createElement('button');
+			installBtn.type = 'button';
+			installBtn.className = 'app-store-install-btn app-detail-install-btn';
+			installBtn.textContent = 'Install';
+			installBtn.addEventListener('click', function() {
+				handleAppInstall(blueprintUrl, blueprintInfoEl, installBtn);
+			});
+		}
+
+		var shareBtn = document.createElement('button');
+		shareBtn.type = 'button';
+		shareBtn.className = 'app-detail-share-btn';
+		shareBtn.title = 'Copy link';
+		shareBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>';
+		shareBtn.addEventListener('click', function() {
+			var shareUrl = window.location.href;
+			if (navigator.clipboard) {
+				navigator.clipboard.writeText(shareUrl).then(function() {
+					shareBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+					setTimeout(function() {
+						shareBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>';
+					}, 2000);
+				});
+			}
+		});
+
+		headerActions.appendChild(installBtn);
+		headerActions.appendChild(shareBtn);
+
+		headerEl.appendChild(iconEl);
+		headerEl.appendChild(headerInfo);
+		headerEl.appendChild(headerActions);
+
+		detail.appendChild(headerEl);
+		detail.appendChild(blueprintInfoEl);
+
+		// ── Screenshots placeholder ──
+		var screenshotsEl = document.createElement('div');
+		screenshotsEl.className = 'app-detail-screenshots';
+		// Future: populate from blueprint meta.screenshots array
+		detail.appendChild(screenshotsEl);
+
+		// ── Description ──
+		var descSection = document.createElement('div');
+		descSection.className = 'app-detail-section';
+
+		var descTitle = document.createElement('h4');
+		descTitle.textContent = 'Description';
+		descSection.appendChild(descTitle);
+
+		var descText = document.createElement('p');
+		descText.textContent = app.description;
+		descSection.appendChild(descText);
+
+		detail.appendChild(descSection);
+
+		// ── Recipe (fetched from individual blueprint JSON) ──
+		var recipeSection = document.createElement('div');
+		recipeSection.className = 'app-detail-section';
+
+		var recipeTitle = document.createElement('h4');
+		recipeTitle.textContent = 'How to install';
+		recipeSection.appendChild(recipeTitle);
+
+		var recipeLoading = document.createElement('p');
+		recipeLoading.className = 'app-detail-comp-loading';
+		recipeLoading.textContent = 'Loading recipe\u2026';
+		recipeSection.appendChild(recipeLoading);
+
+		detail.appendChild(recipeSection);
+
+		appStoreContent.innerHTML = '';
+		appStoreContent.appendChild(detail);
+
+		// Fetch the individual blueprint to show recipe steps
+		fetch(blueprintUrl)
+			.then(function(res) { return res.json(); })
+			.then(function(blueprint) {
+				recipeLoading.remove();
+
+				var steps = blueprint.steps || [];
+				if (steps.length === 0) {
+					var noSteps = document.createElement('p');
+					noSteps.className = 'app-detail-comp-note';
+					noSteps.textContent = 'No installation steps required.';
+					recipeSection.appendChild(noSteps);
+					return;
+				}
+
+				var recipeIntro = document.createElement('p');
+				recipeIntro.className = 'app-detail-recipe-intro';
+				recipeIntro.appendChild(document.createTextNode('This app is installed by running the following '));
+				var blueprintLink = document.createElement('a');
+				blueprintLink.href = blueprintUrl;
+				blueprintLink.target = '_blank';
+				blueprintLink.rel = 'noopener noreferrer';
+				blueprintLink.className = 'app-detail-recipe-link';
+				blueprintLink.textContent = 'blueprint';
+				recipeIntro.appendChild(blueprintLink);
+				recipeIntro.appendChild(document.createTextNode(' ('));
+				var stepLibLink = document.createElement('a');
+				stepLibLink.href = 'https://akirk.github.io/playground-step-library/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+				stepLibLink.target = '_blank';
+				stepLibLink.rel = 'noopener noreferrer';
+				stepLibLink.className = 'app-detail-recipe-link';
+				stepLibLink.textContent = 'view in Step Library';
+				recipeIntro.appendChild(stepLibLink);
+				recipeIntro.appendChild(document.createTextNode('):'));
+				recipeSection.appendChild(recipeIntro);
+
+				var recipeList = document.createElement('ol');
+				recipeList.className = 'app-detail-recipe-list';
+
+				steps.forEach(function(step) {
+					var li = document.createElement('li');
+
+					if (step.step === 'installPlugin') {
+						var pluginInfo = resolvePluginInfo(step.pluginData);
+						li.appendChild(document.createTextNode('Install plugin '));
+						var link = document.createElement('a');
+						link.href = pluginInfo.pageUrl;
+						link.target = '_blank';
+						link.rel = 'noopener noreferrer';
+						link.className = 'app-detail-recipe-link';
+						link.textContent = pluginInfo.name;
+						li.appendChild(link);
+
+						// Fetch GitHub info if available
+						if (pluginInfo.githubRepo) {
+							fetchGithubInfo(pluginInfo.githubRepo, li);
+						}
+					} else if (step.step === 'installTheme') {
+						var themeInfo = resolveThemeInfo(step.themeData);
+						li.appendChild(document.createTextNode('Install theme '));
+						var themeLink = document.createElement('a');
+						themeLink.href = themeInfo.pageUrl;
+						themeLink.target = '_blank';
+						themeLink.rel = 'noopener noreferrer';
+						themeLink.className = 'app-detail-recipe-link';
+						themeLink.textContent = themeInfo.name;
+						li.appendChild(themeLink);
+					} else if (step.step === 'runPHP') {
+						var caption = (step.progress && step.progress.caption) || 'Run PHP code';
+						li.appendChild(document.createTextNode(caption + ' '));
+
+						var toggleBtn = document.createElement('button');
+						toggleBtn.type = 'button';
+						toggleBtn.className = 'app-detail-code-toggle';
+						toggleBtn.textContent = 'view code';
+
+						var codeBlock = document.createElement('pre');
+						codeBlock.className = 'app-detail-code-block';
+						codeBlock.textContent = step.code || '';
+
+						toggleBtn.addEventListener('click', function() {
+							var isVisible = codeBlock.classList.toggle('active');
+							toggleBtn.textContent = isVisible ? 'hide code' : 'view code';
+						});
+
+						li.appendChild(toggleBtn);
+						li.appendChild(codeBlock);
+					} else if (step.step === 'activatePlugin') {
+						li.textContent = 'Activate plugin ' + (step.pluginPath || step.slug || '');
+					} else if (step.step === 'activateTheme') {
+						li.textContent = 'Activate theme ' + (step.themeFolderName || step.slug || '');
+					} else if (step.step === 'login') {
+						li.textContent = 'Log in as ' + (step.username || 'admin');
+					} else if (step.step === 'defineWpConfigConsts') {
+						li.textContent = 'Configure WordPress settings';
+					} else if (step.step === 'setSiteLanguage') {
+						li.textContent = 'Set site language to ' + (step.language || 'default');
+					} else {
+						li.textContent = step.step.replace(/([A-Z])/g, ' $1').toLowerCase().trim();
+					}
+
+					recipeList.appendChild(li);
+				});
+
+				// Landing page as final step
+				if (blueprint.landingPage) {
+					var landingLi = document.createElement('li');
+					landingLi.appendChild(document.createTextNode('And finally, go to '));
+					var landingCode = document.createElement('code');
+					landingCode.className = 'app-detail-landing-path';
+					landingCode.textContent = blueprint.landingPage;
+					landingCode.title = 'Click to copy';
+					landingCode.addEventListener('click', function() {
+						if (navigator.clipboard) {
+							navigator.clipboard.writeText(blueprint.landingPage).then(function() {
+								var orig = landingCode.textContent;
+								landingCode.textContent = 'Copied!';
+								setTimeout(function() { landingCode.textContent = orig; }, 1500);
+							});
+						}
+					});
+					landingLi.appendChild(landingCode);
+					recipeList.appendChild(landingLi);
+				}
+
+				recipeSection.appendChild(recipeList);
+
+				// Check for screenshots in blueprint meta
+				if (blueprint.meta && blueprint.meta.screenshots && blueprint.meta.screenshots.length) {
+					renderScreenshots(screenshotsEl, blueprint.meta.screenshots);
+				}
+			})
+			.catch(function() {
+				recipeLoading.textContent = 'Could not load recipe.';
+			});
+	}
+
+	function resolvePluginInfo(pluginData) {
+		if (!pluginData) return { name: 'a plugin', pageUrl: '#', githubRepo: null };
+
+		// wordpress.org/plugins slug
+		if (pluginData.resource === 'wordpress.org/plugins' && pluginData.slug) {
+			return {
+				name: pluginData.slug.replace(/[-_]/g, ' '),
+				pageUrl: 'https://wordpress.org/plugins/' + pluginData.slug + '/',
+				githubRepo: null,
+			};
+		}
+
+		// git:directory with GitHub URL
+		if (pluginData.resource === 'git:directory' && pluginData.url) {
+			var match = pluginData.url.match(/github\.com\/([^\/]+\/[^\/]+)/);
+			var repo = match ? match[1] : null;
+			var name = repo ? repo.split('/')[1].replace(/[-_]/g, ' ') : 'a plugin';
+			return {
+				name: name,
+				pageUrl: pluginData.url,
+				githubRepo: repo,
+			};
+		}
+
+		// Direct URL (usually a GitHub release zip)
+		if (pluginData.url) {
+			var ghMatch = pluginData.url.match(/github\.com\/([^\/]+\/[^\/]+)/);
+			var ghRepo = ghMatch ? ghMatch[1] : null;
+			var parts = pluginData.url.split('/');
+			var filename = parts[parts.length - 1] || '';
+			var displayName = filename.replace(/\.zip$/, '').replace(/[-_]/g, ' ');
+
+			return {
+				name: displayName,
+				pageUrl: ghRepo ? 'https://github.com/' + ghRepo : pluginData.url,
+				githubRepo: ghRepo,
+			};
+		}
+
+		if (pluginData.slug) {
+			return {
+				name: pluginData.slug.replace(/[-_]/g, ' '),
+				pageUrl: '#',
+				githubRepo: null,
+			};
+		}
+
+		return { name: 'a plugin', pageUrl: '#', githubRepo: null };
+	}
+
+	function resolveThemeInfo(themeData) {
+		if (!themeData) return { name: 'a theme', pageUrl: '#' };
+
+		if (themeData.resource === 'wordpress.org/themes' && themeData.slug) {
+			return {
+				name: themeData.slug.replace(/[-_]/g, ' '),
+				pageUrl: 'https://wordpress.org/themes/' + themeData.slug + '/',
+			};
+		}
+
+		if (themeData.url) {
+			var ghMatch = themeData.url.match(/github\.com\/([^\/]+\/[^\/]+)/);
+			var parts = themeData.url.split('/');
+			var filename = parts[parts.length - 1] || '';
+			return {
+				name: filename.replace(/\.zip$/, '').replace(/[-_]/g, ' '),
+				pageUrl: ghMatch ? 'https://github.com/' + ghMatch[1] : themeData.url,
+			};
+		}
+
+		if (themeData.slug) {
+			return {
+				name: themeData.slug.replace(/[-_]/g, ' '),
+				pageUrl: '#',
+			};
+		}
+
+		return { name: 'a theme', pageUrl: '#' };
+	}
+
+	var githubCache = {};
+
+	function fetchGithubInfo(repo, li) {
+		if (githubCache[repo]) {
+			appendGithubBadge(li, githubCache[repo]);
+			return;
+		}
+
+		fetch('https://api.github.com/repos/' + repo)
+			.then(function(res) {
+				if (!res.ok) return null;
+				return res.json();
+			})
+			.then(function(data) {
+				if (!data) return;
+				githubCache[repo] = data;
+				appendGithubBadge(li, data);
+			})
+			.catch(function() {
+				// Silently fail — GitHub info is optional
+			});
+	}
+
+	function appendGithubBadge(li, data) {
+		var badge = document.createElement('span');
+		badge.className = 'app-detail-github-badge';
+
+		var parts = [];
+		if (data.description) {
+			parts.push(data.description);
+		}
+		if (data.stargazers_count > 0) {
+			parts.push('\u2605 ' + data.stargazers_count);
+		}
+		if (data.license && data.license.spdx_id && data.license.spdx_id !== 'NOASSERTION') {
+			parts.push(data.license.spdx_id);
+		}
+
+		badge.textContent = parts.join(' \u00b7 ');
+		if (badge.textContent) {
+			li.appendChild(badge);
+		}
+	}
+
+	function renderScreenshots(container, screenshots) {
+		container.innerHTML = '';
+		screenshots.forEach(function(src) {
+			var img = document.createElement('img');
+			img.className = 'app-detail-screenshot';
+			img.src = src;
+			img.alt = 'Screenshot';
+			img.loading = 'lazy';
+			container.appendChild(img);
+		});
+	}
+
+	// Handle browser back/forward for detail pages
+	window.addEventListener('popstate', function(e) {
+		if (!installSoftwareModal.classList.contains('active')) return;
+
+		var url = new URL(window.location);
+		var appParam = url.searchParams.get('app');
+
+		if (appParam && appStoreData && appStoreData[appParam]) {
+			var app = appStoreData[appParam];
+			var blueprintUrl = APPS_BASE_URL + appParam;
+			var cats = app.categories || [];
+			var gradient = defaultGradient;
+			for (var i = cats.length - 1; i >= 0; i--) {
+				if (categoryGradients[cats[i]]) {
+					gradient = categoryGradients[cats[i]];
+					break;
+				}
+			}
+			renderAppDetail(appParam, app, blueprintUrl, gradient);
+		} else {
+			// Back to list
+			if (appStoreData) {
+				var sidebar = document.getElementById('app-store-sidebar');
+				sidebar.classList.remove('app-store-sidebar-hidden');
+				appStoreHeading.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+				renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+			}
+		}
+	});
+
+	// On initial load, check if ?app= is present to deep-link into a detail page
+	function checkDeepLink() {
+		var url = new URL(window.location);
+		var appParam = url.searchParams.get('app');
+		if (appParam) {
+			openInstallSoftwareModal();
+			// Wait for data to load, then open detail
+			var checkInterval = setInterval(function() {
+				if (appStoreData) {
+					clearInterval(checkInterval);
+					if (appStoreData[appParam]) {
+						var app = appStoreData[appParam];
+						var blueprintUrl = APPS_BASE_URL + appParam;
+						var cats = app.categories || [];
+						var gradient = defaultGradient;
+						for (var i = cats.length - 1; i >= 0; i--) {
+							if (categoryGradients[cats[i]]) {
+								gradient = categoryGradients[cats[i]];
+								break;
+							}
+						}
+						renderAppDetail(appParam, app, blueprintUrl, gradient);
+					}
+				}
+			}, 100);
+		}
+	}
+
+	function handleAppInstall(blueprintUrl, infoEl, btn) {
+		// Show the blueprint URL for manual use (non-Playground only)
+		if (infoEl.classList.contains('active')) {
+			infoEl.classList.remove('active');
+			btn.textContent = 'Install';
+			return;
+		}
+
+		// Close any other open info panels
+		appStoreContent.querySelectorAll('.app-store-blueprint-info.active').forEach(function(el) {
+			el.classList.remove('active');
+		});
+		appStoreContent.querySelectorAll('.app-store-install-btn').forEach(function(b) {
+			b.textContent = 'Install';
+		});
+
+		var playgroundLink = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+		infoEl.innerHTML = '<p>To install, open this blueprint in WordPress Playground:</p>' +
+			'<a href="' + playgroundLink + '" target="_blank" rel="noopener noreferrer" class="app-store-blueprint-url">' + blueprintUrl + '</a>' +
+			'<p style="margin-top:8px;font-size:12px;color:#757575;">Click to open in Playground, or copy the URL to use with any Playground-compatible setup.</p>';
+		infoEl.classList.add('active');
+		btn.textContent = 'Close';
 	}
 
 	if (document.readyState === 'loading') {

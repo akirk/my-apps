@@ -852,6 +852,23 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	text-decoration: underline;
 }
 
+.app-detail-landing-path {
+	display: inline-block;
+	padding: 2px 8px;
+	background: #f0f0f0;
+	border-radius: 4px;
+	font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+	font-size: 13px;
+	color: #1e1e1e;
+	cursor: pointer;
+	user-select: all;
+	transition: background 0.15s;
+}
+
+.app-detail-landing-path:hover {
+	background: #e0e0e0;
+}
+
 /* Code toggle for runPHP steps */
 .app-detail-code-toggle {
 	background: none;

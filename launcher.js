@@ -1836,6 +1836,27 @@
 					recipeList.appendChild(li);
 				});
 
+				// Landing page as final step
+				if (blueprint.landingPage) {
+					var landingLi = document.createElement('li');
+					landingLi.appendChild(document.createTextNode('And finally, go to '));
+					var landingCode = document.createElement('code');
+					landingCode.className = 'app-detail-landing-path';
+					landingCode.textContent = blueprint.landingPage;
+					landingCode.title = 'Click to copy';
+					landingCode.addEventListener('click', function() {
+						if (navigator.clipboard) {
+							navigator.clipboard.writeText(blueprint.landingPage).then(function() {
+								var orig = landingCode.textContent;
+								landingCode.textContent = 'Copied!';
+								setTimeout(function() { landingCode.textContent = orig; }, 1500);
+							});
+						}
+					});
+					landingLi.appendChild(landingCode);
+					recipeList.appendChild(landingLi);
+				}
+
 				recipeSection.appendChild(recipeList);
 
 				// Check for screenshots in blueprint meta

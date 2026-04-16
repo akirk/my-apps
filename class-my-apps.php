@@ -166,11 +166,7 @@ class My_Apps {
 			wp_send_json_error( 'Invalid order' );
 		}
 
-		$sort = array();
-		foreach ( $order as $index => $slug ) {
-			$sort[ sanitize_text_field( $slug ) ] = $index;
-		}
-
+		$sort = array_map( 'sanitize_text_field', array_values( $order ) );
 		update_option( 'my_apps_sort', $sort );
 		wp_send_json_success();
 	}
@@ -307,7 +303,7 @@ class My_Apps {
 
 		// Give the new app a sort position at the end.
 		$sort = get_option( 'my_apps_sort', array() );
-		$sort[ $slug ] = empty( $sort ) ? 0 : max( $sort ) + 1;
+		$sort[] = $slug;
 		update_option( 'my_apps_sort', $sort );
 
 		wp_send_json_success(
@@ -684,17 +680,20 @@ class My_Apps {
 		}
 
 		$sort = get_option( 'my_apps_sort', array() );
+		// Support both array format [slug, slug, ...] and legacy hash {slug: position}
+		if ( ! empty( $sort ) && ! isset( $sort[0] ) ) {
+			// Legacy hash format — convert to array
+			asort( $sort );
+			$sort = array_keys( $sort );
+			update_option( 'my_apps_sort', $sort );
+		}
+		$sort_index = array_flip( $sort );
+		$max = count( $sort );
 		uksort(
 			$plugins,
-			function ( $a, $b ) use ( $sort ) {
-				$sort_a = 0;
-				if ( isset( $sort[ $a ] ) ) {
-					$sort_a = $sort[ $a ];
-				}
-				$sort_b = 0;
-				if ( isset( $sort[ $b ] ) ) {
-					$sort_b = $sort[ $b ];
-				}
+			function ( $a, $b ) use ( $sort_index, $max ) {
+				$sort_a = isset( $sort_index[ $a ] ) ? $sort_index[ $a ] : $max;
+				$sort_b = isset( $sort_index[ $b ] ) ? $sort_index[ $b ] : $max;
 				return $sort_a <=> $sort_b;
 			}
 		);

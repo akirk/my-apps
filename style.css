@@ -527,6 +527,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 }
 
 .app-store-install-btn {
+	display: inline-block;
 	padding: 5px 16px;
 	border: none;
 	border-radius: 14px;
@@ -539,6 +540,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	transition: all 0.15s;
 	min-width: 60px;
 	text-align: center;
+	text-decoration: none;
 }
 
 .app-store-install-btn:hover {

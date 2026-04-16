@@ -1023,6 +1023,7 @@
 
 	function openAddModal() {
 		addAppModal.classList.add('active');
+		document.body.style.overflow = 'hidden';
 
 		// Reset to Admin Menu tab
 		document.querySelectorAll('.modal-tab').forEach(function(t) {
@@ -1080,6 +1081,7 @@
 
 	function closeAddModal() {
 		addAppModal.classList.remove('active');
+		document.body.style.overflow = '';
 	}
 
 	function handleIconTabSwitch(e) {
@@ -1295,6 +1297,7 @@
 
 	function openInstallSoftwareModal() {
 		installSoftwareModal.classList.add('active');
+		document.body.style.overflow = 'hidden';
 		if (!appStoreData) {
 			loadAppStore();
 		}
@@ -1302,6 +1305,7 @@
 
 	function closeInstallSoftwareModal() {
 		installSoftwareModal.classList.remove('active');
+		document.body.style.overflow = '';
 
 		// Clean up ?app= param when closing the whole modal
 		var url = new URL(window.location);
@@ -1512,13 +1516,17 @@
 			actionsEl.className = 'app-store-actions';
 
 			if (isPlayground) {
-				var installBtn = document.createElement('a');
+				var installBtn = document.createElement('button');
+				installBtn.type = 'button';
 				installBtn.className = 'app-store-install-btn';
 				installBtn.textContent = 'Install';
-				installBtn.target = '_top';
-				installBtn.href = '/?blueprint-url=' + encodeURIComponent(blueprintUrl);
 				installBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
+					window.parent.postMessage({
+						type: 'relay',
+						relayType: 'install-blueprint',
+						blueprintUrl: blueprintUrl
+					}, '*');
 				});
 				actionsEl.appendChild(installBtn);
 			}
@@ -1658,11 +1666,17 @@
 
 		var installBtn;
 		if (isPlayground) {
-			installBtn = document.createElement('a');
+			installBtn = document.createElement('button');
+			installBtn.type = 'button';
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
 			installBtn.textContent = 'Install';
-			installBtn.target = '_top';
-			installBtn.href = '/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+			installBtn.addEventListener('click', function() {
+				window.parent.postMessage({
+					type: 'relay',
+					relayType: 'install-blueprint',
+					blueprintUrl: blueprintUrl
+				}, '*');
+			});
 		} else {
 			installBtn = document.createElement('button');
 			installBtn.type = 'button';

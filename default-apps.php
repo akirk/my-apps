@@ -12,11 +12,14 @@ function write_post( $apps ) {
 }
 
 function about( $apps ) {
-	$apps['about'] = array(
-		'name'     => 'About',
-		'dashicon' => 'dashicons-info-outline',
-		'url'      => home_url( '/welcome/' ),
-	);
+	$welcome = get_page_by_path( 'welcome' );
+	if ( $welcome && 'publish' === $welcome->post_status ) {
+		$apps['about'] = array(
+			'name'     => $welcome->post_title,
+			'dashicon' => 'dashicons-info-outline',
+			'url'      => get_permalink( $welcome ),
+		);
+	}
 
 	return $apps;
 }

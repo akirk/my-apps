@@ -1512,13 +1512,13 @@
 			actionsEl.className = 'app-store-actions';
 
 			if (isPlayground) {
-				var installBtn = document.createElement('button');
-				installBtn.type = 'button';
+				var installBtn = document.createElement('a');
 				installBtn.className = 'app-store-install-btn';
 				installBtn.textContent = 'Install';
+				installBtn.target = '_top';
+				installBtn.href = '/?blueprint-url=' + encodeURIComponent(blueprintUrl);
 				installBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
-					handleAppInstall(blueprintUrl, null, installBtn);
 				});
 				actionsEl.appendChild(installBtn);
 			}
@@ -1653,17 +1653,25 @@
 		var headerActions = document.createElement('div');
 		headerActions.className = 'app-detail-header-actions';
 
-		var installBtn = document.createElement('button');
-		installBtn.type = 'button';
-		installBtn.className = 'app-store-install-btn app-detail-install-btn';
-		installBtn.textContent = 'Install';
-
 		var blueprintInfoEl = document.createElement('div');
 		blueprintInfoEl.className = 'app-store-blueprint-info';
 
-		installBtn.addEventListener('click', function() {
-			handleAppInstall(blueprintUrl, blueprintInfoEl, installBtn);
-		});
+		var installBtn;
+		if (isPlayground) {
+			installBtn = document.createElement('a');
+			installBtn.className = 'app-store-install-btn app-detail-install-btn';
+			installBtn.textContent = 'Install';
+			installBtn.target = '_top';
+			installBtn.href = '/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+		} else {
+			installBtn = document.createElement('button');
+			installBtn.type = 'button';
+			installBtn.className = 'app-store-install-btn app-detail-install-btn';
+			installBtn.textContent = 'Install';
+			installBtn.addEventListener('click', function() {
+				handleAppInstall(blueprintUrl, blueprintInfoEl, installBtn);
+			});
+		}
 
 		var shareBtn = document.createElement('button');
 		shareBtn.type = 'button';
@@ -2062,34 +2070,27 @@
 	}
 
 	function handleAppInstall(blueprintUrl, infoEl, btn) {
-		if (isPlayground) {
-			// On Playground: navigate in the top frame
-			var url = new URL(window.top.location.origin);
-			url.searchParams.set('blueprint-url', blueprintUrl);
-			window.top.location.href = url.toString();
-		} else {
-			// Elsewhere: show the blueprint URL for manual use
-			if (infoEl.classList.contains('active')) {
-				infoEl.classList.remove('active');
-				btn.textContent = 'Install';
-				return;
-			}
-
-			// Close any other open info panels
-			appStoreContent.querySelectorAll('.app-store-blueprint-info.active').forEach(function(el) {
-				el.classList.remove('active');
-			});
-			appStoreContent.querySelectorAll('.app-store-install-btn').forEach(function(b) {
-				b.textContent = 'Install';
-			});
-
-			var playgroundLink = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
-			infoEl.innerHTML = '<p>To install, open this blueprint in WordPress Playground:</p>' +
-				'<a href="' + playgroundLink + '" target="_blank" rel="noopener noreferrer" class="app-store-blueprint-url">' + blueprintUrl + '</a>' +
-				'<p style="margin-top:8px;font-size:12px;color:#757575;">Click to open in Playground, or copy the URL to use with any Playground-compatible setup.</p>';
-			infoEl.classList.add('active');
-			btn.textContent = 'Close';
+		// Show the blueprint URL for manual use (non-Playground only)
+		if (infoEl.classList.contains('active')) {
+			infoEl.classList.remove('active');
+			btn.textContent = 'Install';
+			return;
 		}
+
+		// Close any other open info panels
+		appStoreContent.querySelectorAll('.app-store-blueprint-info.active').forEach(function(el) {
+			el.classList.remove('active');
+		});
+		appStoreContent.querySelectorAll('.app-store-install-btn').forEach(function(b) {
+			b.textContent = 'Install';
+		});
+
+		var playgroundLink = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+		infoEl.innerHTML = '<p>To install, open this blueprint in WordPress Playground:</p>' +
+			'<a href="' + playgroundLink + '" target="_blank" rel="noopener noreferrer" class="app-store-blueprint-url">' + blueprintUrl + '</a>' +
+			'<p style="margin-top:8px;font-size:12px;color:#757575;">Click to open in Playground, or copy the URL to use with any Playground-compatible setup.</p>';
+		infoEl.classList.add('active');
+		btn.textContent = 'Close';
 	}
 
 	if (document.readyState === 'loading') {

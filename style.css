@@ -235,7 +235,8 @@ body.edit-mode .app-icon.sortable-chosen {
 	cursor: pointer;
 }
 
-.add-app-btn:hover {
+.add-app-btn:hover,
+.add-app-btn:has(.add-dropdown.active) {
 	opacity: 1;
 }
 

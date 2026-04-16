@@ -425,6 +425,92 @@
 		bindModalTabEvents();
 		checkDeepLink();
 		checkPendingInstall();
+		initGreeting();
+	}
+
+	function initGreeting() {
+		if ( ! isPlayground ) {
+			return;
+		}
+		var greeting = document.getElementById('greeting');
+		if ( ! greeting ) {
+			return;
+		}
+		var displayName = myAppsConfig.displayName || 'admin';
+		renderGreeting(greeting, displayName);
+	}
+
+	function renderGreeting(greeting, displayName) {
+		var isDefault = displayName.toLowerCase() === 'admin';
+		if ( isDefault ) {
+			greeting.innerHTML = 'Hi, <span class="greeting-name">' + escapeHtml(displayName) + '</span>!' +
+				'<span class="greeting-nudge">You\'re not really called admin, are you? Click to change your name!</span>';
+		} else {
+			greeting.innerHTML = 'Hi, <span class="greeting-name">' + escapeHtml(displayName) + '</span>!';
+		}
+		greeting.querySelector('.greeting-name').addEventListener('click', function() {
+			startNameEdit(greeting, displayName);
+		});
+	}
+
+	function startNameEdit(greeting, currentName) {
+		var isDefault = currentName.toLowerCase() === 'admin';
+		greeting.innerHTML = '<span class="greeting-edit">Hi, <input type="text" id="greeting-name-input" value="' +
+			escapeAttr(isDefault ? '' : currentName) + '" placeholder="Your name"' +
+			' maxlength="50" autofocus>!</span>';
+		var input = document.getElementById('greeting-name-input');
+		input.focus();
+		input.addEventListener('keydown', function(e) {
+			if ( e.key === 'Enter' ) {
+				saveDisplayName(greeting, input.value.trim());
+			} else if ( e.key === 'Escape' ) {
+				renderGreeting(greeting, currentName);
+			}
+		});
+		input.addEventListener('blur', function() {
+			var val = input.value.trim();
+			if ( val && val !== currentName ) {
+				saveDisplayName(greeting, val);
+			} else {
+				renderGreeting(greeting, currentName);
+			}
+		});
+	}
+
+	function saveDisplayName(greeting, newName) {
+		if ( ! newName ) {
+			return;
+		}
+		var formData = new FormData();
+		formData.append('action', 'my_apps_save_display_name');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('display_name', newName);
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: formData,
+		})
+		.then(function(r) { return r.json(); })
+		.then(function(resp) {
+			if ( resp.success ) {
+				renderGreeting(greeting, resp.data.display_name);
+			} else {
+				renderGreeting(greeting, newName);
+			}
+		})
+		.catch(function() {
+			renderGreeting(greeting, newName);
+		});
+	}
+
+	function escapeHtml(str) {
+		var div = document.createElement('div');
+		div.appendChild(document.createTextNode(str));
+		return div.innerHTML;
+	}
+
+	function escapeAttr(str) {
+		return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	}
 
 	function bindModalTabEvents() {

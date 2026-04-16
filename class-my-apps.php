@@ -18,6 +18,7 @@ class My_Apps {
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
 
 		// AJAX handlers for launcher
+		add_action( 'wp_ajax_my_apps_save_display_name', array( $this, 'ajax_save_display_name' ) );
 		add_action( 'wp_ajax_my_apps_save_order', array( $this, 'ajax_save_order' ) );
 		add_action( 'wp_ajax_my_apps_hide', array( $this, 'ajax_hide_app' ) );
 		add_action( 'wp_ajax_my_apps_add', array( $this, 'ajax_add_app' ) );
@@ -137,6 +138,7 @@ class My_Apps {
 				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
 				'nonce'        => wp_create_nonce( 'my_apps_launcher' ),
 				'isPlayground' => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
+				'displayName'  => wp_get_current_user()->display_name,
 				'display'      => get_option( 'my_apps_display', array(
 					'layout'       => 'flow',
 					'icon_size'    => 60,
@@ -148,6 +150,31 @@ class My_Apps {
 				),
 			)
 		);
+	}
+
+	/**
+	 * AJAX: Save display name.
+	 */
+	public function ajax_save_display_name() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$name = isset( $_POST['display_name'] ) ? sanitize_text_field( wp_unslash( $_POST['display_name'] ) ) : '';
+
+		if ( empty( $name ) ) {
+			wp_send_json_error( 'Empty name' );
+		}
+
+		$user_id = get_current_user_id();
+		wp_update_user( array(
+			'ID'           => $user_id,
+			'display_name' => $name,
+		) );
+
+		wp_send_json_success( array( 'display_name' => $name ) );
 	}
 
 	/**

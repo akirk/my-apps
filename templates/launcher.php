@@ -240,12 +240,12 @@ if ( $background === 'custom' && $custom_bg ) {
 						<input type="text" id="app-store-search" placeholder="<?php esc_attr_e( 'Search', 'my-apps' ); ?>">
 					</div>
 					<ul class="app-store-nav" id="app-store-nav">
-						<li class="app-store-nav-item active" data-category="all"><?php esc_html_e( 'Discover', 'my-apps' ); ?></li>
+						<li class="app-store-nav-item active" data-category="all"><?php esc_html_e( 'All Apps', 'my-apps' ); ?></li>
 					</ul>
 				</nav>
 				<div class="app-store-main">
 					<div class="app-store-main-header">
-						<h2 id="app-store-heading"><?php esc_html_e( 'Discover', 'my-apps' ); ?></h2>
+						<h2 id="app-store-heading"><?php esc_html_e( 'All Apps', 'my-apps' ); ?></h2>
 						<button type="button" class="modal-close">&times;</button>
 					</div>
 					<div class="app-store-content" id="app-store-content">

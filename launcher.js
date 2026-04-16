@@ -1380,7 +1380,7 @@
 		var sidebar = document.getElementById('app-store-sidebar');
 		sidebar.classList.remove('app-store-sidebar-hidden');
 		if (appStoreHeading) {
-			appStoreHeading.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+			appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
 		}
 		if (appStoreData) {
 			renderAppStore(appStoreData, activeCategory, '');
@@ -1418,7 +1418,7 @@
 		var discoverLi = document.createElement('li');
 		discoverLi.className = 'app-store-nav-item active';
 		discoverLi.dataset.category = 'all';
-		discoverLi.textContent = 'Discover';
+		discoverLi.textContent = 'All Apps';
 		appStoreNav.appendChild(discoverLi);
 
 		categories.forEach(function(cat) {
@@ -1428,6 +1428,20 @@
 			li.textContent = cat;
 			appStoreNav.appendChild(li);
 		});
+
+		// Plugin directory link
+		var divider = document.createElement('li');
+		divider.className = 'app-store-nav-divider';
+		appStoreNav.appendChild(divider);
+
+		var pluginDirLi = document.createElement('li');
+		pluginDirLi.className = 'app-store-nav-item app-store-nav-external';
+		var pluginDirLink = document.createElement('a');
+		pluginDirLink.href = myAppsConfig.ajaxUrl.replace('admin-ajax.php', 'plugin-install.php');
+		pluginDirLink.target = '_top';
+		pluginDirLink.textContent = 'Plugin Directory';
+		pluginDirLi.appendChild(pluginDirLink);
+		appStoreNav.appendChild(pluginDirLi);
 	}
 
 	function handleBlueprintPaste(e) {
@@ -1523,7 +1537,7 @@
 			item.classList.add('active');
 
 			activeCategory = item.dataset.category;
-			appStoreHeading.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+			appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
 			filterAppStore();
 		});
 
@@ -1755,7 +1769,7 @@
 		}
 
 		// Restore heading
-		appStoreHeading.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+		appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
 
 		// Show sidebar
 		var sidebar = document.getElementById('app-store-sidebar');
@@ -1779,7 +1793,7 @@
 		backBtn.addEventListener('click', closeAppDetail);
 
 		var headingText = document.createElement('span');
-		headingText.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+		headingText.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
 
 		appStoreHeading.appendChild(backBtn);
 		appStoreHeading.appendChild(headingText);
@@ -2325,7 +2339,7 @@
 			if (appStoreData) {
 				var sidebar = document.getElementById('app-store-sidebar');
 				sidebar.classList.remove('app-store-sidebar-hidden');
-				appStoreHeading.textContent = activeCategory === 'all' ? 'Discover' : activeCategory;
+				appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
 				renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 			}
 		}

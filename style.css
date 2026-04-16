@@ -373,6 +373,23 @@ body.edit-mode .add-app-btn {
 	color: #fff;
 }
 
+.app-store-nav-divider {
+	height: 1px;
+	background: #e0e0e0;
+	margin: 6px 10px;
+	list-style: none;
+}
+
+.app-store-nav-external a {
+	color: #757575;
+	text-decoration: none;
+	display: block;
+}
+
+.app-store-nav-external:hover a {
+	color: #1e1e1e;
+}
+
 .app-store-main {
 	flex: 1;
 	display: flex;

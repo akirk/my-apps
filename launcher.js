@@ -124,10 +124,12 @@
 			return;
 		}
 
-		// Compare current slugs to the snapshot
+		// Compare current slugs and URLs to the snapshot
 		var currentSlugs = [];
+		var currentUrls = [];
 		container.querySelectorAll('.app-icon[data-slug]').forEach(function(el) {
 			currentSlugs.push(el.dataset.slug);
+			if (el.dataset.url) currentUrls.push(el.dataset.url);
 		});
 
 		var newSlugs = currentSlugs.filter(function(s) {
@@ -136,6 +138,16 @@
 
 		// A new app was already added by the plugin itself — nothing to do
 		if (newSlugs.length > 0) {
+			showToast(pending.title + ' installed');
+			return;
+		}
+
+		// Also check if an app with a matching name already exists
+		var existingNames = [];
+		container.querySelectorAll('.app-title').forEach(function(el) {
+			existingNames.push(el.textContent.trim().toLowerCase());
+		});
+		if (existingNames.indexOf(pending.title.toLowerCase()) !== -1) {
 			showToast(pending.title + ' installed');
 			return;
 		}

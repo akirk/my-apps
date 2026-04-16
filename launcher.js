@@ -144,7 +144,11 @@
 			: fetch(pending.blueprintUrl).then(function(res) { return res.json(); });
 
 		blueprintPromise.then(function(blueprint) {
-			var landingPage = blueprint.landingPage || '/';
+			var landingPage = blueprint.landingPage;
+			if (!landingPage) {
+				showToast(pending.title + ' installed');
+				return;
+			}
 			var appUrl = landingPage.indexOf('http') === 0
 				? landingPage
 				: window.location.origin + landingPage;
@@ -173,25 +177,7 @@
 				}
 			});
 		}).catch(function() {
-			// Can't fetch blueprint, create app with root URL
-			var formData = new FormData();
-			formData.append('action', 'my_apps_add');
-			formData.append('nonce', myAppsConfig.nonce);
-			formData.append('name', pending.title);
-			formData.append('url', window.location.origin + '/');
-			formData.append('icon_url', pending.iconUrl);
-
-			fetch(myAppsConfig.ajaxUrl, {
-				method: 'POST',
-				body: formData
-			})
-			.then(function(res) { return res.json(); })
-			.then(function(data) {
-				if (data.success) {
-					showToast(pending.title + ' installed and added');
-					setTimeout(function() { window.location.reload(); }, 1000);
-				}
-			});
+			showToast(pending.title + ' installed');
 		});
 	}
 
@@ -1741,6 +1727,16 @@
 		pluginDirLink.textContent = 'Plugin Directory';
 		pluginDirLi.appendChild(pluginDirLink);
 		appStoreNav.appendChild(pluginDirLi);
+
+		var submitLi = document.createElement('li');
+		submitLi.className = 'app-store-nav-item app-store-nav-external';
+		var submitLink = document.createElement('a');
+		submitLink.href = 'https://github.com/WordPress/blueprints/';
+		submitLink.target = '_blank';
+		submitLink.rel = 'noopener noreferrer';
+		submitLink.textContent = 'Submit an App';
+		submitLi.appendChild(submitLink);
+		appStoreNav.appendChild(submitLi);
 	}
 
 	function handleBlueprintPaste(e) {

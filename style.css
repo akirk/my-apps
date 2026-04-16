@@ -233,11 +233,13 @@ body.edit-mode .app-icon.sortable-chosen {
 .add-app-btn {
 	opacity: 0.6;
 	cursor: pointer;
+	transition: opacity 0.3s;
 }
 
 .add-app-btn:hover,
 .add-app-btn:has(.add-dropdown.active) {
 	opacity: 1;
+	transform: none;
 }
 
 .add-icon {

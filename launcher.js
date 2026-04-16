@@ -1438,11 +1438,13 @@
 		try {
 			blueprint = JSON.parse(text);
 		} catch (err) {
-			return; // Not JSON, ignore silently
+			showToast('Pasted text is not valid JSON');
+			return;
 		}
 
 		// Validate it looks like a blueprint
 		if (!blueprint.steps && !blueprint.meta && !(blueprint.$schema && blueprint.$schema.indexOf('blueprint') !== -1)) {
+			showToast('Pasted JSON is not a valid blueprint');
 			return;
 		}
 

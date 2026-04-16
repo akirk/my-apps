@@ -45,6 +45,17 @@ body.my-apps-launcher {
 	}
 }
 
+@media (max-width: 600px) {
+	body.my-apps-launcher {
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+	.apps-container.layout-grid {
+		grid-template-columns: repeat(auto-fill, minmax(calc(var(--app-size, 60px) + 46px), 1fr));
+		max-width: 100%;
+	}
+}
+
 /* Toolbar */
 .launcher-toolbar {
 	position: fixed;
@@ -166,8 +177,6 @@ body.edit-mode .done-btn {
 	justify-content: center;
 	gap: var(--app-gap, 16px);
 	padding-top: 60px;
-	padding-left: 20px;
-	padding-right: 20px;
 }
 .greeting:not(:empty) + .apps-container {
 	padding-top: 20px;
@@ -181,8 +190,6 @@ body.edit-mode .done-btn {
 	max-width: calc(var(--grid-columns, 6) * (var(--app-size, 60px) + 46px));
 	margin: 0 auto;
 	padding-top: 60px;
-	padding-left: 20px;
-	padding-right: 20px;
 }
 .greeting:not(:empty) + .apps-container.layout-grid {
 	padding-top: 20px;

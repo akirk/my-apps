@@ -24,7 +24,7 @@ function seed_default_apps() {
 		),
 	);
 
-	$welcome = get_page_by_path( 'welcome-to-your-wordpress' );
+	$welcome = get_page_by_path( 'welcome-to-your-wordpress', OBJECT, 'post' );
 	if ( $welcome && 'publish' === $welcome->post_status ) {
 		$defaults['about'] = array(
 			'name'     => $welcome->post_title,

@@ -445,12 +445,38 @@
 		initGreeting();
 	}
 
+	var HIDE_GREETING_KEY = 'my_apps_hide_greeting';
+
+	function isGreetingHidden() {
+		return localStorage.getItem(HIDE_GREETING_KEY) === '1';
+	}
+
+	function toggleGreeting() {
+		if (isGreetingHidden()) {
+			localStorage.removeItem(HIDE_GREETING_KEY);
+		} else {
+			localStorage.setItem(HIDE_GREETING_KEY, '1');
+		}
+		initGreeting();
+		updateGreetingToggleLabel();
+	}
+
+	function updateGreetingToggleLabel() {
+		var label = document.querySelector('.toggle-greeting-label');
+		if (!label) return;
+		label.textContent = isGreetingHidden() ? 'Show greeting' : 'Hide greeting';
+	}
+
 	function initGreeting() {
 		if ( ! isPlayground ) {
 			return;
 		}
 		var greeting = document.getElementById('greeting');
 		if ( ! greeting ) {
+			return;
+		}
+		if ( isGreetingHidden() ) {
+			greeting.innerHTML = '';
 			return;
 		}
 		var displayName = myAppsConfig.displayName || 'admin';
@@ -1029,6 +1055,7 @@
 				settingsDropdown.classList.toggle('active');
 				if (settingsDropdown.classList.contains('active')) {
 					updateLayoutButtons();
+					updateGreetingToggleLabel();
 				}
 			});
 			settingsDropdown.addEventListener('click', function(e) {
@@ -1043,6 +1070,8 @@
 						handleExport();
 					} else if (action === 'import') {
 						handleImport();
+					} else if (action === 'toggle-greeting') {
+						toggleGreeting();
 					}
 				}
 			});
@@ -1198,15 +1227,22 @@
 		closeBgPicker();
 	}
 
-	var displaySettings = (typeof myAppsConfig !== 'undefined' && myAppsConfig.display) || {};
+	var DISPLAY_KEYS = ['layout', 'icon_size', 'spacing', 'grid_columns'];
+
+	function loadDisplaySettings() {
+		var out = {};
+		DISPLAY_KEYS.forEach(function(k) {
+			var v = localStorage.getItem('my_apps_' + k);
+			if (v !== null) out[k] = v;
+		});
+		return out;
+	}
+
+	var displaySettings = loadDisplaySettings();
 
 	function saveDisplay(key, value) {
 		displaySettings[key] = value;
-		var formData = new FormData();
-		formData.append('action', 'my_apps_save_display');
-		formData.append('nonce', myAppsConfig.nonce);
-		formData.append(key, value);
-		fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData });
+		localStorage.setItem('my_apps_' + key, value);
 	}
 
 	function setLayout(mode) {
@@ -1300,11 +1336,23 @@
 
 			var reader = new FileReader();
 			reader.onload = function(e) {
+				var parsed;
 				try {
-					JSON.parse(e.target.result);
+					parsed = JSON.parse(e.target.result);
 				} catch (err) {
 					showToast('Invalid JSON file');
 					return;
+				}
+
+				if (parsed && parsed.display && typeof parsed.display === 'object') {
+					DISPLAY_KEYS.forEach(function(k) {
+						if (parsed.display[k] !== undefined && parsed.display[k] !== null) {
+							localStorage.setItem('my_apps_' + k, String(parsed.display[k]));
+						}
+					});
+				}
+				if (parsed && typeof parsed.custom_blueprints === 'string') {
+					localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, parsed.custom_blueprints);
 				}
 
 				var formData = new FormData();

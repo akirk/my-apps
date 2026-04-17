@@ -5,7 +5,6 @@
 	const editBtn = document.querySelector('.edit-btn');
 	const doneBtn = document.querySelector('.done-btn');
 	const contextMenu = document.getElementById('context-menu');
-	const addAppModal = document.getElementById('add-app-modal');
 	const addAppForm = document.getElementById('add-app-form');
 	const bgPicker = document.getElementById('bg-picker');
 	const bgBtn = document.querySelector('.bg-btn');
@@ -18,9 +17,10 @@
 	const adminMenuTree = document.getElementById('admin-menu-tree');
 	const adminMenuSearch = document.getElementById('admin-menu-search');
 
-	const addDropdown = document.getElementById('add-dropdown');
 	const installSoftwareModal = document.getElementById('install-software-modal');
 	const appStoreContent = document.getElementById('app-store-content');
+	const adminLinkView = document.getElementById('admin-link-view');
+	const webLinkView = document.getElementById('web-link-view');
 
 	let isEditMode = false;
 	let adminMenuData = null;
@@ -439,7 +439,7 @@
 		initEmojiPicker();
 		initDashiconPicker();
 		bindEvents();
-		bindModalTabEvents();
+		bindAdminMenuSearch();
 		checkDeepLink();
 		checkPendingInstall();
 		initGreeting();
@@ -553,27 +553,7 @@
 		return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	}
 
-	function bindModalTabEvents() {
-		document.querySelectorAll('.modal-tab').forEach(function(tab) {
-			tab.addEventListener('click', function() {
-				var tabName = tab.dataset.tab;
-
-				document.querySelectorAll('.modal-tab').forEach(function(t) {
-					t.classList.remove('active');
-				});
-				tab.classList.add('active');
-
-				document.querySelectorAll('.modal-tab-content').forEach(function(content) {
-					content.classList.add('hidden');
-				});
-				document.getElementById('tab-' + tabName).classList.remove('hidden');
-
-				if (tabName === 'admin-menu' && !adminMenuData) {
-					loadAdminMenu();
-				}
-			});
-		});
-
+	function bindAdminMenuSearch() {
 		if (adminMenuSearch) {
 			adminMenuSearch.addEventListener('input', function() {
 				filterAdminMenu(adminMenuSearch.value);
@@ -959,36 +939,10 @@
 		container.addEventListener('click', handleAppClick);
 
 		document.querySelector('.add-app-btn').addEventListener('click', function(e) {
-			// Don't toggle dropdown if clicking inside it
-			if (e.target.closest('.add-dropdown')) return;
 			e.stopPropagation();
-			addDropdown.classList.toggle('active');
+			openInstallSoftwareModal();
 		});
 
-		addDropdown.addEventListener('click', function(e) {
-			var item = e.target.closest('.add-dropdown-item');
-			if (!item) return;
-			e.stopPropagation();
-			addDropdown.classList.remove('active');
-			var action = item.dataset.action;
-			if (action === 'add-link') {
-				openAddModal();
-			} else if (action === 'install-software') {
-				openInstallSoftwareModal();
-			}
-		});
-
-		document.addEventListener('click', function(e) {
-			if (!e.target.closest('.add-app-btn')) {
-				addDropdown.classList.remove('active');
-			}
-		});
-
-		addAppModal.querySelector('.modal-close').addEventListener('click', closeAddModal);
-		addAppModal.querySelector('.btn-cancel').addEventListener('click', closeAddModal);
-		addAppModal.addEventListener('click', function(e) {
-			if (e.target === addAppModal) closeAddModal();
-		});
 		addAppForm.addEventListener('submit', handleAddApp);
 
 		installSoftwareModal.querySelector('.modal-close').addEventListener('click', closeInstallSoftwareModal);
@@ -1014,10 +968,6 @@
 						return;
 					}
 					closeInstallSoftwareModal();
-				} else if (addAppModal.classList.contains('active')) {
-					closeAddModal();
-				} else if (addDropdown.classList.contains('active')) {
-					addDropdown.classList.remove('active');
 				} else if (bgPicker.classList.contains('active')) {
 					closeBgPicker();
 				} else if (hiddenPopup.classList.contains('active')) {
@@ -1516,37 +1466,21 @@
 		}
 	}
 
-	function openAddModal() {
-		addAppModal.classList.add('active');
-		document.body.style.overflow = 'hidden';
-
-		// Reset to Admin Menu tab
-		document.querySelectorAll('.modal-tab').forEach(function(t) {
-			t.classList.remove('active');
-		});
-		document.querySelector('.modal-tab[data-tab="admin-menu"]').classList.add('active');
-		document.querySelectorAll('.modal-tab-content').forEach(function(c) {
-			c.classList.add('hidden');
-		});
-		document.getElementById('tab-admin-menu').classList.remove('hidden');
-
-		// Load admin menu if not loaded
+	function resetAdminLinkView() {
 		if (!adminMenuData) {
 			loadAdminMenu();
 		}
-
-		// Reset search
 		if (adminMenuSearch) {
 			adminMenuSearch.value = '';
 			if (adminMenuData) {
 				renderAdminMenuTree(adminMenuData);
 			}
 		}
+	}
 
-		// Reset custom form
+	function resetWebLinkForm() {
 		addAppForm.reset();
 
-		// Reset icon tabs to emoji
 		document.querySelectorAll('.icon-tab').forEach(function(t) {
 			t.classList.remove('active');
 		});
@@ -1557,14 +1491,12 @@
 		document.querySelector('.dashicon-picker-container').classList.remove('active');
 		document.querySelector('.emoji-picker-container').classList.add('active');
 
-		// Reset emoji picker
 		document.getElementById('app-emoji').value = '';
 		document.getElementById('emoji-search').value = '';
 		document.querySelectorAll('.emoji-option.selected').forEach(function(btn) {
 			btn.classList.remove('selected');
 		});
 
-		// Reset dashicon picker
 		document.getElementById('app-dashicon').value = '';
 		document.getElementById('dashicon-search').value = '';
 		document.querySelectorAll('.dashicon-option.selected').forEach(function(btn) {
@@ -1572,11 +1504,6 @@
 		});
 
 		updateIconPreview();
-	}
-
-	function closeAddModal() {
-		addAppModal.classList.remove('active');
-		document.body.style.overflow = '';
 	}
 
 	function handleIconTabSwitch(e) {
@@ -1684,7 +1611,7 @@
 				var newApp = createAppElement(data.data);
 				var addBtn = document.querySelector('.add-app-btn');
 				container.insertBefore(newApp, addBtn);
-				closeAddModal();
+				closeInstallSoftwareModal();
 			} else {
 				alert(data.data || 'Error adding app');
 			}
@@ -1789,10 +1716,29 @@
 	var appStoreSearchInput = document.getElementById('app-store-search');
 	var appStoreHeading = document.getElementById('app-store-heading');
 	var activeCategory = 'all';
+	var activeView = 'apps';
+
+	function showAppStoreView(view) {
+		activeView = view;
+		appStoreContent.hidden = (view !== 'apps');
+		adminLinkView.hidden = (view !== 'admin-link');
+		webLinkView.hidden = (view !== 'web-link');
+
+		if (view === 'admin-link') {
+			appStoreHeading.textContent = 'Add Admin Link';
+			resetAdminLinkView();
+		} else if (view === 'web-link') {
+			appStoreHeading.textContent = 'Add Web Link';
+			resetWebLinkForm();
+		} else {
+			appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
+		}
+	}
 
 	function openInstallSoftwareModal() {
 		installSoftwareModal.classList.add('active');
 		document.body.style.overflow = 'hidden';
+		showAppStoreView('apps');
 		if (!appStoreData) {
 			loadAppStore();
 		}
@@ -1812,9 +1758,7 @@
 		// Reset to list view for next open
 		var sidebar = document.getElementById('app-store-sidebar');
 		sidebar.classList.remove('app-store-sidebar-hidden');
-		if (appStoreHeading) {
-			appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
-		}
+		showAppStoreView('apps');
 		if (appStoreData) {
 			renderAppStore(appStoreData, activeCategory, '');
 		}
@@ -1846,10 +1790,10 @@
 			cats.forEach(function(c) { categories.add(c); });
 		});
 
-		// Keep "Discover" (all), then add each category
 		appStoreNav.innerHTML = '';
+
 		var discoverLi = document.createElement('li');
-		discoverLi.className = 'app-store-nav-item active';
+		discoverLi.className = 'app-store-nav-item' + (activeView === 'apps' ? ' active' : '');
 		discoverLi.dataset.category = 'all';
 		discoverLi.textContent = 'All Apps';
 		appStoreNav.appendChild(discoverLi);
@@ -1861,6 +1805,22 @@
 			li.textContent = cat;
 			appStoreNav.appendChild(li);
 		});
+
+		var addDivider = document.createElement('li');
+		addDivider.className = 'app-store-nav-divider';
+		appStoreNav.appendChild(addDivider);
+
+		var addAdminLi = document.createElement('li');
+		addAdminLi.className = 'app-store-nav-item';
+		addAdminLi.dataset.view = 'admin-link';
+		addAdminLi.textContent = 'Add Admin Link';
+		appStoreNav.appendChild(addAdminLi);
+
+		var addWebLi = document.createElement('li');
+		addWebLi.className = 'app-store-nav-item';
+		addWebLi.dataset.view = 'web-link';
+		addWebLi.textContent = 'Add Web Link';
+		appStoreNav.appendChild(addWebLi);
 
 		// Plugin directory link
 		var divider = document.createElement('li');
@@ -1973,14 +1933,20 @@
 		appStoreNav.addEventListener('click', function(e) {
 			var item = e.target.closest('.app-store-nav-item');
 			if (!item) return;
+			if (!item.dataset.view && !item.dataset.category) return;
 
 			appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
 				el.classList.remove('active');
 			});
 			item.classList.add('active');
 
+			if (item.dataset.view) {
+				showAppStoreView(item.dataset.view);
+				return;
+			}
+
 			activeCategory = item.dataset.category;
-			appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
+			showAppStoreView('apps');
 			filterAppStore();
 		});
 

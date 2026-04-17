@@ -344,8 +344,7 @@ body.edit-mode .app-icon.sortable-chosen {
 	transition: opacity 0.3s;
 }
 
-.add-app-btn:hover,
-.add-app-btn:has(.add-dropdown.active) {
+.add-app-btn:hover {
 	opacity: 1;
 	transform: none;
 }
@@ -365,48 +364,6 @@ body.edit-mode .app-icon.sortable-chosen {
 body.edit-mode .add-app-btn {
 	animation: none;
 	opacity: 1;
-}
-
-/* Add Dropdown */
-.add-dropdown {
-	position: absolute;
-	bottom: calc(100% + 8px);
-	left: 50%;
-	transform: translateX(-50%);
-	background: #fff;
-	border-radius: 10px;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-	padding: 6px 0;
-	min-width: 180px;
-	display: none;
-	z-index: 200;
-}
-
-.add-dropdown.active {
-	display: block;
-}
-
-.add-dropdown-item {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	width: 100%;
-	padding: 10px 16px;
-	border: none;
-	background: none;
-	cursor: pointer;
-	font-size: 14px;
-	color: #333;
-	white-space: nowrap;
-	text-align: left;
-}
-
-.add-dropdown-item:hover {
-	background: #f0f0f0;
-}
-
-.add-dropdown-item svg {
-	flex-shrink: 0;
 }
 
 /* App Store Modal */
@@ -545,6 +502,16 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	padding: 0 24px 24px;
 	overflow-y: auto;
 	flex: 1;
+}
+
+.app-store-form-view {
+	padding: 0 24px 24px;
+	overflow-y: auto;
+	flex: 1;
+}
+
+.app-store-form-view[hidden] {
+	display: none;
 }
 
 .app-store-loading {
@@ -1687,7 +1654,6 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	margin-top: 20px;
 }
 
-.btn-cancel,
 .btn-add {
 	flex: 1;
 	padding: 12px;
@@ -1697,18 +1663,6 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	font-weight: 500;
 	cursor: pointer;
 	transition: background 0.2s;
-}
-
-.btn-cancel {
-	background: #f0f0f0;
-	color: #333;
-}
-
-.btn-cancel:hover {
-	background: #e0e0e0;
-}
-
-.btn-add {
 	background: #667eea;
 	color: #fff;
 }
@@ -1903,44 +1857,6 @@ body.edit-mode .hidden-count {
 
 .hidden-app-item:hover .restore-icon {
 	opacity: 1;
-}
-
-/* Modal Tabs */
-.modal-tabs {
-	display: flex;
-	border-bottom: 1px solid #eee;
-}
-
-.modal-tab {
-	flex: 1;
-	padding: 12px 16px;
-	border: none;
-	background: none;
-	cursor: pointer;
-	font-size: 14px;
-	font-weight: 500;
-	color: #666;
-	border-bottom: 2px solid transparent;
-	margin-bottom: -1px;
-	transition: all 0.2s;
-}
-
-.modal-tab:hover {
-	color: #333;
-	background: #f9f9f9;
-}
-
-.modal-tab.active {
-	color: #667eea;
-	border-bottom-color: #667eea;
-}
-
-.modal-tab-content {
-	padding: 16px 20px;
-}
-
-.modal-tab-content.hidden {
-	display: none;
 }
 
 /* Admin Menu Tree */

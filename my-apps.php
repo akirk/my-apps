@@ -20,4 +20,6 @@ define( 'MY_APPS_VERSION', '1.2.0' );
 require_once __DIR__ . '/class-my-apps.php';
 require_once __DIR__ . '/default-apps.php';
 
+register_activation_hook( __FILE__, __NAMESPACE__ . '\seed_default_apps' );
+
 new My_Apps();

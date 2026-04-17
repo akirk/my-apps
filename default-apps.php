@@ -1,28 +1,50 @@
 <?php
 namespace My_Apps;
 
-function write_post( $apps ) {
-	$apps['write_post'] = array(
-		'name'     => 'New Post',
-		'dashicon' => 'dashicons-welcome-write-blog',
-		'url'      => admin_url( 'post-new.php' ),
+function seed_default_apps() {
+	$additional_apps = get_option( 'my_apps_additional_apps', array() );
+	$sort            = get_option( 'my_apps_sort', array() );
+
+	$defaults = array(
+		'write_post' => array(
+			'name'     => 'New Post',
+			'url'      => admin_url( 'post-new.php' ),
+			'dashicon' => 'dashicons-welcome-write-blog',
+			'icon_url' => false,
+			'emoji'    => false,
+			'gradient' => false,
+		),
+		'all_posts'  => array(
+			'name'     => 'All Posts',
+			'url'      => admin_url( 'edit.php' ),
+			'dashicon' => 'dashicons-admin-post',
+			'icon_url' => false,
+			'emoji'    => false,
+			'gradient' => false,
+		),
 	);
 
-	return $apps;
-}
-
-function about( $apps ) {
-	$welcome = get_page_by_path( 'welcome' );
+	$welcome = get_page_by_path( 'welcome-to-your-wordpress' );
 	if ( $welcome && 'publish' === $welcome->post_status ) {
-		$apps['about'] = array(
+		$defaults['about'] = array(
 			'name'     => $welcome->post_title,
-			'dashicon' => 'dashicons-info-outline',
 			'url'      => get_permalink( $welcome ),
+			'dashicon' => 'dashicons-info-outline',
+			'icon_url' => false,
+			'emoji'    => false,
+			'gradient' => false,
 		);
 	}
 
-	return $apps;
-}
+	foreach ( $defaults as $slug => $data ) {
+		if ( ! isset( $additional_apps[ $slug ] ) ) {
+			$additional_apps[ $slug ] = $data;
+		}
+		if ( ! in_array( $slug, $sort, true ) ) {
+			$sort[] = $slug;
+		}
+	}
 
-add_filter( 'my_apps_plugins', __NAMESPACE__ . '\write_post' );
-add_filter( 'my_apps_plugins', __NAMESPACE__ . '\about' );
+	update_option( 'my_apps_additional_apps', $additional_apps );
+	update_option( 'my_apps_sort', $sort );
+}

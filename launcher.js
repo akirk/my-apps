@@ -448,15 +448,15 @@
 	var HIDE_GREETING_KEY = 'my_apps_hide_greeting';
 
 	function isGreetingHidden() {
-		return localStorage.getItem(HIDE_GREETING_KEY) === '1';
+		var stored = localStorage.getItem(HIDE_GREETING_KEY);
+		if (stored === '1') return true;
+		if (stored === '0') return false;
+		return !isPlayground;
 	}
 
 	function toggleGreeting() {
-		if (isGreetingHidden()) {
-			localStorage.removeItem(HIDE_GREETING_KEY);
-		} else {
-			localStorage.setItem(HIDE_GREETING_KEY, '1');
-		}
+		var newHidden = !isGreetingHidden();
+		localStorage.setItem(HIDE_GREETING_KEY, newHidden ? '1' : '0');
 		initGreeting();
 		updateGreetingToggleLabel();
 	}
@@ -468,9 +468,6 @@
 	}
 
 	function initGreeting() {
-		if ( ! isPlayground ) {
-			return;
-		}
 		var greeting = document.getElementById('greeting');
 		if ( ! greeting ) {
 			return;

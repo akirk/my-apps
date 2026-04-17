@@ -76,13 +76,11 @@ if ( $background === 'custom' && $custom_bg ) {
 				<div class="settings-dropdown-slider">
 					<input type="range" id="setting-spacing" min="4" max="40" step="2" value="16">
 				</div>
-				<?php if ( defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ) ) : ?>
 				<div class="settings-dropdown-divider"></div>
 				<button type="button" class="settings-dropdown-item" data-action="toggle-greeting">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>
 					<span class="toggle-greeting-label"></span>
 				</button>
-				<?php endif; ?>
 				<div class="settings-dropdown-divider"></div>
 				<button type="button" class="settings-dropdown-item" data-action="export">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>

@@ -16,6 +16,20 @@
 	const body = document.body;
 	const adminMenuTree = document.getElementById('admin-menu-tree');
 	const adminMenuSearch = document.getElementById('admin-menu-search');
+	const hintEl = document.getElementById('my-apps-hint');
+	if (hintEl) {
+		hintEl.addEventListener('click', function() {
+			hintEl.parentNode.removeChild(hintEl);
+			var formData = new FormData();
+			formData.append('action', 'my_apps_dismiss_hint');
+			formData.append('nonce', myAppsConfig.nonce);
+			fetch(myAppsConfig.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				body: formData
+			});
+		});
+	}
 
 	const installSoftwareModal = document.getElementById('install-software-modal');
 	const appStoreContent = document.getElementById('app-store-content');

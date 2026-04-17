@@ -19,6 +19,7 @@ class My_Apps {
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
 
 		// AJAX handlers for launcher
+		add_action( 'wp_ajax_my_apps_dismiss_hint', array( $this, 'ajax_dismiss_hint' ) );
 		add_action( 'wp_ajax_my_apps_save_display_name', array( $this, 'ajax_save_display_name' ) );
 		add_action( 'wp_ajax_my_apps_save_order', array( $this, 'ajax_save_order' ) );
 		add_action( 'wp_ajax_my_apps_hide', array( $this, 'ajax_hide_app' ) );
@@ -77,6 +78,18 @@ class My_Apps {
 				'href'  => home_url( '/my-apps/' ),
 			)
 		);
+	}
+
+	/**
+	 * AJAX: Persist the dismissal of the admin-bar hint.
+	 */
+	public function ajax_dismiss_hint() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error();
+		}
+		update_user_meta( get_current_user_id(), 'my_apps_hint_dismissed', 1 );
+		wp_send_json_success();
 	}
 
 	/**

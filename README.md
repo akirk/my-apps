@@ -5,19 +5,28 @@
 - Requires at least: 5.0
 - Tested up to: 7.0
 - License: GPL-2.0-or-later
-- Stable tag: 1.2.0
+- Stable tag: 1.3.0
 
 A WordPress app launcher.
 
 ## Description
 
-This plugin adds a `/my-apps/` route to your WordPress so that it can act as your personal apps launcher.
+This plugin adds a `/my-apps/` route to your WordPress so that it can act as your personal apps launcher — a dashboard that feels like a mobile phone home screen, so you don't have to navigate wp-admin to reach the apps you use.
 
-You can use your own WordPress as the place where you host apps in form of plugins. It can be hard to launch them since you have to navigate wp-admin. This adds a dashboard like an mobile phone launcher to your WordPress.
+Apps can be plugins that register their own icon, custom links you add yourself, or plugins you install on demand from the built-in app store.
 
-Plugin "Apps" can register their own icons but you can add your own links.
+### Features
 
-### Code Example
+- **Launcher** at `/my-apps/` with grid or flow layouts, drag-to-reorder, and an edit mode for customization.
+- **Display settings** live in the launcher itself (no admin page): icon size, spacing, grid columns, layout toggle, and an optional personalized greeting. Settings are stored per-device while in edit mode.
+- **App Store** for installing new apps: browse a curated catalog, view app detail pages, and install via WordPress Playground blueprints. Paste a custom blueprint JSON from the clipboard to install anything.
+- **Auto-registered icons** after a blueprint install — if the installed plugin doesn't register its own icon, one is generated with a category-colored gradient.
+- **Import/export** your launcher configuration from the settings dropdown.
+- **Mobile-friendly**: full-screen app store, three icons per row, and a My Apps link in the admin bar on the frontend.
+
+### Adding an app from a plugin
+
+Plugins can register their own launcher icon by filtering `my_apps_plugins`:
 
     add_filter( 'my_apps_plugins', function ( $apps ) {
         // Add your app to the array. These three keys are mandatory:
@@ -35,5 +44,5 @@ Plugin "Apps" can register their own icons but you can add your own links.
 ## Screenshots
 
 1. The Launcher
-2. Settings
+2. The App Store
 

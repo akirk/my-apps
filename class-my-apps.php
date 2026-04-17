@@ -13,7 +13,6 @@ class My_Apps {
 		add_action( 'wp_head', array( $this, 'admin_bar_css' ), 50 );
 		add_action( 'admin_head', array( $this, 'admin_bar_css' ), 50 );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 1 );
-		add_action( 'admin_bar_menu', array( $this, 'admin_bar_remove_nodes' ), 999 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 		add_action( 'wp_enqueue_styles', array( $this, 'enqueue_styles' ) );
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
@@ -26,6 +25,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
+		add_action( 'wp_ajax_my_apps_save_display', array( $this, 'ajax_save_display' ) );
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
 		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
 	}
@@ -77,17 +77,6 @@ class My_Apps {
 				'href'  => home_url( '/my-apps/' ),
 			)
 		);
-	}
-
-	/**
-	 * Remove noisy nodes from the admin bar.
-	 *
-	 * @param mixed $wp_admin_bar The admin bar.
-	 */
-	public function admin_bar_remove_nodes( $wp_admin_bar ) {
-		foreach ( array( 'site-editor' ) as $node_id ) {
-			$wp_admin_bar->remove_node( $node_id );
-		}
 	}
 
 	/**
@@ -169,6 +158,12 @@ class My_Apps {
 				'nonce'        => wp_create_nonce( 'my_apps_launcher' ),
 				'isPlayground' => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
 				'displayName'  => wp_get_current_user()->display_name,
+				'display'      => get_option( 'my_apps_display', array(
+					'layout'       => 'flow',
+					'icon_size'    => 60,
+					'spacing'      => 16,
+					'grid_columns' => 6,
+				) ),
 				'i18n'         => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
 				),
@@ -270,6 +265,43 @@ class My_Apps {
 		}
 
 		update_option( 'my_apps_background', $background );
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Save display settings.
+	 */
+	public function ajax_save_display() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$display = get_option( 'my_apps_display', array(
+			'layout'       => 'flow',
+			'icon_size'    => 60,
+			'spacing'      => 16,
+			'grid_columns' => 6,
+		) );
+
+		if ( isset( $_POST['layout'] ) ) {
+			$layout = sanitize_text_field( wp_unslash( $_POST['layout'] ) );
+			if ( in_array( $layout, array( 'flow', 'grid' ), true ) ) {
+				$display['layout'] = $layout;
+			}
+		}
+		if ( isset( $_POST['icon_size'] ) ) {
+			$display['icon_size'] = max( 40, min( 100, intval( $_POST['icon_size'] ) ) );
+		}
+		if ( isset( $_POST['spacing'] ) ) {
+			$display['spacing'] = max( 4, min( 40, intval( $_POST['spacing'] ) ) );
+		}
+		if ( isset( $_POST['grid_columns'] ) ) {
+			$display['grid_columns'] = max( 3, min( 12, intval( $_POST['grid_columns'] ) ) );
+		}
+
+		update_option( 'my_apps_display', $display );
 		wp_send_json_success();
 	}
 
@@ -520,6 +552,12 @@ class My_Apps {
 				'hide_plugins'    => get_option( 'my_apps_hide_plugins', array() ),
 				'additional_apps' => get_option( 'my_apps_additional_apps', array() ),
 				'background'      => get_option( 'my_apps_background', 'gradient-purple' ),
+				'display'         => get_option( 'my_apps_display', array(
+					'layout'       => 'flow',
+					'icon_size'    => 60,
+					'spacing'      => 16,
+					'grid_columns' => 6,
+				) ),
 			)
 		);
 	}
@@ -551,6 +589,9 @@ class My_Apps {
 		}
 		if ( isset( $data['background'] ) && is_string( $data['background'] ) ) {
 			update_option( 'my_apps_background', $data['background'] );
+		}
+		if ( isset( $data['display'] ) && is_array( $data['display'] ) ) {
+			update_option( 'my_apps_display', $data['display'] );
 		}
 
 		wp_send_json_success();

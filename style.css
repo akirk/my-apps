@@ -36,66 +36,48 @@ body.my-apps-launcher {
 		padding-left: 10px;
 		padding-right: 10px;
 	}
+	.apps-container.layout-grid {
+		grid-template-columns: repeat(auto-fill, minmax(calc(var(--app-size, 60px) + 46px), 1fr));
+		max-width: 100%;
+	}
 }
 
 /* Toolbar */
 .launcher-toolbar {
 	position: fixed;
-	top: 44px;
+	top: 32px;
 	left: 0;
 	right: 0;
 	height: 50px;
 	display: flex;
+	justify-content: space-between;
 	align-items: center;
-	gap: 10px;
 	padding: 0 20px;
 	z-index: 100;
 }
 
-body:not(.edit-mode) .launcher-toolbar .edit-only {
-	display: none;
-}
-
 @media screen and (max-width: 782px) {
 	.launcher-toolbar {
-		top: 58px;
-	}
-	.hidden-popup,
-	.bg-picker-popup {
-		top: 116px;
+		top: 46px;
 	}
 }
 
-.launcher-toolbar .toolbar-btn {
-	appearance: none;
-	-webkit-appearance: none;
+.toolbar-btn {
 	background: rgba(255, 255, 255, 0.2);
-	border: 0;
+	border: none;
 	border-radius: 8px;
-	padding: 8px;
-	margin: 0;
+	padding: 8px 16px;
 	color: #fff;
 	cursor: pointer;
-	font-family: inherit;
 	font-size: 14px;
 	font-weight: 500;
-	line-height: 1;
-	box-sizing: border-box;
-	min-height: 0;
-	height: 36px;
 	display: flex;
 	align-items: center;
-	justify-content: center;
 	gap: 6px;
 	transition: background 0.2s;
 }
 
-.launcher-toolbar .toolbar-btn.done-btn {
-	padding: 8px 16px;
-	width: auto;
-}
-
-.launcher-toolbar .toolbar-btn:hover {
+.toolbar-btn:hover {
 	background: rgba(255, 255, 255, 0.3);
 }
 
@@ -103,22 +85,21 @@ body:not(.edit-mode) .launcher-toolbar .edit-only {
 	fill: currentColor;
 }
 
-.launcher-toolbar .done-btn {
+.done-btn {
 	display: none;
 	background: rgba(255, 255, 255, 0.9);
 	color: #764ba2;
 }
 
-.launcher-toolbar .done-btn:hover {
+.done-btn:hover {
 	background: #fff;
-	color: #764ba2;
 }
 
-body.edit-mode .launcher-toolbar .edit-btn {
+body.edit-mode .edit-btn {
 	display: none;
 }
 
-body.edit-mode .launcher-toolbar .done-btn {
+body.edit-mode .done-btn {
 	display: flex;
 }
 
@@ -198,13 +179,6 @@ body.edit-mode .launcher-toolbar .done-btn {
 }
 .greeting:not(:empty) + .apps-container.layout-grid {
 	padding-top: 20px;
-}
-
-@media (max-width: 600px) {
-	.apps-container.layout-grid {
-		grid-template-columns: repeat(auto-fill, minmax(calc(var(--app-size, 60px) + 46px), 1fr));
-		max-width: 100%;
-	}
 }
 
 /* App Icon */
@@ -509,7 +483,6 @@ body.edit-mode .add-app-btn {
 	display: flex;
 	flex-direction: column;
 	min-width: 0;
-	min-height: 0;
 }
 
 .app-store-main-header {
@@ -1163,6 +1136,30 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	}
 }
 
+/* Bottom Toolbar */
+.bottom-toolbar {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	display: flex;
+	gap: 10px;
+	z-index: 100;
+}
+
+.bottom-toolbar .toolbar-btn {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.bottom-toolbar .toolbar-btn svg {
+	fill: currentColor;
+}
+
 /* Settings Dropdown */
 .settings-btn {
 	position: relative;
@@ -1170,8 +1167,8 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .settings-dropdown {
 	position: absolute;
-	top: calc(100% + 8px);
-	left: 0;
+	bottom: calc(100% + 8px);
+	right: 0;
 	background: #fff;
 	border-radius: 10px;
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
@@ -1287,8 +1284,8 @@ body.my-apps-launcher .app-detail-share-btn:active {
 /* Background Picker */
 .bg-picker-popup {
 	position: fixed;
-	top: 90px;
-	left: 20px;
+	bottom: 80px;
+	right: 20px;
 	background: #fff;
 	border-radius: 12px;
 	padding: 16px;
@@ -1730,12 +1727,10 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .sortable-chosen {
 	transform: scale(1.1);
-	transition: none;
 }
 
 .sortable-drag {
 	opacity: 1 !important;
-	transition: none;
 }
 
 /* Admin Page Styles */
@@ -1810,8 +1805,8 @@ body.edit-mode .hidden-count {
 /* Hidden Apps Popup */
 .hidden-popup {
 	position: fixed;
-	top: 90px;
-	left: 20px;
+	bottom: 80px;
+	right: 74px;
 	background: #fff;
 	border-radius: 12px;
 	box-shadow: 0 4px 20px rgba(0,0,0,0.25);

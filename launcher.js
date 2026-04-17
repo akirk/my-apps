@@ -98,12 +98,21 @@
 	// ── Pending Install (auto-add app after blueprint install) ──
 	var PENDING_INSTALL_KEY = 'my_apps_pending_install';
 
+	function snapshotAppUrls() {
+		var urls = [];
+		container.querySelectorAll('.app-link').forEach(function(el) {
+			if (el.href) urls.push(el.href);
+		});
+		return urls;
+	}
+
 	function savePendingInstall(app, blueprintUrl, gradient) {
 		localStorage.setItem(PENDING_INSTALL_KEY, JSON.stringify({
 			title: app.title,
 			description: app.description || '',
 			blueprintUrl: blueprintUrl,
-			gradient: gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)'
+			gradient: gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
+			beforeUrls: snapshotAppUrls()
 		}));
 	}
 
@@ -119,17 +128,19 @@
 			return;
 		}
 
-		// Check if an app with the same name already exists
-		var existingNames = [];
-		container.querySelectorAll('.app-title').forEach(function(el) {
-			existingNames.push(el.textContent.trim().toLowerCase());
+		// If any new icon appeared since we started the install, assume the
+		// blueprint added it (title/URL may differ from the blueprint meta).
+		var beforeUrls = pending.beforeUrls || [];
+		var currentUrls = snapshotAppUrls();
+		var addedSomething = currentUrls.some(function(u) {
+			return beforeUrls.indexOf(u) === -1;
 		});
-		if (existingNames.indexOf(pending.title.toLowerCase()) !== -1) {
+		if (addedSomething) {
 			showToast(pending.title + ' installed');
 			return;
 		}
 
-		// No new icon appeared — create one from the blueprint metadata
+		// No new icon appeared — offer to create one from the blueprint metadata
 		// Try to derive a landing page URL from the blueprint
 		var customBlueprints = getCustomBlueprints();
 		var blueprintPath = null;
@@ -150,7 +161,7 @@
 				return;
 			}
 
-			if (!confirm('Add "' + pending.title + '" to your apps?')) {
+			if (!confirm('"' + pending.title + '" was installed, but no icon appeared on your home screen. Add one now?')) {
 				showToast(pending.title + ' installed');
 				return;
 			}

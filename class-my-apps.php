@@ -50,15 +50,22 @@ class My_Apps {
 		?>
 		<style>
 			#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
-				line-height: 24px;
-				font-size: 20px;
+				content: "";
+				display: inline-block;
+				width: 20px;
+				height: 20px;
+				background-color: currentColor;
+				-webkit-mask: var(--my-apps-icon) no-repeat center / contain;
+				mask: var(--my-apps-icon) no-repeat center / contain;
+				--my-apps-icon: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M6 5.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM4 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm11-.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM13 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V6zm5 8.5h-3a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5zM15 13a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2h-3zm-9 1.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM4 15a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3z' fill-rule='evenodd' clip-rule='evenodd'/></svg>");
 			}
 			@media screen and (max-width: 782px) {
 				#wpadminbar li#wp-admin-bar-my-apps {
 					display: block;
 				}
 				#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
-					font-size: 32px;
+					width: 32px;
+					height: 32px;
 				}
 			}
 		</style>
@@ -74,8 +81,11 @@ class My_Apps {
 		$wp_admin_bar->add_node(
 			array(
 				'id'    => 'my-apps',
-				'title' => '<span class="ab-icon dashicons dashicons-grid-view"></span>',
+				'title' => '<span class="ab-icon"></span><span class="screen-reader-text">' . esc_html__( 'My Apps', 'my-apps' ) . '</span>',
 				'href'  => home_url( '/my-apps/' ),
+				'meta'  => array(
+					'title' => __( 'My Apps', 'my-apps' ),
+				),
 			)
 		);
 	}

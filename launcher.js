@@ -1946,8 +1946,7 @@
 				title: app.title,
 				author: app.author || 'Unknown',
 				description: app.description || '',
-				categories: app.categories || [],
-				icon: app._icon || ''
+				categories: app.categories || []
 			},
 			landingPage: '/wp-admin/plugins.php',
 			steps: [ { step: 'installPlugin', pluginData: pluginData } ]

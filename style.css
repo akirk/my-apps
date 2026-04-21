@@ -380,7 +380,7 @@ body.edit-mode .app-icon.sortable-chosen {
 	border: 2px dashed rgba(255, 255, 255, 0.6);
 	margin: 0 auto;
 	font-size: 32px;
-	line-height: 56px;
+	line-height: 64px;
 	color: #fff;
 }
 
@@ -2146,6 +2146,10 @@ body.edit-mode .hidden-count {
 
 #my-apps-hint:focus {
 	outline: none;
+}
+
+body:has(.modal-overlay.active) #my-apps-hint {
+	display: none;
 }
 
 #my-apps-hint .my-apps-hint-arrow {

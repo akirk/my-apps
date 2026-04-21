@@ -537,7 +537,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	display: none;
 }
 
-#admin-link-view {
+#admin-link-view:not([hidden]) {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;

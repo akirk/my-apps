@@ -111,6 +111,9 @@
 
 	// ── Pending Install (auto-add app after blueprint install) ──
 	var PENDING_INSTALL_KEY = 'my_apps_pending_install';
+	// Entries older than this are treated as stale (e.g. left over from a
+	// previous session after the user reset the Playground site manually).
+	var PENDING_INSTALL_TTL_MS = 5 * 60 * 1000;
 
 	function snapshotAppUrls() {
 		var urls = [];
@@ -126,7 +129,8 @@
 			description: app.description || '',
 			blueprintUrl: blueprintUrl,
 			gradient: gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
-			beforeUrls: snapshotAppUrls()
+			beforeUrls: snapshotAppUrls(),
+			timestamp: Date.now()
 		}));
 	}
 
@@ -139,6 +143,10 @@
 		try {
 			pending = JSON.parse(raw);
 		} catch (e) {
+			return;
+		}
+
+		if (!pending.timestamp || (Date.now() - pending.timestamp) > PENDING_INSTALL_TTL_MS) {
 			return;
 		}
 

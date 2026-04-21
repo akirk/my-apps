@@ -490,12 +490,29 @@
 		.then(function(resp) {
 			if ( resp.success ) {
 				renderGreeting(greeting, resp.data.display_name);
+				if ( resp.data.blogname ) {
+					updateAdminBarSiteName(resp.data.blogname);
+				}
 			} else {
 				renderGreeting(greeting, newName);
 			}
 		})
 		.catch(function() {
 			renderGreeting(greeting, newName);
+		});
+	}
+
+	function updateAdminBarSiteName(title) {
+		var siteNode = document.getElementById('wp-admin-bar-site-name');
+		if ( ! siteNode ) {
+			return;
+		}
+		var link = siteNode.querySelector(':scope > a.ab-item');
+		if ( link ) {
+			link.textContent = title;
+		}
+		siteNode.querySelectorAll('[aria-label]').forEach(function(el) {
+			el.setAttribute('aria-label', title);
 		});
 	}
 

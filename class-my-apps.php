@@ -438,11 +438,18 @@ class My_Apps {
 
 		$current_blogname = get_option( 'blogname' );
 		$default_titles   = array( 'My WordPress', 'My WordPress Website', $previous_name . "'s WordPress" );
+		$new_blogname     = null;
 		if ( in_array( $current_blogname, $default_titles, true ) ) {
-			update_option( 'blogname', $name . "'s WordPress" );
+			$new_blogname = $name . "'s WordPress";
+			update_option( 'blogname', $new_blogname );
 		}
 
-		wp_send_json_success( array( 'display_name' => $name ) );
+		wp_send_json_success(
+			array(
+				'display_name' => $name,
+				'blogname'     => $new_blogname,
+			)
+		);
 	}
 
 	/**

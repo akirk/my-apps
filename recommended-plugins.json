@@ -6,19 +6,23 @@
 	},
 	"duplicate-page": {
 		"note": "Adds a one-click \"Duplicate\" action to posts and pages — great for reusing a layout you like.",
-		"categories": ["Productivity"]
+		"categories": ["Productivity"],
+		"landing_page": "/wp-admin/options-general.php?page=duplicate_page_settings"
 	},
 	"family-wiki": {
 		"note": "Turn your site into a private family wiki with nested pages and shared editing.",
-		"categories": ["Productivity"]
+		"categories": ["Productivity"],
+		"landing_page": "/wp-admin/edit.php?post_type=page"
 	},
 	"wp-dashboard-notes": {
 		"note": "Pin sticky notes to your WordPress dashboard — handy for to-dos and reminders you'll actually see.",
-		"categories": ["Productivity"]
+		"categories": ["Productivity"],
+		"landing_page": "/wp-admin/index.php"
 	},
 	"wordpress-beta-tester": {
 		"note": "Opt into WordPress beta and release-candidate builds to try new features before they ship.",
-		"categories": ["Utility"]
+		"categories": ["Utility"],
+		"landing_page": "/wp-admin/tools.php?page=wp-beta-tester"
 	},
 	"static-archive": {
 		"github": "akirk/static-archive",

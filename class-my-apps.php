@@ -428,11 +428,18 @@ class My_Apps {
 			wp_send_json_error( 'Empty name' );
 		}
 
-		$user_id = get_current_user_id();
+		$user_id          = get_current_user_id();
+		$previous_name    = wp_get_current_user()->display_name;
+
 		wp_update_user( array(
 			'ID'           => $user_id,
 			'display_name' => $name,
 		) );
+
+		$current_blogname = get_option( 'blogname' );
+		if ( 'My WordPress' === $current_blogname || $previous_name . "'s WordPress" === $current_blogname ) {
+			update_option( 'blogname', $name . "'s WordPress" );
+		}
 
 		wp_send_json_success( array( 'display_name' => $name ) );
 	}

@@ -725,8 +725,9 @@ class My_Apps {
 
 		$out = array();
 		foreach ( $curated as $key => $meta ) {
-			$categories = isset( $meta['categories'] ) && is_array( $meta['categories'] ) ? array_values( $meta['categories'] ) : array();
-			$note       = isset( $meta['note'] ) ? (string) $meta['note'] : '';
+			$categories   = isset( $meta['categories'] ) && is_array( $meta['categories'] ) ? array_values( $meta['categories'] ) : array();
+			$note         = isset( $meta['note'] ) ? (string) $meta['note'] : '';
+			$landing_page = isset( $meta['landing_page'] ) && is_string( $meta['landing_page'] ) && 0 === strpos( $meta['landing_page'], '/' ) ? $meta['landing_page'] : '';
 
 			// GitHub-hosted plugin: skip plugins_api, use metadata from JSON.
 			if ( ! empty( $meta['github'] ) && preg_match( '#^[\w.-]+/[\w.-]+$#', $meta['github'] ) ) {
@@ -742,6 +743,7 @@ class My_Apps {
 					'note'              => $note,
 					'categories'        => $categories,
 					'install_url'       => 'https://github.com/' . $meta['github'],
+					'landing_page'      => $landing_page,
 				);
 				continue;
 			}

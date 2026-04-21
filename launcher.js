@@ -1932,6 +1932,7 @@
 				_shortDescription: p.short_description || '',
 				_note: p.note || '',
 				_installUrl: p.install_url || ''
+				_landingPage: p.landing_page || ''
 			};
 		});
 	}
@@ -1948,7 +1949,7 @@
 				description: app.description || '',
 				categories: app.categories || []
 			},
-			landingPage: '/wp-admin/plugins.php',
+			landingPage: app._landingPage || '/wp-admin/plugins.php',
 			steps: [ { step: 'installPlugin', pluginData: pluginData } ]
 		};
 	}

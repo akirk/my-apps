@@ -1,7 +1,8 @@
 {
 	"mime-types-plus": {
 		"note": "Lets you upload file types WordPress blocks by default (SVG, WebP variants, etc.) without editing code.",
-		"categories": ["Utility"]
+		"categories": ["Utility"],
+		"landing_page": "/wp-admin/admin.php?page=mimetypesplus"
 	},
 	"duplicate-page": {
 		"note": "Adds a one-click \"Duplicate\" action to posts and pages — great for reusing a layout you like.",
@@ -24,6 +25,7 @@
 		"title": "Static Archive",
 		"author": "Alex Kirk",
 		"note": "Export your blog as static HTML so you keep a self-contained archive even if your site changes.",
-		"categories": ["Utility"]
+		"categories": ["Utility"],
+		"landing_page": "/wp-admin/tools.php?page=static-archive"
 	}
 }

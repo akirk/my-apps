@@ -123,7 +123,11 @@
 		formData.append('nonce', myAppsConfig.nonce);
 		formData.append('name', app.title);
 		formData.append('url', appUrl);
-		formData.append('gradient', gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)');
+		if (app._icon) {
+			formData.append('icon_url', app._icon);
+		} else {
+			formData.append('gradient', gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)');
+		}
 
 		return fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
 			.then(function(res) { return res.json(); })

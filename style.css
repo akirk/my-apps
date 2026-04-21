@@ -1818,21 +1818,47 @@ body.edit-mode .hidden-count {
 	font-size: 14px;
 }
 
+.hidden-app-row {
+	display: flex;
+	align-items: stretch;
+	transition: background 0.15s;
+}
+
+.hidden-app-row:hover {
+	background: #f5f5f5;
+}
+
 .hidden-app-item {
 	display: flex;
 	align-items: center;
-	width: 100%;
+	flex: 1;
+	min-width: 0;
 	padding: 10px 16px;
 	border: none;
 	background: none;
 	cursor: pointer;
 	text-align: left;
-	transition: background 0.15s;
 	gap: 12px;
 }
 
-.hidden-app-item:hover {
-	background: #f5f5f5;
+.hidden-app-delete {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 14px;
+	border: none;
+	background: none;
+	cursor: pointer;
+	color: #bbb;
+	transition: color 0.15s;
+}
+
+.hidden-app-row:hover .hidden-app-delete {
+	color: #888;
+}
+
+.hidden-app-delete:hover {
+	color: #e74c3c;
 }
 
 .hidden-app-icon {
@@ -1878,6 +1904,7 @@ body.edit-mode .hidden-count {
 	transition: opacity 0.15s;
 }
 
+.hidden-app-row:hover .restore-icon,
 .hidden-app-item:hover .restore-icon {
 	opacity: 1;
 }

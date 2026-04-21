@@ -802,6 +802,9 @@
 		.then(function(res) { return res.json(); })
 		.then(function(data) {
 			if (data.success) {
+				if (data.data && data.data.slug && Array.isArray(myAppsConfig.deletableSlugs) && myAppsConfig.deletableSlugs.indexOf(data.data.slug) === -1) {
+					myAppsConfig.deletableSlugs.push(data.data.slug);
+				}
 				var newApp = createAppElement(data.data);
 				var addBtn = document.querySelector('.add-app-btn');
 				container.insertBefore(newApp, addBtn);
@@ -1074,7 +1077,7 @@
 
 		// Hidden apps popup
 		hiddenBtn.addEventListener('click', toggleHiddenPopup);
-		hiddenAppsList.addEventListener('click', handleRestoreApp);
+		hiddenAppsList.addEventListener('click', handleHiddenListClick);
 
 		// Mark current background as selected
 		var currentBg = body.className.match(/bg-[\w-]+/);
@@ -1103,7 +1106,13 @@
 		hiddenPopup.classList.remove('active');
 	}
 
-	function handleRestoreApp(e) {
+	function handleHiddenListClick(e) {
+		var deleteBtn = e.target.closest('.hidden-app-delete');
+		if (deleteBtn) {
+			handleDeleteApp(deleteBtn);
+			return;
+		}
+
 		var item = e.target.closest('.hidden-app-item');
 		if (!item) return;
 
@@ -1126,18 +1135,58 @@
 				var addBtn = document.querySelector('.add-app-btn');
 				container.insertBefore(newApp, addBtn);
 
-				item.remove();
-
-				updateHiddenCount();
-
-				if (hiddenAppsList.querySelectorAll('.hidden-app-item').length === 0) {
-					var noApps = document.createElement('div');
-					noApps.className = 'no-hidden-apps';
-					noApps.textContent = 'No hidden apps';
-					hiddenAppsList.appendChild(noApps);
-				}
+				removeHiddenRow(item);
 			}
 		});
+	}
+
+	function handleDeleteApp(deleteBtn) {
+		var slug = deleteBtn.dataset.slug;
+		var row = deleteBtn.closest('.hidden-app-row');
+		if (!slug || !row) return;
+
+		var confirmMsg = (myAppsConfig.i18n && myAppsConfig.i18n.confirmDelete) || 'Delete this app? This cannot be undone.';
+		if (!window.confirm(confirmMsg)) return;
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_delete');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('slug', slug);
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (data.success) {
+				if (Array.isArray(myAppsConfig.deletableSlugs)) {
+					myAppsConfig.deletableSlugs = myAppsConfig.deletableSlugs.filter(function(s) {
+						return s !== slug;
+					});
+				}
+				removeHiddenRow(row.querySelector('.hidden-app-item') || row);
+			} else {
+				alert((data && data.data) || 'Error deleting app');
+			}
+		})
+		.catch(function() {
+			alert('Network error');
+		});
+	}
+
+	function removeHiddenRow(item) {
+		var row = item.closest('.hidden-app-row') || item;
+		row.remove();
+
+		updateHiddenCount();
+
+		if (hiddenAppsList.querySelectorAll('.hidden-app-item').length === 0) {
+			var noApps = document.createElement('div');
+			noApps.className = 'no-hidden-apps';
+			noApps.textContent = 'No hidden apps';
+			hiddenAppsList.appendChild(noApps);
+		}
 	}
 
 	function updateHiddenCount() {
@@ -1458,6 +1507,9 @@
 			noApps.remove();
 		}
 
+		var row = document.createElement('div');
+		row.className = 'hidden-app-row';
+
 		var item = document.createElement('button');
 		item.type = 'button';
 		item.className = 'hidden-app-item';
@@ -1467,7 +1519,20 @@
 			'<span class="hidden-app-name">' + name + '</span>' +
 			'<span class="restore-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg></span>';
 
-		hiddenAppsList.appendChild(item);
+		row.appendChild(item);
+
+		if (Array.isArray(myAppsConfig.deletableSlugs) && myAppsConfig.deletableSlugs.indexOf(slug) !== -1) {
+			var deleteBtn = document.createElement('button');
+			deleteBtn.type = 'button';
+			deleteBtn.className = 'hidden-app-delete';
+			deleteBtn.dataset.slug = slug;
+			deleteBtn.title = 'Delete';
+			deleteBtn.setAttribute('aria-label', 'Delete');
+			deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+			row.appendChild(deleteBtn);
+		}
+
+		hiddenAppsList.appendChild(row);
 		updateHiddenCount();
 	}
 
@@ -1634,6 +1699,9 @@
 	}
 
 	function insertAndHighlightApp(app) {
+		if (app && app.slug && Array.isArray(myAppsConfig.deletableSlugs) && myAppsConfig.deletableSlugs.indexOf(app.slug) === -1) {
+			myAppsConfig.deletableSlugs.push(app.slug);
+		}
 		var newApp = createAppElement(app);
 		var addBtn = document.querySelector('.add-app-btn');
 		newApp.classList.add('just-added');

@@ -761,7 +761,7 @@ class My_Apps {
 					'title'             => isset( $meta['title'] ) ? wp_strip_all_tags( $meta['title'] ) : $repo_key,
 					'author'            => isset( $meta['author'] ) ? wp_strip_all_tags( $meta['author'] ) : $owner,
 					'short_description' => '',
-					'icon'              => ! empty( $meta['icon'] ) ? esc_url_raw( $meta['icon'] ) : 'https://github.com/' . rawurlencode( $owner ) . '.png?size=128',
+					'icon'              => ! empty( $meta['icon'] ) ? esc_url_raw( $meta['icon'] ) : '',
 					'note'              => $note,
 					'categories'        => $categories,
 					'install_url'       => 'https://github.com/' . $meta['github'],

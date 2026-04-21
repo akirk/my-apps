@@ -437,7 +437,8 @@ class My_Apps {
 		) );
 
 		$current_blogname = get_option( 'blogname' );
-		if ( 'My WordPress' === $current_blogname || $previous_name . "'s WordPress" === $current_blogname ) {
+		$default_titles   = array( 'My WordPress', 'My WordPress Website', $previous_name . "'s WordPress" );
+		if ( in_array( $current_blogname, $default_titles, true ) ) {
 			update_option( 'blogname', $name . "'s WordPress" );
 		}
 

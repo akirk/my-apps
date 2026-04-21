@@ -800,9 +800,9 @@ class My_Apps {
 			$out[ $slug ] = array(
 				'source'            => 'wp.org',
 				'slug'              => $slug,
-				'title'             => isset( $info['name'] ) ? wp_strip_all_tags( $info['name'] ) : $slug,
-				'author'            => isset( $info['author'] ) ? wp_strip_all_tags( $info['author'] ) : '',
-				'short_description' => isset( $info['short_description'] ) ? wp_strip_all_tags( $info['short_description'] ) : '',
+				'title'             => isset( $info['name'] ) ? html_entity_decode( wp_strip_all_tags( $info['name'] ), ENT_QUOTES, 'UTF-8' ) : $slug,
+				'author'            => isset( $info['author'] ) ? html_entity_decode( wp_strip_all_tags( $info['author'] ), ENT_QUOTES, 'UTF-8' ) : '',
+				'short_description' => isset( $info['short_description'] ) ? html_entity_decode( wp_strip_all_tags( $info['short_description'] ), ENT_QUOTES, 'UTF-8' ) : '',
 				'icon'              => $icon,
 				'note'              => $note,
 				'categories'        => $categories,

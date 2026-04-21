@@ -1869,7 +1869,7 @@
 
 	function buildPluginBlueprint(app) {
 		var pluginData = app._source === 'github'
-			? { resource: 'url', url: 'https://github-proxy.com/proxy/?repo=' + app._repo }
+			? { resource: 'git:directory', url: 'https://github.com/' + app._repo, ref: 'HEAD' }
 			: { resource: 'wordpress.org/plugins', slug: app._slug };
 		var blueprint = {
 			'$schema': 'https://playground.wordpress.net/blueprint-schema.json',

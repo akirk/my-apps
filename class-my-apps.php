@@ -60,6 +60,8 @@ class My_Apps {
 				display: inline-block;
 				width: 20px;
 				height: 20px;
+				position: relative;
+				top: 2px;
 				background-color: currentColor;
 				-webkit-mask: var(--my-apps-icon) no-repeat center / contain;
 				mask: var(--my-apps-icon) no-repeat center / contain;

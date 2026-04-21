@@ -1864,8 +1864,14 @@
 			appStoreHeading.textContent = 'Add Web Link';
 			resetWebLinkForm();
 		} else {
-			appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
+			appStoreHeading.textContent = categoryLabel(activeCategory);
 		}
+	}
+
+	function categoryLabel(cat) {
+		if (cat === 'all') return 'All Apps';
+		if (cat === '__plugins__') return 'Recommended Plugins';
+		return cat;
 	}
 
 	function openInstallSoftwareModal() {
@@ -1900,8 +1906,81 @@
 		}
 	}
 
+	function fetchRecommendedPlugins() {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_get_recommended_plugins');
+		formData.append('nonce', myAppsConfig.nonce);
+		return fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
+			.then(function(res) { return res.json(); })
+			.then(function(json) { return (json && json.success) ? json.data : null; })
+			.catch(function() { return null; });
+	}
+
+	function mergeRecommendedPlugins(data, plugins) {
+		Object.keys(plugins).forEach(function(key) {
+			var p = plugins[key];
+			data['plugin/' + key] = {
+				title: p.title,
+				description: p.note || p.short_description || '',
+				author: p.author || '',
+				categories: p.categories || [],
+				_type: 'plugin',
+				_source: p.source || 'wp.org',
+				_slug: p.slug || '',
+				_repo: p.repo || '',
+				_icon: p.icon || '',
+				_shortDescription: p.short_description || '',
+				_note: p.note || '',
+				_installUrl: p.install_url || '',
+				_landingPage: p.landing_page || ''
+			};
+		});
+	}
+
+	function buildPluginBlueprint(app) {
+		var pluginData = app._source === 'github'
+			? { resource: 'url', url: 'https://github-proxy.com/proxy/?repo=' + app._repo }
+			: { resource: 'wordpress.org/plugins', slug: app._slug };
+		return {
+			'$schema': 'https://playground.wordpress.net/blueprint-schema.json',
+			meta: {
+				title: app.title,
+				author: app.author || 'Unknown',
+				description: app.description || '',
+				categories: app.categories || []
+			},
+			landingPage: app._landingPage || '/wp-admin/plugins.php',
+			steps: [ { step: 'installPlugin', pluginData: pluginData } ]
+		};
+	}
+
+	function pluginBlueprintDataUrl(app) {
+		var blueprint = buildPluginBlueprint(app);
+		return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(blueprint))));
+	}
+
+	function installPluginApp(app, gradient) {
+		if (isPlayground) {
+			var blueprintUrl = pluginBlueprintDataUrl(app);
+			savePendingInstall(app, blueprintUrl, gradient);
+			window.parent.postMessage({
+				type: 'relay',
+				relayType: 'install-blueprint',
+				blueprintUrl: blueprintUrl
+			}, '*');
+			return;
+		}
+		// Hosted WordPress: deep-link to whatever makes sense for this source
+		// (wp-admin plugin-install page for wp.org, repo page for GitHub).
+		if (app._installUrl) {
+			window.location.href = app._installUrl;
+		}
+	}
+
 	function loadAppStore() {
 		appStoreContent.innerHTML = '<div class="app-store-loading">Loading apps\u2026</div>';
+
+		var pluginsPromise = fetchRecommendedPlugins();
 
 		fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
@@ -1910,6 +1989,13 @@
 				buildAppStoreNav(appStoreData);
 				renderAppStore(appStoreData);
 				bindAppStoreEvents();
+				// Plugins come in async; fold them in when ready.
+				pluginsPromise.then(function(plugins) {
+					if (!plugins) return;
+					mergeRecommendedPlugins(appStoreData, plugins);
+					buildAppStoreNav(appStoreData);
+					renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+				});
 			})
 			.catch(function() {
 				appStoreContent.innerHTML = '<div class="app-store-error">Unable to load apps. Check your connection.</div>';
@@ -1918,9 +2004,11 @@
 
 	function buildAppStoreNav(data) {
 		var categories = new Set();
+		var hasPlugins = false;
 		Object.keys(data).forEach(function(path) {
 			var cats = data[path].categories || [];
 			cats.forEach(function(c) { categories.add(c); });
+			if (data[path]._type === 'plugin') hasPlugins = true;
 		});
 
 		appStoreNav.innerHTML = '';
@@ -1930,6 +2018,14 @@
 		discoverLi.dataset.category = 'all';
 		discoverLi.textContent = 'All Apps';
 		appStoreNav.appendChild(discoverLi);
+
+		if (hasPlugins) {
+			var pluginsLi = document.createElement('li');
+			pluginsLi.className = 'app-store-nav-item' + (activeCategory === '__plugins__' ? ' active' : '');
+			pluginsLi.dataset.category = '__plugins__';
+			pluginsLi.textContent = 'Recommended Plugins';
+			appStoreNav.appendChild(pluginsLi);
+		}
 
 		categories.forEach(function(cat) {
 			var li = document.createElement('li');
@@ -2095,7 +2191,7 @@
 
 	function selectCategory(cat) {
 		activeCategory = cat;
-		appStoreHeading.textContent = cat;
+		appStoreHeading.textContent = categoryLabel(cat);
 
 		// Update sidebar selection
 		appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
@@ -2131,7 +2227,9 @@
 			var app = data[path];
 
 			// Category filter
-			if (category !== 'all') {
+			if (category === '__plugins__') {
+				if (app._type !== 'plugin') return;
+			} else if (category !== 'all') {
 				var cats = app.categories || [];
 				if (cats.indexOf(category) === -1) return;
 			}
@@ -2143,14 +2241,14 @@
 			}
 
 			hasResults = true;
-			var blueprintUrl = getBlueprintUrl(path);
+			var isPluginEntry = app._type === 'plugin';
+			var blueprintUrl = isPluginEntry ? '' : getBlueprintUrl(path);
 
 			var itemEl = document.createElement('div');
-			itemEl.className = 'app-store-item';
+			itemEl.className = 'app-store-item' + (isPluginEntry ? ' app-store-item-plugin' : '');
 
 			var iconEl = document.createElement('div');
 			iconEl.className = 'app-store-icon';
-			iconEl.innerHTML = wpIconSvg;
 
 			// Pick gradient based on most specific category
 			var cats = app.categories || [];
@@ -2161,7 +2259,17 @@
 					break;
 				}
 			}
-			iconEl.style.background = gradient;
+
+			if (isPluginEntry && app._icon) {
+				var pluginIcon = document.createElement('img');
+				pluginIcon.src = app._icon;
+				pluginIcon.alt = '';
+				pluginIcon.loading = 'lazy';
+				iconEl.appendChild(pluginIcon);
+			} else {
+				iconEl.innerHTML = wpIconSvg;
+				iconEl.style.background = gradient;
+			}
 
 			var infoEl = document.createElement('div');
 			infoEl.className = 'app-store-info';
@@ -2240,7 +2348,19 @@
 			var actionsEl = document.createElement('div');
 			actionsEl.className = 'app-store-actions';
 
-			if (isPlayground) {
+			if (isPluginEntry) {
+				var pluginInstallBtn = document.createElement('button');
+				pluginInstallBtn.type = 'button';
+				pluginInstallBtn.className = 'app-store-install-btn';
+				pluginInstallBtn.textContent = 'Install';
+				(function(a, g) {
+					pluginInstallBtn.addEventListener('click', function(e) {
+						e.stopPropagation();
+						installPluginApp(a, g);
+					});
+				})(app, gradient);
+				actionsEl.appendChild(pluginInstallBtn);
+			} else if (isPlayground) {
 				var installBtn = document.createElement('button');
 				installBtn.type = 'button';
 				installBtn.className = 'app-store-install-btn';
@@ -2263,17 +2383,27 @@
 			itemEl.appendChild(infoEl);
 			itemEl.appendChild(actionsEl);
 
-			// Click title or icon to open detail page
+			// Click title or icon: plugins go to the wp.org info page in wp-admin;
+			// blueprints open the in-launcher detail view.
 			titleEl.classList.add('app-store-title-link');
 			iconEl.classList.add('app-store-icon-link');
-			titleEl.addEventListener('click', function(e) {
-				e.stopPropagation();
-				openAppDetail(path, app, blueprintUrl, gradient);
-			});
-			iconEl.addEventListener('click', function(e) {
-				e.stopPropagation();
-				openAppDetail(path, app, blueprintUrl, gradient);
-			});
+			if (isPluginEntry) {
+				var openPlugin = function(e) {
+					e.stopPropagation();
+					installPluginApp(app, gradient);
+				};
+				titleEl.addEventListener('click', openPlugin);
+				iconEl.addEventListener('click', openPlugin);
+			} else {
+				titleEl.addEventListener('click', function(e) {
+					e.stopPropagation();
+					openAppDetail(path, app, blueprintUrl, gradient);
+				});
+				iconEl.addEventListener('click', function(e) {
+					e.stopPropagation();
+					openAppDetail(path, app, blueprintUrl, gradient);
+				});
+			}
 
 			listEl.appendChild(itemEl);
 		});
@@ -2314,7 +2444,7 @@
 		}
 
 		// Restore heading
-		appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
+		appStoreHeading.textContent = categoryLabel(activeCategory);
 
 		// Show sidebar
 		var sidebar = document.getElementById('app-store-sidebar');
@@ -2338,7 +2468,7 @@
 		backBtn.addEventListener('click', closeAppDetail);
 
 		var headingText = document.createElement('span');
-		headingText.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
+		headingText.textContent = categoryLabel(activeCategory);
 
 		appStoreHeading.appendChild(backBtn);
 		appStoreHeading.appendChild(headingText);
@@ -2885,7 +3015,7 @@
 			if (appStoreData) {
 				var sidebar = document.getElementById('app-store-sidebar');
 				sidebar.classList.remove('app-store-sidebar-hidden');
-				appStoreHeading.textContent = activeCategory === 'all' ? 'All Apps' : activeCategory;
+				appStoreHeading.textContent = categoryLabel(activeCategory);
 				renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 			}
 		}

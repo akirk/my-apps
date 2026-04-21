@@ -1,8 +1,8 @@
 {
-	"mime-types-plus": {
+	"pro-mime-types": {
 		"note": "Lets you upload file types WordPress blocks by default (SVG, WebP variants, etc.) without editing code.",
 		"categories": ["Utility"],
-		"landing_page": "/wp-admin/admin.php?page=mimetypesplus"
+		"landing_page": "/wp-admin/options-general.php?page=pro-mime-types"
 	},
 	"duplicate-page": {
 		"note": "Adds a one-click \"Duplicate\" action to posts and pages — great for reusing a layout you like.",

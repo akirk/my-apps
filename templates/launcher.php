@@ -11,6 +11,7 @@ $apps = My_Apps::get_apps();
 $hidden_apps = array_filter( $apps, function( $app ) {
 	return ! empty( $app['hide'] );
 } );
+$additional_apps = get_option( 'my_apps_additional_apps', array() );
 $can_manage = current_user_can( 'manage_options' );
 ?>
 <!DOCTYPE html>
@@ -157,14 +158,22 @@ if ( $background === 'custom' && $custom_bg ) {
 				} elseif ( ! empty( $app['emoji'] ) ) {
 					$icon_html = '<span class="emoji">' . esc_html( $app['emoji'] ) . '</span>';
 				}
+				$is_deletable = isset( $additional_apps[ $slug ] );
 			?>
-			<button type="button" class="hidden-app-item" data-slug="<?php echo esc_attr( $slug ); ?>">
-				<span class="hidden-app-icon"><?php echo $icon_html; ?></span>
-				<span class="hidden-app-name"><?php echo esc_html( $app['name'] ); ?></span>
-				<span class="restore-icon">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
-				</span>
-			</button>
+			<div class="hidden-app-row">
+				<button type="button" class="hidden-app-item" data-slug="<?php echo esc_attr( $slug ); ?>">
+					<span class="hidden-app-icon"><?php echo $icon_html; ?></span>
+					<span class="hidden-app-name"><?php echo esc_html( $app['name'] ); ?></span>
+					<span class="restore-icon">
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+					</span>
+				</button>
+				<?php if ( $is_deletable ) : ?>
+				<button type="button" class="hidden-app-delete" data-slug="<?php echo esc_attr( $slug ); ?>" title="<?php esc_attr_e( 'Delete', 'my-apps' ); ?>" aria-label="<?php esc_attr_e( 'Delete', 'my-apps' ); ?>">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+				</button>
+				<?php endif; ?>
+			</div>
 			<?php endforeach; ?>
 			<?php endif; ?>
 		</div>

@@ -30,6 +30,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_add', array( $this, 'ajax_add_app' ) );
 		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
+		add_action( 'wp_ajax_my_apps_delete', array( $this, 'ajax_delete_app' ) );
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
 		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
@@ -375,12 +376,14 @@ class My_Apps {
 			'my-apps-launcher',
 			'myAppsConfig',
 			array(
-				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
-				'nonce'        => wp_create_nonce( 'my_apps_launcher' ),
-				'isPlayground' => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
-				'displayName'  => wp_get_current_user()->display_name,
-				'i18n'         => array(
+				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
+				'nonce'           => wp_create_nonce( 'my_apps_launcher' ),
+				'isPlayground'    => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
+				'displayName'     => wp_get_current_user()->display_name,
+				'deletableSlugs'  => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
+				'i18n'            => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
+					'confirmDelete' => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
 				),
 			)
 		);
@@ -736,6 +739,49 @@ class My_Apps {
 				)
 			);
 		}
+
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Delete a user-added app.
+	 *
+	 * Only custom apps (stored in my_apps_additional_apps) can be deleted — apps
+	 * registered via the my_apps_plugins filter come from plugin code and would
+	 * just reappear.
+	 */
+	public function ajax_delete_app() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$slug = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
+
+		if ( empty( $slug ) ) {
+			wp_send_json_error( 'Invalid slug' );
+		}
+
+		$additional_apps = get_option( 'my_apps_additional_apps', array() );
+		if ( ! isset( $additional_apps[ $slug ] ) ) {
+			wp_send_json_error( 'App cannot be deleted' );
+		}
+
+		unset( $additional_apps[ $slug ] );
+		update_option( 'my_apps_additional_apps', $additional_apps );
+
+		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
+		$hide_plugins = array_values( array_filter( $hide_plugins, function( $s ) use ( $slug ) {
+			return $s !== $slug;
+		} ) );
+		update_option( 'my_apps_hide_plugins', $hide_plugins );
+
+		$sort = get_option( 'my_apps_sort', array() );
+		$sort = array_values( array_filter( $sort, function( $s ) use ( $slug ) {
+			return $s !== $slug;
+		} ) );
+		update_option( 'my_apps_sort', $sort );
 
 		wp_send_json_success();
 	}

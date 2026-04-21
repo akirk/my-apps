@@ -109,115 +109,46 @@
 		}, 3000);
 	}
 
-	// ── Pending Install (auto-add app after blueprint install) ──
-	var PENDING_INSTALL_KEY = 'my_apps_pending_install';
-	// Entries older than this are treated as stale (e.g. left over from a
-	// previous session after the user reset the Playground site manually).
-	var PENDING_INSTALL_TTL_MS = 5 * 60 * 1000;
+	// ── Auto-add icon for blueprint/plugin installs ──
+	function addAppFromBlueprint(app, blueprint, gradient) {
+		var landingPage = blueprint && blueprint.landingPage;
+		if (!landingPage) return Promise.resolve(false);
 
-	function snapshotAppUrls() {
-		var urls = [];
-		container.querySelectorAll('.app-link').forEach(function(el) {
-			if (el.href) urls.push(el.href);
-		});
-		return urls;
+		var appUrl = landingPage.indexOf('http') === 0
+			? landingPage
+			: window.location.origin + landingPage;
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_add');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('name', app.title);
+		formData.append('url', appUrl);
+		formData.append('gradient', gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)');
+
+		return fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
+			.then(function(res) { return res.json(); })
+			.then(function(data) { return !!(data && data.success); })
+			.catch(function() { return false; });
 	}
 
-	function savePendingInstall(app, blueprintUrl, gradient) {
-		localStorage.setItem(PENDING_INSTALL_KEY, JSON.stringify({
-			title: app.title,
-			description: app.description || '',
-			blueprintUrl: blueprintUrl,
-			gradient: gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
-			beforeUrls: snapshotAppUrls(),
-			timestamp: Date.now()
-		}));
-	}
-
-	function checkPendingInstall() {
-		var raw = localStorage.getItem(PENDING_INSTALL_KEY);
-		if (!raw) return;
-		localStorage.removeItem(PENDING_INSTALL_KEY);
-
-		var pending;
-		try {
-			pending = JSON.parse(raw);
-		} catch (e) {
-			return;
-		}
-
-		if (!pending.timestamp || (Date.now() - pending.timestamp) > PENDING_INSTALL_TTL_MS) {
-			return;
-		}
-
-		// If any new icon appeared since we started the install, assume the
-		// blueprint added it (title/URL may differ from the blueprint meta).
-		var beforeUrls = pending.beforeUrls || [];
-		var currentUrls = snapshotAppUrls();
-		var addedSomething = currentUrls.some(function(u) {
-			return beforeUrls.indexOf(u) === -1;
-		});
-		if (addedSomething) {
-			showToast(pending.title + ' installed');
-			return;
-		}
-
-		// No new icon appeared — offer to create one from the blueprint metadata
-		// Try to derive a landing page URL from the blueprint
+	function resolveBlueprintFromUrl(blueprintUrl) {
 		var customBlueprints = getCustomBlueprints();
 		var blueprintPath = null;
 		Object.keys(customBlueprints).forEach(function(path) {
-			if (getBlueprintUrl(path) === pending.blueprintUrl) {
+			if (getBlueprintUrl(path) === blueprintUrl) {
 				blueprintPath = path;
 			}
 		});
+		if (blueprintPath && customBlueprints[blueprintPath]) {
+			return Promise.resolve(customBlueprints[blueprintPath].blueprint);
+		}
+		return fetch(blueprintUrl).then(function(res) { return res.json(); });
+	}
 
-		var blueprintPromise = blueprintPath && customBlueprints[blueprintPath]
-			? Promise.resolve(customBlueprints[blueprintPath].blueprint)
-			: fetch(pending.blueprintUrl).then(function(res) { return res.json(); });
-
-		blueprintPromise.then(function(blueprint) {
-			var landingPage = blueprint.landingPage;
-			if (!landingPage) {
-				showToast(pending.title + ' installed');
-				return;
-			}
-
-			if (!confirm('"' + pending.title + '" was installed, but no icon appeared on your home screen. Add one now?')) {
-				showToast(pending.title + ' installed');
-				return;
-			}
-
-			var appUrl = landingPage.indexOf('http') === 0
-				? landingPage
-				: window.location.origin + landingPage;
-
-			var formData = new FormData();
-			formData.append('action', 'my_apps_add');
-			formData.append('nonce', myAppsConfig.nonce);
-			formData.append('name', pending.title);
-			formData.append('url', appUrl);
-			// Prefer icon from blueprint meta, fall back to gradient
-			if (blueprint.meta && blueprint.meta.icon) {
-				formData.append('icon_url', blueprint.meta.icon);
-			} else {
-				formData.append('gradient', pending.gradient);
-			}
-
-			fetch(myAppsConfig.ajaxUrl, {
-				method: 'POST',
-				body: formData
-			})
-			.then(function(res) { return res.json(); })
-			.then(function(data) {
-				if (data.success) {
-					showToast(pending.title + ' added');
-					setTimeout(function() { window.location.reload(); }, 1000);
-				}
-			});
-		}).catch(function() {
-			showToast(pending.title + ' installed');
-		});
+	function addAppFromBlueprintUrl(app, blueprintUrl, gradient) {
+		return resolveBlueprintFromUrl(blueprintUrl)
+			.then(function(blueprint) { return addAppFromBlueprint(app, blueprint, gradient); })
+			.catch(function() { return false; });
 	}
 
 	var emojis = [
@@ -463,7 +394,6 @@
 		bindEvents();
 		bindAdminMenuSearch();
 		checkDeepLink();
-		checkPendingInstall();
 		initGreeting();
 	}
 
@@ -1726,34 +1656,6 @@
 		return newApp;
 	}
 
-	function performQuickAdd(name, url, icon) {
-		var formData = new FormData();
-		formData.append('action', 'my_apps_add');
-		formData.append('nonce', myAppsConfig.nonce);
-		formData.append('name', name);
-		formData.append('url', url);
-		if (icon && icon.indexOf('dashicons-') === 0) {
-			formData.append('dashicon', icon);
-		} else if (icon && (icon.indexOf('http') === 0 || icon.indexOf('data:') === 0)) {
-			formData.append('icon_url', icon);
-		} else {
-			formData.append('emoji', '🔖');
-		}
-
-		fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
-			.then(function(res) { return res.json(); })
-			.then(function(data) {
-				if (data.success) {
-					insertAndHighlightApp(data.data);
-				} else {
-					alert(data.data || 'Error adding app');
-				}
-			})
-			.catch(function() {
-				alert('Network error');
-			});
-	}
-
 	function createAppElement(app) {
 		var div = document.createElement('div');
 		div.className = 'app-icon';
@@ -1939,9 +1841,9 @@
 
 	function buildPluginBlueprint(app) {
 		var pluginData = app._source === 'github'
-			? { resource: 'url', url: 'https://github-proxy.com/proxy/?repo=' + app._repo }
+			? { resource: 'git:directory', url: 'https://github.com/' + app._repo, ref: 'HEAD' }
 			: { resource: 'wordpress.org/plugins', slug: app._slug };
-		return {
+		var blueprint = {
 			'$schema': 'https://playground.wordpress.net/blueprint-schema.json',
 			meta: {
 				title: app.title,
@@ -1949,20 +1851,19 @@
 				description: app.description || '',
 				categories: app.categories || []
 			},
-			landingPage: app._landingPage || '/wp-admin/plugins.php',
 			steps: [ { step: 'installPlugin', pluginData: pluginData } ]
 		};
-	}
-
-	function pluginBlueprintDataUrl(app) {
-		var blueprint = buildPluginBlueprint(app);
-		return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(blueprint))));
+		if (app._landingPage) {
+			blueprint.landingPage = app._landingPage;
+		}
+		return blueprint;
 	}
 
 	function installPluginApp(app, gradient) {
 		if (isPlayground) {
-			var blueprintUrl = pluginBlueprintDataUrl(app);
-			savePendingInstall(app, blueprintUrl, gradient);
+			var blueprint = buildPluginBlueprint(app);
+			var blueprintUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(blueprint))));
+			addAppFromBlueprint(app, blueprint, gradient);
 			window.parent.postMessage({
 				type: 'relay',
 				relayType: 'install-blueprint',
@@ -2368,7 +2269,7 @@
 				(function(a, bUrl, g) {
 					installBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
-						savePendingInstall(a, bUrl, g);
+						addAppFromBlueprintUrl(a, bUrl, g);
 						window.parent.postMessage({
 							type: 'relay',
 							relayType: 'install-blueprint',
@@ -2552,7 +2453,7 @@
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
 			installBtn.textContent = 'Install';
 			installBtn.addEventListener('click', function() {
-				savePendingInstall(app, blueprintUrl, gradient);
+				addAppFromBlueprintUrl(app, blueprintUrl, gradient);
 				window.parent.postMessage({
 					type: 'relay',
 					relayType: 'install-blueprint',
@@ -3021,18 +2922,9 @@
 		}
 	});
 
-	// On initial load, check query params for deep-links into the modal or quick-add flow
+	// On initial load, check query params for deep-links into the modal.
 	function checkDeepLink() {
 		var url = new URL(window.location);
-		if (url.searchParams.get('quickadd') === '1' && url.searchParams.get('url')) {
-			var quickUrl = url.searchParams.get('url');
-			var quickTitle = (url.searchParams.get('title') || quickUrl).trim();
-			var quickIcon = url.searchParams.get('icon') || '';
-			['quickadd', 'url', 'title', 'icon'].forEach(function(k) { url.searchParams.delete(k); });
-			history.replaceState({}, '', url.toString());
-			performQuickAdd(quickTitle, quickUrl, quickIcon);
-			return;
-		}
 		var addParam = url.searchParams.get('add');
 		if (addParam === 'web-link' || addParam === 'admin-link' || addParam === 'apps') {
 			openInstallSoftwareModal();

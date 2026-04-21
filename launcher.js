@@ -1931,7 +1931,7 @@
 				_icon: p.icon || '',
 				_shortDescription: p.short_description || '',
 				_note: p.note || '',
-				_installUrl: p.install_url || ''
+				_installUrl: p.install_url || '',
 				_landingPage: p.landing_page || ''
 			};
 		});

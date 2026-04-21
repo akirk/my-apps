@@ -827,7 +827,8 @@ class My_Apps {
 		global $wp_filter;
 		$plugins = \get_plugins();
 		$which_app = array();
-		foreach ( $wp_filter['my_apps_plugins'] as $priority => $callbacks ) {
+		$my_apps_filters = isset( $wp_filter['my_apps_plugins'] ) ? $wp_filter['my_apps_plugins'] : array();
+		foreach ( $my_apps_filters as $priority => $callbacks ) {
 			foreach ( $callbacks as $callback ) {
 
 				if ( ! isset( $callback['function'] ) ) {

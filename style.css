@@ -537,6 +537,22 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	display: none;
 }
 
+#admin-link-view {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+#admin-link-view .admin-menu-search {
+	flex-shrink: 0;
+}
+
+#admin-link-view .admin-menu-tree {
+	flex: 1;
+	max-height: none;
+	min-height: 0;
+}
+
 .app-store-loading {
 	text-align: center;
 	padding: 60px 20px;

@@ -124,12 +124,12 @@ class My_Apps {
 	}
 
 	/**
-	 * Emit a tiny interceptor so clicking "+ New → App Icon" redirects to
-	 * the launcher with quick-add params. On admin pages we resolve the
-	 * current screen to the matching admin menu entry (same data the
-	 * "Add Admin Link" flow would use); on the frontend we fall back to
-	 * the document title and favicon. If JS is disabled the plain href
-	 * falls back to opening the web-link form.
+	 * Emit a tiny interceptor so clicking "+ New → App Icon" persists the
+	 * current screen as an app via AJAX, then redirects to the launcher.
+	 * On admin pages we resolve the current screen to the matching admin
+	 * menu entry (same data the "Add Admin Link" flow would use); on the
+	 * frontend we fall back to the document title and favicon. If JS is
+	 * disabled the plain href falls back to opening the web-link form.
 	 */
 	public function admin_bar_quickadd_script() {
 		if ( ! is_admin_bar_showing() || ! is_user_logged_in() ) {
@@ -137,28 +137,48 @@ class My_Apps {
 		}
 		$launcher = home_url( '/my-apps/' );
 		$entry    = $this->resolve_current_admin_menu_entry();
+		$config   = array(
+			'ajaxUrl'  => admin_url( 'admin-ajax.php' ),
+			'nonce'    => wp_create_nonce( 'my_apps_launcher' ),
+			'launcher' => $launcher,
+			'entry'    => $entry,
+		);
 		?>
 		<script>
 		(function() {
-			var serverEntry = <?php echo wp_json_encode( $entry ); ?>;
+			var cfg = <?php echo wp_json_encode( $config ); ?>;
 			document.addEventListener('click', function(e) {
 				var link = e.target.closest('#wp-admin-bar-new-my-apps-app a');
 				if (!link) return;
 				e.preventDefault();
-				var params = new URLSearchParams();
-				params.set('quickadd', '1');
-				if (serverEntry) {
-					params.set('url', serverEntry.url);
-					params.set('title', serverEntry.name);
-					if (serverEntry.dashicon) params.set('icon', serverEntry.dashicon);
+
+				var name, url, icon;
+				if (cfg.entry) {
+					name = cfg.entry.name;
+					url = cfg.entry.url;
+					icon = cfg.entry.dashicon || '';
 				} else {
-					params.set('url', window.location.href);
-					params.set('title', document.title || window.location.hostname);
+					name = document.title || window.location.hostname;
+					url = window.location.href;
 					var iconLink = document.querySelector('link[rel~="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
-					var iconUrl = iconLink ? iconLink.href : (new URL('/favicon.ico', window.location.origin)).href;
-					if (iconUrl) params.set('icon', iconUrl);
+					icon = iconLink ? iconLink.href : (new URL('/favicon.ico', window.location.origin)).href;
 				}
-				window.location.href = <?php echo wp_json_encode( $launcher ); ?> + '?' + params.toString();
+
+				var formData = new FormData();
+				formData.append('action', 'my_apps_add');
+				formData.append('nonce', cfg.nonce);
+				formData.append('name', name);
+				formData.append('url', url);
+				if (icon && icon.indexOf('dashicons-') === 0) {
+					formData.append('dashicon', icon);
+				} else if (icon && (icon.indexOf('http') === 0 || icon.indexOf('data:') === 0)) {
+					formData.append('icon_url', icon);
+				} else {
+					formData.append('emoji', '🔖');
+				}
+
+				fetch(cfg.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: formData })
+					.finally(function() { window.location.href = cfg.launcher; });
 			});
 		})();
 		</script>

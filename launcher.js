@@ -1656,34 +1656,6 @@
 		return newApp;
 	}
 
-	function performQuickAdd(name, url, icon) {
-		var formData = new FormData();
-		formData.append('action', 'my_apps_add');
-		formData.append('nonce', myAppsConfig.nonce);
-		formData.append('name', name);
-		formData.append('url', url);
-		if (icon && icon.indexOf('dashicons-') === 0) {
-			formData.append('dashicon', icon);
-		} else if (icon && (icon.indexOf('http') === 0 || icon.indexOf('data:') === 0)) {
-			formData.append('icon_url', icon);
-		} else {
-			formData.append('emoji', '🔖');
-		}
-
-		fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
-			.then(function(res) { return res.json(); })
-			.then(function(data) {
-				if (data.success) {
-					insertAndHighlightApp(data.data);
-				} else {
-					alert(data.data || 'Error adding app');
-				}
-			})
-			.catch(function() {
-				alert('Network error');
-			});
-	}
-
 	function createAppElement(app) {
 		var div = document.createElement('div');
 		div.className = 'app-icon';
@@ -2950,18 +2922,9 @@
 		}
 	});
 
-	// On initial load, check query params for deep-links into the modal or quick-add flow
+	// On initial load, check query params for deep-links into the modal.
 	function checkDeepLink() {
 		var url = new URL(window.location);
-		if (url.searchParams.get('quickadd') === '1' && url.searchParams.get('url')) {
-			var quickUrl = url.searchParams.get('url');
-			var quickTitle = (url.searchParams.get('title') || quickUrl).trim();
-			var quickIcon = url.searchParams.get('icon') || '';
-			['quickadd', 'url', 'title', 'icon'].forEach(function(k) { url.searchParams.delete(k); });
-			history.replaceState({}, '', url.toString());
-			performQuickAdd(quickTitle, quickUrl, quickIcon);
-			return;
-		}
 		var addParam = url.searchParams.get('add');
 		if (addParam === 'web-link' || addParam === 'admin-link' || addParam === 'apps') {
 			openInstallSoftwareModal();

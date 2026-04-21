@@ -13,7 +13,11 @@ class My_Apps {
 		add_action( 'wp_head', array( $this, 'admin_bar_css' ), 50 );
 		add_action( 'admin_head', array( $this, 'admin_bar_css' ), 50 );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 1 );
+		add_action( 'admin_bar_menu', array( $this, 'admin_bar_new_content_menu' ), 100 );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_remove_nodes' ), 999 );
+		add_action( 'wp_footer', array( $this, 'admin_bar_quickadd_script' ) );
+		add_action( 'admin_footer', array( $this, 'admin_bar_quickadd_script' ) );
+		add_action( 'admin_footer', array( $this, 'cache_admin_menu' ), 1 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 		add_action( 'wp_enqueue_styles', array( $this, 'enqueue_styles' ) );
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
@@ -87,6 +91,189 @@ class My_Apps {
 					'title' => __( 'My Apps', 'my-apps' ),
 				),
 			)
+		);
+	}
+
+	/**
+	 * Inject an "App" entry into the admin bar's "+ New" menu.
+	 *
+	 * Runs after core has registered the `new-content` parent.
+	 *
+	 * @param mixed $wp_admin_bar The admin bar.
+	 */
+	public function admin_bar_new_content_menu( $wp_admin_bar ) {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+		if ( ! $wp_admin_bar->get_node( 'new-content' ) ) {
+			return;
+		}
+		$wp_admin_bar->add_node(
+			array(
+				'parent' => 'new-content',
+				'id'     => 'new-my-apps-app',
+				'title'  => __( 'App Icon', 'my-apps' ),
+				'href'   => home_url( '/my-apps/?add=web-link' ),
+				'meta'   => array(
+					'title' => __( 'Add the current page as an app icon in My Apps', 'my-apps' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Emit a tiny interceptor so clicking "+ New → App Icon" redirects to
+	 * the launcher with quick-add params. On admin pages we resolve the
+	 * current screen to the matching admin menu entry (same data the
+	 * "Add Admin Link" flow would use); on the frontend we fall back to
+	 * the document title and favicon. If JS is disabled the plain href
+	 * falls back to opening the web-link form.
+	 */
+	public function admin_bar_quickadd_script() {
+		if ( ! is_admin_bar_showing() || ! is_user_logged_in() ) {
+			return;
+		}
+		$launcher = home_url( '/my-apps/' );
+		$entry    = $this->resolve_current_admin_menu_entry();
+		?>
+		<script>
+		(function() {
+			var serverEntry = <?php echo wp_json_encode( $entry ); ?>;
+			document.addEventListener('click', function(e) {
+				var link = e.target.closest('#wp-admin-bar-new-my-apps-app a');
+				if (!link) return;
+				e.preventDefault();
+				var params = new URLSearchParams();
+				params.set('quickadd', '1');
+				if (serverEntry) {
+					params.set('url', serverEntry.url);
+					params.set('title', serverEntry.name);
+					if (serverEntry.dashicon) params.set('icon', serverEntry.dashicon);
+				} else {
+					params.set('url', window.location.href);
+					params.set('title', document.title || window.location.hostname);
+					var iconLink = document.querySelector('link[rel~="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
+					var iconUrl = iconLink ? iconLink.href : (new URL('/favicon.ico', window.location.origin)).href;
+					if (iconUrl) params.set('icon', iconUrl);
+				}
+				window.location.href = <?php echo wp_json_encode( $launcher ); ?> + '?' + params.toString();
+			});
+		})();
+		</script>
+		<?php
+	}
+
+	/**
+	 * Coerce a raw WP admin menu icon value into something we can safely
+	 * round-trip through URL params and esc_url_raw. Dashicons classes and
+	 * http(s) URLs are kept as-is; anything else (including data: URIs, which
+	 * esc_url_raw strips, and internal markers like "none"/"div") falls back
+	 * to a generic dashicon.
+	 *
+	 * @param string $icon Raw icon value from $menu[...][6].
+	 * @return string
+	 */
+	private function normalize_menu_icon( $icon ) {
+		$icon = is_string( $icon ) ? trim( $icon ) : '';
+		if ( '' === $icon || 'none' === $icon || 'div' === $icon ) {
+			return 'dashicons-admin-generic';
+		}
+		if ( 0 === strpos( $icon, 'dashicons-' ) ) {
+			return $icon;
+		}
+		if ( 0 === strpos( $icon, 'http://' ) || 0 === strpos( $icon, 'https://' ) ) {
+			return $icon;
+		}
+		return 'dashicons-admin-generic';
+	}
+
+	/**
+	 * Resolve the current admin request to the matching $menu/$submenu entry,
+	 * using the same globals WordPress itself uses to highlight the active
+	 * item ($parent_file, $submenu_file, $self, $plugin_page). Returns the
+	 * entry in the same shape as ajax_get_admin_menu() produces, or null if
+	 * we're not in admin or no match is found.
+	 *
+	 * @return array|null
+	 */
+	private function resolve_current_admin_menu_entry() {
+		if ( ! is_admin() ) {
+			return null;
+		}
+
+		global $menu, $submenu, $pagenow, $parent_file, $submenu_file, $self, $plugin_page;
+
+		if ( ! is_array( $menu ) ) {
+			return null;
+		}
+
+		$parent_item = null;
+		$parent_slug = '';
+		foreach ( $menu as $item ) {
+			if ( empty( $item[2] ) ) {
+				continue;
+			}
+			if ( ! empty( $item[4] ) && strpos( $item[4], 'wp-menu-separator' ) !== false ) {
+				continue;
+			}
+			if ( ! empty( $item[1] ) && ! current_user_can( $item[1] ) ) {
+				continue;
+			}
+			$slug = $item[2];
+			if ( ( $parent_file && $slug === $parent_file )
+				|| ( $self && $slug === $self )
+				|| ( $pagenow && $slug === $pagenow ) ) {
+				$parent_item = $item;
+				$parent_slug = $slug;
+				break;
+			}
+		}
+
+		if ( ! $parent_item ) {
+			return null;
+		}
+
+		$icon = $this->normalize_menu_icon( ! empty( $parent_item[6] ) ? $parent_item[6] : '' );
+
+		if ( ! empty( $submenu[ $parent_slug ] ) && is_array( $submenu[ $parent_slug ] ) ) {
+			foreach ( $submenu[ $parent_slug ] as $sub ) {
+				if ( empty( $sub[0] ) || empty( $sub[2] ) ) {
+					continue;
+				}
+				if ( ! empty( $sub[1] ) && ! current_user_can( $sub[1] ) ) {
+					continue;
+				}
+				$sub_slug = $sub[2];
+				$match    = ( $submenu_file && $sub_slug === $submenu_file )
+					|| ( $plugin_page && $sub_slug === $plugin_page );
+				if ( ! $match ) {
+					continue;
+				}
+				if ( strpos( $sub_slug, '.php' ) !== false ) {
+					$sub_url = admin_url( $sub_slug );
+				} elseif ( strpos( $parent_slug, '.php' ) !== false ) {
+					$sub_url = admin_url( $parent_slug . '?page=' . $sub_slug );
+				} else {
+					$sub_url = admin_url( 'admin.php?page=' . $sub_slug );
+				}
+				return array(
+					'name'     => wp_strip_all_tags( $sub[0] ),
+					'url'      => $sub_url,
+					'dashicon' => $icon,
+				);
+			}
+		}
+
+		if ( strpos( $parent_slug, '.php' ) !== false ) {
+			$url = admin_url( $parent_slug );
+		} else {
+			$url = admin_url( 'admin.php?page=' . $parent_slug );
+		}
+
+		return array(
+			'name'     => wp_strip_all_tags( $parent_item[0] ),
+			'url'      => $url,
+			'dashicon' => $icon,
 		);
 	}
 
@@ -356,6 +543,28 @@ class My_Apps {
 	}
 
 	/**
+	 * Snapshot $menu / $submenu on every admin page load so we can serve
+	 * the AJAX admin-menu request with the same menu the user actually sees
+	 * in wp-admin — including plugin entries that guard their registration
+	 * with `! wp_doing_ajax()` and therefore wouldn't appear if we tried to
+	 * rebuild the menu from within an AJAX request.
+	 */
+	public function cache_admin_menu() {
+		global $menu, $submenu;
+		if ( ! is_user_logged_in() || ! is_array( $menu ) || empty( $menu ) ) {
+			return;
+		}
+		set_transient(
+			'my_apps_admin_menu_' . get_current_user_id(),
+			array(
+				'menu'    => $menu,
+				'submenu' => is_array( $submenu ) ? $submenu : array(),
+			),
+			HOUR_IN_SECONDS
+		);
+	}
+
+	/**
 	 * AJAX: Get admin menu structure for the launcher.
 	 */
 	public function ajax_get_admin_menu() {
@@ -367,8 +576,13 @@ class My_Apps {
 
 		global $menu, $submenu, $_wp_menu_nopriv, $_wp_submenu_nopriv, $_registered_pages, $_parent_pages;
 
-		// Menu isn't loaded during AJAX, so we need to trigger it
-		if ( empty( $menu ) ) {
+		// Prefer the cached snapshot from the user's last admin visit —
+		// that's the menu they actually saw in the sidebar.
+		$cached = get_transient( 'my_apps_admin_menu_' . get_current_user_id() );
+		if ( is_array( $cached ) && ! empty( $cached['menu'] ) ) {
+			$menu    = $cached['menu'];
+			$submenu = isset( $cached['submenu'] ) ? $cached['submenu'] : array();
+		} elseif ( empty( $menu ) ) {
 			global $pagenow;
 
 			// Initialize required globals before including any menu files
@@ -411,6 +625,9 @@ class My_Apps {
 			wp_send_json_success( $menu_data );
 		}
 
+		// Follow WP's own rendering: iterate by position key, not insertion.
+		ksort( $menu );
+
 		foreach ( $menu as $position => $item ) {
 			if ( empty( $item[0] ) || empty( $item[2] ) ) {
 				continue;
@@ -428,12 +645,7 @@ class My_Apps {
 
 			$menu_slug = $item[2];
 			$menu_name = wp_strip_all_tags( $item[0] );
-			$menu_icon = ! empty( $item[6] ) ? $item[6] : 'dashicons-admin-generic';
-
-			// Handle special icon values
-			if ( 'none' === $menu_icon || 'div' === $menu_icon ) {
-				$menu_icon = 'dashicons-admin-generic';
-			}
+			$menu_icon = $this->normalize_menu_icon( ! empty( $item[6] ) ? $item[6] : '' );
 
 			// Build URL
 			if ( strpos( $menu_slug, '.php' ) !== false ) {
@@ -451,6 +663,7 @@ class My_Apps {
 
 			// Get submenus
 			if ( ! empty( $submenu[ $menu_slug ] ) && is_array( $submenu[ $menu_slug ] ) ) {
+				ksort( $submenu[ $menu_slug ] );
 				foreach ( $submenu[ $menu_slug ] as $sub_item ) {
 					if ( empty( $sub_item[0] ) || empty( $sub_item[2] ) ) {
 						continue;

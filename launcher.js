@@ -1622,10 +1622,8 @@
 		.then(function(res) { return res.json(); })
 		.then(function(data) {
 			if (data.success) {
-				var newApp = createAppElement(data.data);
-				var addBtn = document.querySelector('.add-app-btn');
-				container.insertBefore(newApp, addBtn);
 				closeInstallSoftwareModal();
+				insertAndHighlightApp(data.data);
 			} else {
 				alert(data.data || 'Error adding app');
 			}
@@ -1633,6 +1631,51 @@
 		.catch(function() {
 			alert('Network error');
 		});
+	}
+
+	function insertAndHighlightApp(app) {
+		var newApp = createAppElement(app);
+		var addBtn = document.querySelector('.add-app-btn');
+		newApp.classList.add('just-added');
+		container.insertBefore(newApp, addBtn);
+		requestAnimationFrame(function() {
+			newApp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		});
+		newApp.addEventListener('animationend', function onEnd(ev) {
+			if (ev.animationName === 'my-apps-glow-pulse') {
+				newApp.classList.remove('just-added');
+				newApp.removeEventListener('animationend', onEnd);
+			}
+		});
+		return newApp;
+	}
+
+	function performQuickAdd(name, url, icon) {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_add');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('name', name);
+		formData.append('url', url);
+		if (icon && icon.indexOf('dashicons-') === 0) {
+			formData.append('dashicon', icon);
+		} else if (icon && (icon.indexOf('http') === 0 || icon.indexOf('data:') === 0)) {
+			formData.append('icon_url', icon);
+		} else {
+			formData.append('emoji', '🔖');
+		}
+
+		fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
+			.then(function(res) { return res.json(); })
+			.then(function(data) {
+				if (data.success) {
+					insertAndHighlightApp(data.data);
+				} else {
+					alert(data.data || 'Error adding app');
+				}
+			})
+			.catch(function() {
+				alert('Network error');
+			});
 	}
 
 	function createAppElement(app) {
@@ -2772,9 +2815,26 @@
 		}
 	});
 
-	// On initial load, check if ?app= is present to deep-link into a detail page
+	// On initial load, check query params for deep-links into the modal or quick-add flow
 	function checkDeepLink() {
 		var url = new URL(window.location);
+		if (url.searchParams.get('quickadd') === '1' && url.searchParams.get('url')) {
+			var quickUrl = url.searchParams.get('url');
+			var quickTitle = (url.searchParams.get('title') || quickUrl).trim();
+			var quickIcon = url.searchParams.get('icon') || '';
+			['quickadd', 'url', 'title', 'icon'].forEach(function(k) { url.searchParams.delete(k); });
+			history.replaceState({}, '', url.toString());
+			performQuickAdd(quickTitle, quickUrl, quickIcon);
+			return;
+		}
+		var addParam = url.searchParams.get('add');
+		if (addParam === 'web-link' || addParam === 'admin-link' || addParam === 'apps') {
+			openInstallSoftwareModal();
+			showAppStoreView(addParam);
+			url.searchParams.delete('add');
+			history.replaceState({}, '', url.toString());
+			return;
+		}
 		var appParam = url.searchParams.get('app');
 		if (appParam) {
 			openInstallSoftwareModal();

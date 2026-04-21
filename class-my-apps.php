@@ -778,6 +778,7 @@ class My_Apps {
 				'note'              => $note,
 				'categories'        => $categories,
 				'install_url'       => admin_url( 'plugin-install.php?tab=plugin-information&plugin=' . $slug ),
+				'landing_page'      => $landing_page,
 			);
 		}
 

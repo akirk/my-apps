@@ -2288,18 +2288,12 @@
 			itemEl.appendChild(infoEl);
 			itemEl.appendChild(actionsEl);
 
-			// Click title or icon: plugins go to the wp.org info page in wp-admin;
-			// blueprints open the in-launcher detail view.
-			titleEl.classList.add('app-store-title-link');
-			iconEl.classList.add('app-store-icon-link');
-			if (isPluginEntry) {
-				var openPlugin = function(e) {
-					e.stopPropagation();
-					installPluginApp(app, gradient);
-				};
-				titleEl.addEventListener('click', openPlugin);
-				iconEl.addEventListener('click', openPlugin);
-			} else {
+			// Blueprints: clicking the title or icon opens the in-launcher detail
+			// view. Plugins have no click behavior here — only the Install button
+			// installs them.
+			if (!isPluginEntry) {
+				titleEl.classList.add('app-store-title-link');
+				iconEl.classList.add('app-store-icon-link');
 				titleEl.addEventListener('click', function(e) {
 					e.stopPropagation();
 					openAppDetail(path, app, blueprintUrl, gradient);

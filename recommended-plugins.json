@@ -1,0 +1,29 @@
+{
+	"mime-types-plus": {
+		"note": "Lets you upload file types WordPress blocks by default (SVG, WebP variants, etc.) without editing code.",
+		"categories": ["Utility"]
+	},
+	"duplicate-page": {
+		"note": "Adds a one-click \"Duplicate\" action to posts and pages — great for reusing a layout you like.",
+		"categories": ["Productivity"]
+	},
+	"family-wiki": {
+		"note": "Turn your site into a private family wiki with nested pages and shared editing.",
+		"categories": ["Productivity"]
+	},
+	"wp-dashboard-notes": {
+		"note": "Pin sticky notes to your WordPress dashboard — handy for to-dos and reminders you'll actually see.",
+		"categories": ["Productivity"]
+	},
+	"wordpress-beta-tester": {
+		"note": "Opt into WordPress beta and release-candidate builds to try new features before they ship.",
+		"categories": ["Utility"]
+	},
+	"static-archive": {
+		"github": "akirk/static-archive",
+		"title": "Static Archive",
+		"author": "Alex Kirk",
+		"note": "Export your blog as static HTML so you keep a self-contained archive even if your site changes.",
+		"categories": ["Utility"]
+	}
+}

@@ -32,6 +32,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
 		add_action( 'wp_ajax_my_apps_delete', array( $this, 'ajax_delete_app' ) );
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
+		add_action( 'wp_ajax_my_apps_get_recommended_plugins', array( $this, 'ajax_get_recommended_plugins' ) );
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
 		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
 	}
@@ -701,6 +702,140 @@ class My_Apps {
 		}
 
 		wp_send_json_success( $menu_data );
+	}
+
+	/**
+	 * AJAX: Return the curated list of wp.org plugins, enriched with
+	 * plugins_api data (icon, title, author, short_description) and
+	 * cached per-slug in a transient.
+	 */
+	public function ajax_get_recommended_plugins() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$curated = $this->load_recommended_plugins_json();
+		if ( empty( $curated ) ) {
+			wp_send_json_success( array() );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+
+		$out = array();
+		foreach ( $curated as $key => $meta ) {
+			$categories = isset( $meta['categories'] ) && is_array( $meta['categories'] ) ? array_values( $meta['categories'] ) : array();
+			$note       = isset( $meta['note'] ) ? (string) $meta['note'] : '';
+
+			// GitHub-hosted plugin: skip plugins_api, use metadata from JSON.
+			if ( ! empty( $meta['github'] ) && preg_match( '#^[\w.-]+/[\w.-]+$#', $meta['github'] ) ) {
+				$owner              = strtok( $meta['github'], '/' );
+				$repo_key           = sanitize_title( $meta['github'] );
+				$out[ 'github/' . $repo_key ] = array(
+					'source'            => 'github',
+					'repo'              => $meta['github'],
+					'title'             => isset( $meta['title'] ) ? wp_strip_all_tags( $meta['title'] ) : $repo_key,
+					'author'            => isset( $meta['author'] ) ? wp_strip_all_tags( $meta['author'] ) : $owner,
+					'short_description' => '',
+					'icon'              => ! empty( $meta['icon'] ) ? esc_url_raw( $meta['icon'] ) : 'https://github.com/' . rawurlencode( $owner ) . '.png?size=128',
+					'note'              => $note,
+					'categories'        => $categories,
+					'install_url'       => 'https://github.com/' . $meta['github'],
+				);
+				continue;
+			}
+
+			// Default: wp.org plugin keyed by slug.
+			$slug = sanitize_key( $key );
+			if ( '' === $slug ) {
+				continue;
+			}
+
+			$info = $this->fetch_plugin_info( $slug );
+			if ( ! $info ) {
+				continue;
+			}
+
+			$icons = isset( $info['icons'] ) && is_array( $info['icons'] ) ? $info['icons'] : array();
+			$icon  = '';
+			foreach ( array( 'svg', '2x', '1x', 'default' ) as $size ) {
+				if ( ! empty( $icons[ $size ] ) ) {
+					$icon = $icons[ $size ];
+					break;
+				}
+			}
+
+			$out[ $slug ] = array(
+				'source'            => 'wp.org',
+				'slug'              => $slug,
+				'title'             => isset( $info['name'] ) ? wp_strip_all_tags( $info['name'] ) : $slug,
+				'author'            => isset( $info['author'] ) ? wp_strip_all_tags( $info['author'] ) : '',
+				'short_description' => isset( $info['short_description'] ) ? wp_strip_all_tags( $info['short_description'] ) : '',
+				'icon'              => $icon,
+				'note'              => $note,
+				'categories'        => $categories,
+				'install_url'       => admin_url( 'plugin-install.php?tab=plugin-information&plugin=' . $slug ),
+			);
+		}
+
+		wp_send_json_success( $out );
+	}
+
+	/**
+	 * Load the shipped recommended-plugins.json. During development this is
+	 * the authoritative source; later we may swap to a remote URL with this
+	 * file as a local override.
+	 *
+	 * @return array
+	 */
+	private function load_recommended_plugins_json() {
+		$file = plugin_dir_path( __FILE__ ) . 'recommended-plugins.json';
+		if ( ! is_readable( $file ) ) {
+			return array();
+		}
+		$raw = file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$data = json_decode( $raw, true );
+		return is_array( $data ) ? $data : array();
+	}
+
+	/**
+	 * Call plugins_api() for a single slug and cache the result. Returns the
+	 * response as an array, or null on failure.
+	 *
+	 * @param string $slug wp.org plugin slug.
+	 * @return array|null
+	 */
+	private function fetch_plugin_info( $slug ) {
+		$transient_key = 'my_apps_plugin_info_' . $slug;
+		$cached        = get_transient( $transient_key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$response = plugins_api(
+			'plugin_information',
+			array(
+				'slug'   => $slug,
+				'fields' => array(
+					'short_description' => true,
+					'icons'             => true,
+					'sections'          => false,
+					'tags'              => false,
+					'compatibility'     => false,
+					'contributors'      => false,
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			set_transient( $transient_key, array( 'error' => true ), HOUR_IN_SECONDS );
+			return null;
+		}
+
+		$info = (array) $response;
+		set_transient( $transient_key, $info, 12 * HOUR_IN_SECONDS );
+		return $info;
 	}
 
 	/**

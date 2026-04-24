@@ -23,7 +23,6 @@ class My_Apps {
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
 
 		// AJAX handlers for launcher
-		add_action( 'wp_ajax_my_apps_dismiss_hint', array( $this, 'ajax_dismiss_hint' ) );
 		add_action( 'wp_ajax_my_apps_save_display_name', array( $this, 'ajax_save_display_name' ) );
 		add_action( 'wp_ajax_my_apps_save_order', array( $this, 'ajax_save_order' ) );
 		add_action( 'wp_ajax_my_apps_hide', array( $this, 'ajax_hide_app' ) );
@@ -299,18 +298,6 @@ class My_Apps {
 			'url'      => $url,
 			'dashicon' => $icon,
 		);
-	}
-
-	/**
-	 * AJAX: Persist the dismissal of the admin-bar hint.
-	 */
-	public function ajax_dismiss_hint() {
-		check_ajax_referer( 'my_apps_launcher', 'nonce' );
-		if ( ! is_user_logged_in() ) {
-			wp_send_json_error();
-		}
-		update_user_meta( get_current_user_id(), 'my_apps_hint_dismissed', 1 );
-		wp_send_json_success();
 	}
 
 	/**
@@ -791,12 +778,8 @@ class My_Apps {
 				continue;
 			}
 
-			$info = $this->fetch_plugin_info( $slug );
-			if ( ! $info ) {
-				continue;
-			}
-
-			$icons = isset( $info['icons'] ) && is_array( $info['icons'] ) ? $info['icons'] : array();
+			$info  = $this->fetch_plugin_info( $slug );
+			$icons = is_array( $info ) && isset( $info['icons'] ) && is_array( $info['icons'] ) ? $info['icons'] : array();
 			$icon  = '';
 			foreach ( array( 'svg', '2x', '1x', 'default' ) as $size ) {
 				if ( ! empty( $icons[ $size ] ) ) {
@@ -805,12 +788,14 @@ class My_Apps {
 				}
 			}
 
+			$fallback_title = isset( $meta['title'] ) ? wp_strip_all_tags( $meta['title'] ) : ucwords( str_replace( '-', ' ', $slug ) );
+
 			$out[ $slug ] = array(
 				'source'            => 'wp.org',
 				'slug'              => $slug,
-				'title'             => isset( $info['name'] ) ? wp_strip_all_tags( html_entity_decode( $info['name'], ENT_QUOTES, 'UTF-8' ) ) : $slug,
-				'author'            => isset( $info['author'] ) ? wp_strip_all_tags( html_entity_decode( $info['author'], ENT_QUOTES, 'UTF-8' ) ) : '',
-				'short_description' => isset( $info['short_description'] ) ? wp_strip_all_tags( html_entity_decode( $info['short_description'], ENT_QUOTES, 'UTF-8' ) ) : '',
+				'title'             => is_array( $info ) && ! empty( $info['name'] ) ? wp_strip_all_tags( html_entity_decode( $info['name'], ENT_QUOTES, 'UTF-8' ) ) : $fallback_title,
+				'author'            => is_array( $info ) && ! empty( $info['author'] ) ? wp_strip_all_tags( html_entity_decode( $info['author'], ENT_QUOTES, 'UTF-8' ) ) : ( isset( $meta['author'] ) ? wp_strip_all_tags( $meta['author'] ) : '' ),
+				'short_description' => is_array( $info ) && ! empty( $info['short_description'] ) ? wp_strip_all_tags( html_entity_decode( $info['short_description'], ENT_QUOTES, 'UTF-8' ) ) : '',
 				'icon'              => $icon,
 				'note'              => $note,
 				'categories'        => $categories,
@@ -850,6 +835,9 @@ class My_Apps {
 		$transient_key = 'my_apps_plugin_info_' . $slug;
 		$cached        = get_transient( $transient_key );
 		if ( is_array( $cached ) ) {
+			if ( isset( $cached['_my_apps_error'] ) || isset( $cached['error'] ) ) {
+				return null;
+			}
 			return $cached;
 		}
 
@@ -869,7 +857,7 @@ class My_Apps {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			set_transient( $transient_key, array( 'error' => true ), HOUR_IN_SECONDS );
+			set_transient( $transient_key, array( '_my_apps_error' => true ), HOUR_IN_SECONDS );
 			return null;
 		}
 

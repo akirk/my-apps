@@ -890,17 +890,22 @@ class My_Apps {
 
 		$apps = self::get_apps();
 		if ( isset( $apps[ $slug ] ) ) {
-			$app = $apps[ $slug ];
-			wp_send_json_success(
-				array(
-					'slug'     => $slug,
-					'name'     => $app['name'],
-					'url'      => $app['url'],
-					'icon_url' => ! empty( $app['icon_url'] ) ? $app['icon_url'] : null,
-					'dashicon' => ! empty( $app['dashicon'] ) ? $app['dashicon'] : null,
-					'emoji'    => ! empty( $app['emoji'] ) ? $app['emoji'] : null,
-				)
+			$app      = $apps[ $slug ];
+			$icon_url = ! empty( $app['icon_url'] ) ? $app['icon_url'] : null;
+			$dashicon = ! empty( $app['dashicon'] ) ? $app['dashicon'] : null;
+			$emoji    = ! empty( $app['emoji'] ) ? $app['emoji'] : null;
+			$payload  = array(
+				'slug'     => $slug,
+				'name'     => $app['name'],
+				'url'      => $app['url'],
+				'icon_url' => $icon_url,
+				'dashicon' => $dashicon,
+				'emoji'    => $emoji,
 			);
+			if ( ! $icon_url && ! $dashicon && ! $emoji ) {
+				$payload['letter_icon'] = self::letter_icon_data( $app['name'] );
+			}
+			wp_send_json_success( $payload );
 		}
 
 		wp_send_json_success();
@@ -999,6 +1004,65 @@ class My_Apps {
 		}
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * Derive letters + deterministic HSL background for an app that didn't
+	 * ship an icon. Single-word names get one letter; multi-word names get
+	 * the first letter of each of the first two words.
+	 *
+	 * @param string $name App display name.
+	 * @return array{letters:string,background:string}
+	 */
+	public static function letter_icon_data( $name ) {
+		$name    = trim( wp_strip_all_tags( (string) $name ) );
+		$words   = preg_split( '/[\s_\-]+/u', $name, -1, PREG_SPLIT_NO_EMPTY );
+		if ( empty( $words ) ) {
+			$letters = '?';
+		} elseif ( count( $words ) >= 2 ) {
+			$letters = mb_strtoupper( mb_substr( $words[0], 0, 1 ) . mb_substr( $words[1], 0, 1 ) );
+		} else {
+			$letters = mb_strtoupper( mb_substr( $words[0], 0, 1 ) );
+		}
+
+		// djb2-ish byte hash folded to 32 bits, for a hue in 0..359.
+		$hash = 5381;
+		$key  = strtolower( $name );
+		$len  = strlen( $key );
+		for ( $i = 0; $i < $len; $i++ ) {
+			$hash = ( ( $hash * 33 ) + ord( $key[ $i ] ) ) & 0xFFFFFFFF;
+		}
+		$hue = $hash % 360;
+
+		return array(
+			'letters'    => $letters,
+			'background' => 'hsl(' . $hue . ', 55%, 45%)',
+			'hue'        => $hue,
+		);
+	}
+
+	/**
+	 * Render an SVG letter-based fallback icon. Using SVG with a 1:1
+	 * viewBox guarantees the rendered tile is square regardless of any
+	 * CSS cascade surprises.
+	 *
+	 * @param string $name      App display name.
+	 * @param string $modifiers Extra CSS classes (e.g. 'app-letter-icon-small').
+	 */
+	public static function letter_icon_html( $name, $modifiers = '' ) {
+		$data      = self::letter_icon_data( $name );
+		$classes   = trim( 'app-letter-icon ' . $modifiers );
+		$font_size = strlen( $data['letters'] ) > 1 ? 36 : 46;
+		return sprintf(
+			'<svg class="%1$s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' .
+				'<rect width="100" height="100" rx="22" ry="22" fill="%2$s"/>' .
+				'<text x="50" y="50" fill="#fff" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-weight="600" font-size="%3$d">%4$s</text>' .
+			'</svg>',
+			esc_attr( $classes ),
+			esc_attr( $data['background'] ),
+			$font_size,
+			esc_html( $data['letters'] )
+		);
 	}
 
 	/**
@@ -1108,9 +1172,6 @@ class My_Apps {
 		$additional_apps = get_option( 'my_apps_additional_apps', array() );
 		foreach ( $additional_apps as $slug => $data ) {
 			if ( ! isset( $data['url'], $data['name'] ) ) {
-				continue;
-			}
-			if ( ! isset( $data['icon_url'] ) && ! isset( $data['dashicon'] ) && empty( $data['gradient'] ) && empty( $data['emoji'] ) ) {
 				continue;
 			}
 			$data['plugin'] = 'unknown';

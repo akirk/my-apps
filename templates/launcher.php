@@ -114,7 +114,7 @@ if ( $background === 'custom' && $custom_bg ) {
 			} elseif ( ! empty( $_plugin['emoji'] ) ) {
 				$icon_html = '<div class="emoji">' . esc_html( $_plugin['emoji'] ) . '</div>';
 			} else {
-				continue;
+				$icon_html = My_Apps::letter_icon_html( $_plugin['name'] );
 			}
 			?>
 			<div class="app-icon" data-slug="<?php echo esc_attr( $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>">
@@ -148,6 +148,8 @@ if ( $background === 'custom' && $custom_bg ) {
 					$icon_html = '<span class="dashicons ' . esc_attr( $app['dashicon'] ) . '"></span>';
 				} elseif ( ! empty( $app['emoji'] ) ) {
 					$icon_html = '<span class="emoji">' . esc_html( $app['emoji'] ) . '</span>';
+				} else {
+					$icon_html = My_Apps::letter_icon_html( $app['name'], 'app-letter-icon-small' );
 				}
 				$is_deletable = isset( $additional_apps[ $slug ] );
 			?>

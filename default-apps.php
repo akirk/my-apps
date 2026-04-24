@@ -1,6 +1,8 @@
 <?php
 namespace My_Apps;
 
+defined( 'ABSPATH' ) || exit;
+
 function seed_default_apps() {
 	$additional_apps = get_option( 'my_apps_additional_apps', array() );
 	$sort            = get_option( 'my_apps_sort', array() );

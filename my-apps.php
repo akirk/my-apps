@@ -15,6 +15,8 @@
 
 namespace My_Apps;
 
+defined( 'ABSPATH' ) || exit;
+
 define( 'MY_APPS_VERSION', '1.3.0' );
 
 require_once __DIR__ . '/class-my-apps.php';

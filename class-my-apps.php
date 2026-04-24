@@ -1,6 +1,8 @@
 <?php
 namespace My_Apps;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Class My_Apps
  */

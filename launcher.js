@@ -16,20 +16,6 @@
 	const body = document.body;
 	const adminMenuTree = document.getElementById('admin-menu-tree');
 	const adminMenuSearch = document.getElementById('admin-menu-search');
-	const hintEl = document.getElementById('my-apps-hint');
-	if (hintEl) {
-		hintEl.addEventListener('click', function() {
-			hintEl.parentNode.removeChild(hintEl);
-			var formData = new FormData();
-			formData.append('action', 'my_apps_dismiss_hint');
-			formData.append('nonce', myAppsConfig.nonce);
-			fetch(myAppsConfig.ajaxUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				body: formData
-			});
-		});
-	}
 
 	const installSoftwareModal = document.getElementById('install-software-modal');
 	const appStoreContent = document.getElementById('app-store-content');
@@ -1899,8 +1885,12 @@
 		}
 	}
 
+	// 'loading' \u2192 plugins fetch in flight; 'loaded' \u2192 merged in; 'failed' \u2192 fetch errored or returned nothing.
+	var pluginsLoadState = 'loading';
+
 	function loadAppStore() {
 		appStoreContent.innerHTML = '<div class="app-store-loading">Loading apps\u2026</div>';
+		pluginsLoadState = 'loading';
 
 		var pluginsPromise = fetchRecommendedPlugins();
 
@@ -1913,8 +1903,12 @@
 				bindAppStoreEvents();
 				// Plugins come in async; fold them in when ready.
 				pluginsPromise.then(function(plugins) {
-					if (!plugins) return;
-					mergeRecommendedPlugins(appStoreData, plugins);
+					if (!plugins || !Object.keys(plugins).length) {
+						pluginsLoadState = 'failed';
+					} else {
+						mergeRecommendedPlugins(appStoreData, plugins);
+						pluginsLoadState = 'loaded';
+					}
 					buildAppStoreNav(appStoreData);
 					renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 				});
@@ -1926,11 +1920,9 @@
 
 	function buildAppStoreNav(data) {
 		var categories = new Set();
-		var hasPlugins = false;
 		Object.keys(data).forEach(function(path) {
 			var cats = data[path].categories || [];
 			cats.forEach(function(c) { categories.add(c); });
-			if (data[path]._type === 'plugin') hasPlugins = true;
 		});
 
 		appStoreNav.innerHTML = '';
@@ -1941,13 +1933,14 @@
 		discoverLi.textContent = 'All Apps';
 		appStoreNav.appendChild(discoverLi);
 
-		if (hasPlugins) {
-			var pluginsLi = document.createElement('li');
-			pluginsLi.className = 'app-store-nav-item' + (activeCategory === '__plugins__' ? ' active' : '');
-			pluginsLi.dataset.category = '__plugins__';
-			pluginsLi.textContent = 'Recommended Plugins';
-			appStoreNav.appendChild(pluginsLi);
-		}
+		// Always show the Recommended Plugins entry — the curated list ships
+		// with the plugin, so even if the wp.org enrichment call fails we still
+		// have something meaningful to render in that section.
+		var pluginsLi = document.createElement('li');
+		pluginsLi.className = 'app-store-nav-item' + (activeCategory === '__plugins__' ? ' active' : '');
+		pluginsLi.dataset.category = '__plugins__';
+		pluginsLi.textContent = 'Recommended Plugins';
+		appStoreNav.appendChild(pluginsLi);
 
 		categories.forEach(function(cat) {
 			var li = document.createElement('li');
@@ -2325,6 +2318,40 @@
 		});
 
 		appStoreContent.innerHTML = '';
+
+		if (category === '__plugins__') {
+			var introEl = document.createElement('p');
+			introEl.className = 'app-store-intro';
+			introEl.textContent = 'These plugins have been hand-picked as useful additions for a personal WordPress site.';
+			appStoreContent.appendChild(introEl);
+
+			if (!hasResults && pluginsLoadState === 'loading') {
+				var pluginLoadingEl = document.createElement('div');
+				pluginLoadingEl.className = 'app-store-loading';
+				pluginLoadingEl.textContent = 'Loading recommendations…';
+				appStoreContent.appendChild(pluginLoadingEl);
+			} else if (!hasResults) {
+				var pluginEmptyEl = document.createElement('div');
+				pluginEmptyEl.className = 'app-store-error';
+				pluginEmptyEl.textContent = pluginsLoadState === 'failed'
+					? 'Unable to load recommendations right now.'
+					: 'No recommendations match your search.';
+				appStoreContent.appendChild(pluginEmptyEl);
+			} else {
+				appStoreContent.appendChild(listEl);
+			}
+
+			var footerEl = document.createElement('p');
+			footerEl.className = 'app-store-footer-link';
+			var footerLink = document.createElement('a');
+			footerLink.href = myAppsConfig.ajaxUrl.replace('admin-ajax.php', 'plugin-install.php');
+			footerLink.target = '_top';
+			footerLink.textContent = 'Browse all WordPress plugins →';
+			footerEl.appendChild(footerLink);
+			appStoreContent.appendChild(footerEl);
+			return;
+		}
+
 		if (hasResults) {
 			appStoreContent.appendChild(listEl);
 		} else {

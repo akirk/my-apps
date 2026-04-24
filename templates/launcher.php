@@ -2,10 +2,18 @@
 /**
  * The template for displaying the app launcher.
  *
+ * Template-local variables are flagged by phpcs's prefix-all-globals sniff
+ * because the sniff cannot see that this file is always include()'d from
+ * within a method scope — no actual globals escape.
+ *
+ * phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+ *
  * @package My_Apps
  */
 
 namespace My_Apps;
+
+defined( 'ABSPATH' ) || exit;
 
 $apps = My_Apps::get_apps();
 $hidden_apps = array_filter( $apps, function( $app ) {
@@ -28,12 +36,9 @@ $can_manage = current_user_can( 'manage_options' );
 <?php
 $background = get_option( 'my_apps_background', 'gradient-purple' );
 $custom_bg = get_option( 'my_apps_background_custom', '' );
-$bg_style = '';
-if ( $background === 'custom' && $custom_bg ) {
-	$bg_style = 'style="background: ' . esc_attr( $custom_bg ) . ';"';
-}
+$custom_bg_style = ( $background === 'custom' && $custom_bg ) ? 'background: ' . $custom_bg : '';
 ?>
-<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?>" <?php echo $bg_style; ?>>
+<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?>"<?php if ( $custom_bg_style ) : ?> style="<?php echo esc_attr( $custom_bg_style ); ?>"<?php endif; ?>>
 	<div class="launcher-toolbar">
 		<button type="button" class="toolbar-btn edit-btn" title="<?php esc_attr_e( 'Edit', 'my-apps' ); ?>">
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
@@ -120,7 +125,9 @@ if ( $background === 'custom' && $custom_bg ) {
 			<div class="app-icon" data-slug="<?php echo esc_attr( $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>">
 				<button type="button" class="hide-btn" title="<?php esc_attr_e( 'Hide', 'my-apps' ); ?>"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#000" stroke="#fff" stroke-width="2"/><path d="M8 8l8 8M16 8l-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
 				<a href="<?php echo esc_url( $_plugin['url'] ); ?>" class="app-link">
-					<?php echo $icon_html; ?>
+					<?php
+					echo $icon_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built above from esc_attr/esc_html pieces and letter_icon_html() (also pre-escaped).
+					?>
 					<p class="app-title"><?php echo esc_html( $_plugin['name'] ); ?></p>
 				</a>
 			</div>
@@ -155,7 +162,9 @@ if ( $background === 'custom' && $custom_bg ) {
 			?>
 			<div class="hidden-app-row">
 				<button type="button" class="hidden-app-item" data-slug="<?php echo esc_attr( $slug ); ?>">
-					<span class="hidden-app-icon"><?php echo $icon_html; ?></span>
+					<span class="hidden-app-icon"><?php
+						echo $icon_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built above from esc_attr/esc_html pieces and letter_icon_html() (also pre-escaped).
+					?></span>
 					<span class="hidden-app-name"><?php echo esc_html( $app['name'] ); ?></span>
 					<span class="restore-icon">
 						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>

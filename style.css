@@ -1,9 +1,8 @@
 /* Launcher Base */
 body.my-apps-launcher {
 	margin: 0;
-	margin-top: 32px;
 	padding: 20px;
-	min-height: calc(100vh - 32px);
+	min-height: 100vh;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 	box-sizing: border-box;
 }
@@ -23,13 +22,6 @@ body.my-apps-launcher {
 .bg-solid-red, body.my-apps-launcher.bg-solid-red { background: #ef4444; }
 .bg-solid-purple, body.my-apps-launcher.bg-solid-purple { background: #8b5cf6; }
 .bg-solid-dark, body.my-apps-launcher.bg-solid-dark { background: #1f2937; }
-
-@media screen and (max-width: 782px) {
-	body.my-apps-launcher {
-		margin-top: 46px;
-		min-height: calc(100vh - 46px);
-	}
-}
 
 @media (max-width: 600px) {
 	body.my-apps-launcher {
@@ -271,6 +263,22 @@ body.edit-mode .launcher-toolbar .done-btn {
 	box-shadow: none;
 }
 
+svg.app-letter-icon {
+	display: block;
+	width: var(--app-size, 60px);
+	height: var(--app-size, 60px);
+	margin: 0 auto;
+	border-radius: 14px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+svg.app-letter-icon.app-letter-icon-small {
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	box-shadow: none;
+}
+
 .app-icon .emoji {
 	font-size: calc(var(--app-size, 60px) * 0.83);
 	line-height: var(--app-size, 60px);
@@ -340,7 +348,8 @@ body.edit-mode .hide-btn {
 
 .app-icon.just-added img,
 .app-icon.just-added div.dashicons,
-.app-icon.just-added .emoji {
+.app-icon.just-added .emoji,
+.app-icon.just-added svg.app-letter-icon {
 	animation: my-apps-glow-pulse 1.1s ease-out 0.45s 2;
 }
 

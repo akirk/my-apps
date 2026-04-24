@@ -1429,6 +1429,7 @@
 		var img = element.querySelector('.app-link img');
 		var dashicon = element.querySelector('.app-link .dashicons');
 		var emoji = element.querySelector('.app-link .emoji');
+		var letter = element.querySelector('.app-link .app-letter-icon');
 
 		if (img) {
 			iconHtml = '<img src="' + img.src + '" alt="">';
@@ -1436,6 +1437,10 @@
 			iconHtml = '<span class="' + dashicon.className + '"></span>';
 		} else if (emoji) {
 			iconHtml = '<span class="emoji">' + emoji.textContent + '</span>';
+		} else if (letter) {
+			var letterClone = letter.cloneNode(true);
+			letterClone.classList.add('app-letter-icon-small');
+			iconHtml = letterClone.outerHTML;
 		}
 
 		element.classList.add('hiding');
@@ -1663,6 +1668,35 @@
 		return newApp;
 	}
 
+	function buildLetterIconSvg(data, extraClass) {
+		var svgNS = 'http://www.w3.org/2000/svg';
+		var letters = String(data.letters || '?');
+		var svg = document.createElementNS(svgNS, 'svg');
+		svg.setAttribute('class', 'app-letter-icon' + (extraClass ? ' ' + extraClass : ''));
+		svg.setAttribute('viewBox', '0 0 100 100');
+		svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+		svg.setAttribute('aria-hidden', 'true');
+		var rect = document.createElementNS(svgNS, 'rect');
+		rect.setAttribute('width', '100');
+		rect.setAttribute('height', '100');
+		rect.setAttribute('rx', '22');
+		rect.setAttribute('ry', '22');
+		rect.setAttribute('fill', data.background || '#888');
+		svg.appendChild(rect);
+		var text = document.createElementNS(svgNS, 'text');
+		text.setAttribute('x', '50');
+		text.setAttribute('y', '50');
+		text.setAttribute('fill', '#fff');
+		text.setAttribute('text-anchor', 'middle');
+		text.setAttribute('dominant-baseline', 'central');
+		text.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif');
+		text.setAttribute('font-weight', '600');
+		text.setAttribute('font-size', letters.length > 1 ? '36' : '46');
+		text.textContent = letters;
+		svg.appendChild(text);
+		return svg;
+	}
+
 	function createAppElement(app) {
 		var div = document.createElement('div');
 		div.className = 'app-icon';
@@ -1710,6 +1744,8 @@
 			emojiDiv.className = 'emoji';
 			emojiDiv.textContent = app.emoji;
 			link.appendChild(emojiDiv);
+		} else if (app.letter_icon) {
+			link.appendChild(buildLetterIconSvg(app.letter_icon));
 		}
 
 		var title = document.createElement('p');

@@ -33,7 +33,7 @@ if ( $background === 'custom' && $custom_bg ) {
 	$bg_style = 'style="background: ' . esc_attr( $custom_bg ) . ';"';
 }
 ?>
-<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?>" <?php echo $bg_style; ?>>
+<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?><?php echo is_admin_bar_showing() ? ' has-admin-bar' : ''; ?>" <?php echo $bg_style; ?>>
 	<div class="launcher-toolbar">
 		<button type="button" class="toolbar-btn edit-btn" title="<?php esc_attr_e( 'Edit', 'my-apps' ); ?>">
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
@@ -114,7 +114,7 @@ if ( $background === 'custom' && $custom_bg ) {
 			} elseif ( ! empty( $_plugin['emoji'] ) ) {
 				$icon_html = '<div class="emoji">' . esc_html( $_plugin['emoji'] ) . '</div>';
 			} else {
-				continue;
+				$icon_html = My_Apps::letter_icon_html( $_plugin['name'] );
 			}
 			?>
 			<div class="app-icon" data-slug="<?php echo esc_attr( $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>">
@@ -148,6 +148,8 @@ if ( $background === 'custom' && $custom_bg ) {
 					$icon_html = '<span class="dashicons ' . esc_attr( $app['dashicon'] ) . '"></span>';
 				} elseif ( ! empty( $app['emoji'] ) ) {
 					$icon_html = '<span class="emoji">' . esc_html( $app['emoji'] ) . '</span>';
+				} else {
+					$icon_html = My_Apps::letter_icon_html( $app['name'], 'app-letter-icon-small' );
 				}
 				$is_deletable = isset( $additional_apps[ $slug ] );
 			?>

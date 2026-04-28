@@ -7,6 +7,15 @@ body.my-apps-launcher {
 	box-sizing: border-box;
 }
 
+/* Block themes commonly uppercase button text and tighten letter-spacing
+   via their global button styles. Reset both for buttons inside the
+   launcher so the UI doesn't shout at people. Specific elements that
+   intentionally use uppercase (e.g. .recipe-card-meta) override this. */
+body.my-apps-launcher button {
+	text-transform: none;
+	letter-spacing: normal;
+}
+
 /* Background Options */
 .bg-gradient-purple, body.my-apps-launcher.bg-gradient-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
 .bg-gradient-blue, body.my-apps-launcher.bg-gradient-blue { background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }
@@ -2198,13 +2207,18 @@ body.edit-mode .hidden-count {
 	position: relative;
 }
 
-.recipe-card:hover {
+/* Block themes globally style button:hover with their contrast-2 preset
+   colour, which can read as a dark wash over our white cards. Pin the
+   background explicitly across all interaction states. */
+body.my-apps-launcher .recipe-card:hover {
+	background: #fff;
 	border-color: #cfcfcf;
 	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
 }
 
 body.my-apps-launcher .recipe-card:focus,
 body.my-apps-launcher .recipe-card:active {
+	background: #fff;
 	outline: 2px solid #3858e9;
 	outline-offset: -2px;
 }

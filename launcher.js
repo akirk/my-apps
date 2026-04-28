@@ -925,10 +925,21 @@
 		document.addEventListener('keydown', function(e) {
 			if (e.key === 'Escape') {
 				if (installSoftwareModal.classList.contains('active')) {
-					// If on a detail page, go back to list first
+					// If on a detail page (app or recipe), go back to the
+					// list one level first instead of closing the modal.
 					var url = new URL(window.location);
 					if (url.searchParams.has('app')) {
 						closeAppDetail();
+						return;
+					}
+					if (activeCategory === '__recipes__' && activeRecipe) {
+						activeRecipe = null;
+						if (url.searchParams.has('recipe')) {
+							url.searchParams.delete('recipe');
+							history.pushState({}, '', url.toString());
+						}
+						appStoreHeading.textContent = categoryLabel('__recipes__');
+						filterAppStore();
 						return;
 					}
 					closeInstallSoftwareModal();
@@ -1838,12 +1849,23 @@
 		installSoftwareModal.classList.remove('active');
 		document.body.style.overflow = '';
 
-		// Clean up ?app= param when closing the whole modal
+		// Clean up state-bearing params (?app, ?recipe) when closing the
+		// modal, and reset activeRecipe so the next open lands on the
+		// recipes grid instead of a stale recipe detail.
 		var url = new URL(window.location);
+		var changed = false;
 		if (url.searchParams.has('app')) {
 			url.searchParams.delete('app');
+			changed = true;
+		}
+		if (url.searchParams.has('recipe')) {
+			url.searchParams.delete('recipe');
+			changed = true;
+		}
+		if (changed) {
 			history.replaceState({}, '', url.toString());
 		}
+		activeRecipe = null;
 
 		// Reset to list view for next open
 		var sidebar = document.getElementById('app-store-sidebar');
@@ -2149,6 +2171,13 @@
 
 			activeCategory = item.dataset.category;
 			activeRecipe = null;
+
+			var url = new URL(window.location);
+			if (url.searchParams.has('recipe')) {
+				url.searchParams.delete('recipe');
+				history.replaceState({}, '', url.toString());
+			}
+
 			showAppStoreView('apps');
 			filterAppStore();
 		});
@@ -2168,6 +2197,12 @@
 		activeRecipe = null;
 		appStoreHeading.textContent = categoryLabel(cat);
 
+		var url = new URL(window.location);
+		if (url.searchParams.has('recipe')) {
+			url.searchParams.delete('recipe');
+			history.replaceState({}, '', url.toString());
+		}
+
 		// Update sidebar selection
 		appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
 			el.classList.toggle('active', el.dataset.category === cat);
@@ -2180,6 +2215,15 @@
 		if (!recipes[recipeKey]) return;
 		activeCategory = '__recipes__';
 		activeRecipe = recipeKey;
+
+		// Push URL state so the recipe detail is shareable, browser-back-able,
+		// and the modal reopens to the same place after a close.
+		var url = new URL(window.location);
+		if (url.searchParams.get('recipe') !== recipeKey) {
+			url.searchParams.set('recipe', recipeKey);
+			history.pushState({ recipe: recipeKey }, '', url.toString());
+		}
+
 		// Update sidebar selection
 		appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
 			el.classList.toggle('active', el.dataset.category === '__recipes__');
@@ -2547,6 +2591,13 @@
 		backBtn.innerHTML = BACK_ARROW_SVG;
 		backBtn.addEventListener('click', function() {
 			activeRecipe = null;
+
+			var url = new URL(window.location);
+			if (url.searchParams.has('recipe')) {
+				url.searchParams.delete('recipe');
+				history.pushState({}, '', url.toString());
+			}
+
 			appStoreHeading.textContent = categoryLabel('__recipes__');
 			filterAppStore();
 		});
@@ -3343,6 +3394,17 @@
 
 		var url = new URL(window.location);
 		var appParam = url.searchParams.get('app');
+		var recipeParam = url.searchParams.get('recipe');
+
+		// Keep activeRecipe in sync with the URL so going back from an
+		// app detail to a recipe detail (or from a recipe detail to the
+		// grid) restores the right view.
+		if (recipeParam && recipes[recipeParam]) {
+			activeCategory = '__recipes__';
+			activeRecipe = recipeParam;
+		} else {
+			activeRecipe = null;
+		}
 
 		if (appParam && appStoreData && appStoreData[appParam]) {
 			var app = appStoreData[appParam];
@@ -3356,14 +3418,18 @@
 				}
 			}
 			renderAppDetail(appParam, app, blueprintUrl, gradient);
-		} else {
-			// Back to list
-			if (appStoreData) {
-				var sidebar = document.getElementById('app-store-sidebar');
-				sidebar.classList.remove('app-store-sidebar-hidden');
+		} else if (appStoreData) {
+			// Back to list / grid / recipe detail (whichever activeCategory +
+			// activeRecipe currently describe).
+			var sidebar = document.getElementById('app-store-sidebar');
+			sidebar.classList.remove('app-store-sidebar-hidden');
+			appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
+				el.classList.toggle('active', el.dataset.category === activeCategory);
+			});
+			if (!(activeCategory === '__recipes__' && activeRecipe)) {
 				appStoreHeading.textContent = categoryLabel(activeCategory);
-				renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 			}
+			renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 		}
 	});
 
@@ -3378,7 +3444,18 @@
 			history.replaceState({}, '', url.toString());
 			return;
 		}
+		var recipeParam = url.searchParams.get('recipe');
 		var appParam = url.searchParams.get('app');
+
+		// If a recipe is in the URL, set up state before opening the modal
+		// so the modal lands on the recipe detail rather than flashing the
+		// grid first. The app detail handler below stacks on top of it
+		// when both params are present.
+		if (recipeParam && recipes[recipeParam]) {
+			activeCategory = '__recipes__';
+			activeRecipe = recipeParam;
+		}
+
 		if (appParam) {
 			openInstallSoftwareModal();
 			// Wait for data to load, then open detail
@@ -3400,6 +3477,10 @@
 					}
 				}
 			}, 100);
+		} else if (recipeParam && recipes[recipeParam]) {
+			// Recipe-only deep link: open the modal; renderAppStore will
+			// route to the recipe detail because activeRecipe is set.
+			openInstallSoftwareModal();
 		}
 	}
 

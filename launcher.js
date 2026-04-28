@@ -28,6 +28,10 @@
 	let sortable = null;
 	let longPressTimer = null;
 	let contextTarget = null;
+	// Tracks a deep-link target picked up by checkDeepLink so loadAppStore
+	// can render the detail page directly instead of flashing the grid first.
+	let pendingDeepLink = null;
+	let deepLinkRendered = false;
 	const LONG_PRESS_DURATION = 500;
 	const APPS_INDEX_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/apps.json';
 	const APPS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
@@ -2043,7 +2047,19 @@
 			.then(function(data) {
 				appStoreData = mergeCustomBlueprints(data);
 				buildAppStoreNav(appStoreData);
-				renderAppStore(appStoreData);
+
+				// If we already have a deep-link target available (apps from
+				// apps.json land here), render the detail page directly so
+				// the user doesn't see a flash of the recipes grid first.
+				// For plugin deep-links the entry isn't in appStoreData yet
+				// — keep the existing "Loading apps…" message until the
+				// blueprint + recommended fetches settle and we can render
+				// the detail at the second pass below.
+				if (!tryRenderPendingDeepLink()) {
+					if (!(pendingDeepLink && pendingDeepLink.type === 'plugin')) {
+						renderAppStore(appStoreData);
+					}
+				}
 				bindAppStoreEvents();
 
 				// Each apps/*.json blueprint may install one or more plugins.
@@ -2073,12 +2089,55 @@
 						pluginsLoadState = 'loaded';
 					}
 					buildAppStoreNav(appStoreData);
-					renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+
+					// Plugin deep-links land here (their entries only appear
+					// after the blueprint + recommended fetches resolve).
+					var renderedNow = tryRenderPendingDeepLink();
+					// Clear any leftover pending target — if it didn't resolve
+					// by now, the slug doesn't exist in the catalogue.
+					pendingDeepLink = null;
+					if (!renderedNow && !deepLinkRendered) {
+						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+					}
 				});
 			})
 			.catch(function() {
 				appStoreContent.innerHTML = '<div class="app-store-error">Unable to load apps. Check your connection.</div>';
 			});
+	}
+
+	// Render the pending deep-link target if its data is now available.
+	// Called from within loadAppStore at the two points where appStoreData
+	// changes shape (after apps.json, then after blueprints + recommended).
+	function tryRenderPendingDeepLink() {
+		if (!pendingDeepLink || !appStoreData) return false;
+		if (pendingDeepLink.type === 'app') {
+			var appPath = pendingDeepLink.path;
+			if (!appStoreData[appPath]) return false;
+			var app = appStoreData[appPath];
+			var blueprintUrl = getBlueprintUrl(appPath);
+			var cats = app.categories || [];
+			var gradient = defaultGradient;
+			for (var i = cats.length - 1; i >= 0; i--) {
+				if (categoryGradients[cats[i]]) {
+					gradient = categoryGradients[cats[i]];
+					break;
+				}
+			}
+			renderAppDetail(appPath, app, blueprintUrl, gradient);
+			pendingDeepLink = null;
+			deepLinkRendered = true;
+			return true;
+		}
+		if (pendingDeepLink.type === 'plugin') {
+			var pluginPath = pendingDeepLink.path;
+			if (!appStoreData[pluginPath]) return false;
+			renderPluginDetail(pluginPath, appStoreData[pluginPath]);
+			pendingDeepLink = null;
+			deepLinkRendered = true;
+			return true;
+		}
+		return false;
 	}
 
 	function buildAppStoreNav(data) {
@@ -3742,42 +3801,20 @@
 		if (recipeParam && recipes[recipeParam]) {
 			activeCategory = '__recipes__';
 			activeRecipe = recipeParam;
+		} else if (appParam || pluginParam) {
+			// Direct deep-link to a detail without a recipe context — the
+			// user didn't navigate from the recipes grid, so back should
+			// land in the regular app list ("← All Apps"), not "← Recipes".
+			activeCategory = 'all';
+			activeRecipe = null;
 		}
 
 		if (appParam) {
+			pendingDeepLink = { type: 'app', path: appParam };
 			openInstallSoftwareModal();
-			var checkInterval = setInterval(function() {
-				if (appStoreData) {
-					clearInterval(checkInterval);
-					if (appStoreData[appParam]) {
-						var app = appStoreData[appParam];
-						var blueprintUrl = getBlueprintUrl(appParam);
-						var cats = app.categories || [];
-						var gradient = defaultGradient;
-						for (var i = cats.length - 1; i >= 0; i--) {
-							if (categoryGradients[cats[i]]) {
-								gradient = categoryGradients[cats[i]];
-								break;
-							}
-						}
-						renderAppDetail(appParam, app, blueprintUrl, gradient);
-					}
-				}
-			}, 100);
 		} else if (pluginParam) {
+			pendingDeepLink = { type: 'plugin', path: pluginParam };
 			openInstallSoftwareModal();
-			// Plugin entries land in appStoreData via async fetches
-			// (recommended-plugins + apps.json blueprint scans), so wait.
-			var pluginInterval = setInterval(function() {
-				if (appStoreData && appStoreData[pluginParam]) {
-					clearInterval(pluginInterval);
-					renderPluginDetail(pluginParam, appStoreData[pluginParam]);
-				} else if (appStoreData && pluginsLoadState !== 'loading') {
-					// Data has settled and the plugin still isn't there —
-					// give up and show the list rather than spinning forever.
-					clearInterval(pluginInterval);
-				}
-			}, 100);
 		} else if (recipeParam && recipes[recipeParam]) {
 			// Recipe-only deep link: open the modal; renderAppStore will
 			// route to the recipe detail because activeRecipe is set.

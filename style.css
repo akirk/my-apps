@@ -1076,7 +1076,6 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	color: #3858e9;
 	text-decoration: none;
 	font-weight: 500;
-	text-transform: capitalize;
 }
 
 .app-detail-recipe-link:hover {

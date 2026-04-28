@@ -18,15 +18,7 @@
 				"type": "plugin",
 				"slug": "network-privacy",
 				"title": "Make the site private",
-				"description": "Network Privacy adds a \"visible only to subscribers\" option in Settings → Reading. Invite family members as subscribers and the rest of the internet can't see in. The right choice on multisite hosts where you'd rather hand out user accounts than a shared password.",
-				"optional": true,
-				"context": "self-hosted"
-			},
-			{
-				"type": "plugin",
-				"slug": "password-protected",
-				"title": "Or use a single shared password",
-				"description": "Password Protected locks the whole site behind one password the family knows. Better than Network Privacy when you're self-hosting and don't want to manage user accounts. Pick one privacy approach, not both.",
+				"description": "Network Privacy adds a \"visible only to subscribers\" option in Settings → Reading. Invite family members as subscribers and the rest of the internet can't see in.",
 				"optional": true,
 				"context": "self-hosted"
 			},

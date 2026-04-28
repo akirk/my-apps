@@ -1214,6 +1214,15 @@ body.my-apps-launcher .app-detail-share-btn:active {
 		width: 22px;
 		height: 22px;
 	}
+
+	/* iOS Safari's URL bar / home indicator eats viewport space that
+	   100dvh doesn't fully reclaim while a modal is open (since scrolling
+	   inside the modal doesn't trigger the URL bar to collapse). Pad the
+	   bottom of the scroll area so the last content clears that chrome. */
+	.app-store-content,
+	.app-store-form-view {
+		padding-bottom: calc(40px + env(safe-area-inset-bottom));
+	}
 }
 
 /* Settings Dropdown */

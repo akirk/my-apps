@@ -2484,10 +2484,10 @@
 			var card = document.createElement('button');
 			card.type = 'button';
 			card.className = 'recipe-card';
-			card.style.background = r.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
 
 			var iconEl = document.createElement('div');
 			iconEl.className = 'recipe-card-icon';
+			iconEl.style.background = r.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
 			iconEl.textContent = r.icon || '✨';
 			card.appendChild(iconEl);
 
@@ -2553,10 +2553,10 @@
 		// Hero
 		var hero = document.createElement('div');
 		hero.className = 'recipe-hero';
-		hero.style.background = recipe.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
 
 		var heroIcon = document.createElement('div');
 		heroIcon.className = 'recipe-hero-icon';
+		heroIcon.style.background = recipe.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
 		heroIcon.textContent = recipe.icon || '✨';
 		hero.appendChild(heroIcon);
 

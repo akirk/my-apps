@@ -773,11 +773,9 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	margin: 0 0 16px;
 	padding: 12px 16px;
 	background: #f6f7ff;
-	border-left: 3px solid #3858e9;
 	color: #444;
 	font-size: 14px;
 	line-height: 1.5;
-	border-radius: 4px;
 }
 
 .app-store-footer-link {
@@ -1163,24 +1161,29 @@ body.my-apps-launcher .app-detail-share-btn:active {
 }
 
 @media (max-width: 600px) {
+	/* Push the overlay below the WP admin bar (46px on mobile) so its
+	   contents — particularly the sidebar's search bar — aren't hidden
+	   underneath it. Sizing the modal off the remaining viewport keeps
+	   the bottom on-screen too. */
 	#install-software-modal.modal-overlay {
 		padding: 0;
 		background: #fff;
+		top: 46px;
 	}
 
 	.modal-wide {
 		max-width: 100%;
 		width: 100%;
-		height: 100dvh;
-		max-height: 100dvh;
+		height: calc(100dvh - 46px);
+		max-height: calc(100dvh - 46px);
 		margin: 0;
 		border-radius: 0;
 	}
 
 	.app-store-layout {
 		flex-direction: column;
-		height: 100dvh;
-		max-height: 100dvh;
+		height: calc(100dvh - 46px);
+		max-height: calc(100dvh - 46px);
 	}
 
 	.app-store-sidebar {
@@ -1213,15 +1216,6 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	.app-store-icon svg {
 		width: 22px;
 		height: 22px;
-	}
-
-	/* iOS Safari's URL bar / home indicator eats viewport space that
-	   100dvh doesn't fully reclaim while a modal is open (since scrolling
-	   inside the modal doesn't trigger the URL bar to collapse). Pad the
-	   bottom of the scroll area so the last content clears that chrome. */
-	.app-store-content,
-	.app-store-form-view {
-		padding-bottom: calc(40px + env(safe-area-inset-bottom));
 	}
 }
 
@@ -2193,63 +2187,65 @@ body.edit-mode .hidden-count {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
-	padding: 20px;
-	min-height: 200px;
-	border-radius: 16px;
-	border: none;
-	color: #fff;
+	padding: 18px;
+	min-height: 180px;
+	background: #fff;
+	border: 1px solid #e6e6e6;
+	border-radius: 12px;
+	color: #1e1e1e;
 	cursor: pointer;
 	text-align: left;
-	transition: transform 0.15s, box-shadow 0.15s;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+	transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 	font-family: inherit;
 	overflow: hidden;
 	position: relative;
-	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .recipe-card:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+	border-color: #cfcfcf;
+	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
 }
 
 body.my-apps-launcher .recipe-card:focus,
 body.my-apps-launcher .recipe-card:active {
-	outline: 2px solid #fff;
-	outline-offset: -4px;
+	outline: 2px solid #3858e9;
+	outline-offset: -2px;
 }
 
 .recipe-card-icon {
-	font-size: 36px;
+	width: 44px;
+	height: 44px;
+	border-radius: 11px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 24px;
 	line-height: 1;
-	margin-bottom: 12px;
-	filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+	margin-bottom: 14px;
+	color: #fff;
 }
 
 .recipe-card-title {
-	font-size: 17px;
+	font-size: 16px;
 	font-weight: 600;
-	line-height: 1.25;
-	margin-bottom: 6px;
+	line-height: 1.3;
+	margin-bottom: 4px;
 }
 
 .recipe-card-tagline {
 	font-size: 13px;
-	line-height: 1.4;
-	opacity: 0.92;
+	line-height: 1.45;
+	color: #666;
 	flex: 1;
 }
 
 .recipe-card-meta {
 	margin-top: 12px;
 	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.4px;
+	font-weight: 500;
+	letter-spacing: 0.3px;
 	text-transform: uppercase;
-	opacity: 0.85;
-	background: rgba(255, 255, 255, 0.18);
-	padding: 3px 8px;
-	border-radius: 10px;
+	color: #888;
 }
 
 /* Recipe detail */
@@ -2257,20 +2253,23 @@ body.my-apps-launcher .recipe-card:active {
 .recipe-hero {
 	display: flex;
 	align-items: center;
-	gap: 16px;
-	padding: 20px;
-	border-radius: 16px;
-	color: #fff;
-	margin-bottom: 16px;
-	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
-	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+	gap: 14px;
+	padding: 16px 0;
+	margin-bottom: 12px;
+	color: #1e1e1e;
 }
 
 .recipe-hero-icon {
-	font-size: 48px;
+	width: 56px;
+	height: 56px;
+	border-radius: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 28px;
 	line-height: 1;
 	flex-shrink: 0;
-	filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+	color: #fff;
 }
 
 .recipe-hero-text {
@@ -2281,14 +2280,14 @@ body.my-apps-launcher .recipe-card:active {
 .recipe-hero-title {
 	font-size: 20px;
 	font-weight: 700;
-	line-height: 1.2;
-	margin-bottom: 4px;
+	line-height: 1.25;
+	margin-bottom: 2px;
 }
 
 .recipe-hero-tagline {
 	font-size: 14px;
-	line-height: 1.4;
-	opacity: 0.92;
+	line-height: 1.45;
+	color: #666;
 }
 
 .recipe-description {
@@ -2476,14 +2475,8 @@ body.my-apps-launcher .recipe-card:active {
 	.recipe-grid {
 		grid-template-columns: 1fr;
 	}
-	.recipe-hero {
-		padding: 16px;
-	}
-	.recipe-hero-icon {
-		font-size: 40px;
-	}
 	.recipe-hero-title {
-		font-size: 17px;
+		font-size: 18px;
 	}
 }
 

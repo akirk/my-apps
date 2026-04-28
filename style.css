@@ -2207,11 +2207,13 @@ body.edit-mode .hidden-count {
 	position: relative;
 }
 
-/* Block themes globally style button:hover with their contrast-2 preset
-   colour, which can read as a dark wash over our white cards. Pin the
-   background explicitly across all interaction states. */
+/* Block themes globally style button:hover with their preset colours
+   (contrast-2 background, base text), which on our white cards reads
+   as a dark wash with white-on-white text. Pin both background and
+   colour across all interaction states. */
 body.my-apps-launcher .recipe-card:hover {
 	background: #fff;
+	color: #1e1e1e;
 	border-color: #cfcfcf;
 	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
 }
@@ -2219,6 +2221,7 @@ body.my-apps-launcher .recipe-card:hover {
 body.my-apps-launcher .recipe-card:focus,
 body.my-apps-launcher .recipe-card:active {
 	background: #fff;
+	color: #1e1e1e;
 	outline: 2px solid #3858e9;
 	outline-offset: -2px;
 }

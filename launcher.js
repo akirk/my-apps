@@ -2466,7 +2466,7 @@
 
 		var introEl = document.createElement('p');
 		introEl.className = 'app-store-intro';
-		introEl.textContent = 'Hand-picked recipes for what people actually do with WordPress. Each one walks you through the steps.';
+		introEl.textContent = 'WordPress can do a lot more than blogging — but turning that into something useful takes knowing which pieces fit together. Each recipe is a guide for one of those use cases.';
 		appStoreContent.appendChild(introEl);
 
 		var grid = document.createElement('div');
@@ -2587,11 +2587,18 @@
 
 		(recipe.steps || []).forEach(function(step) {
 			var stepLi = document.createElement('li');
-			stepLi.className = 'recipe-step';
+			stepLi.className = 'recipe-step' + (step.optional ? ' recipe-step-optional' : '');
 
 			var stepTitle = document.createElement('h4');
 			stepTitle.className = 'recipe-step-title';
 			stepTitle.textContent = step.title || '';
+			if (step.optional) {
+				var optionalBadge = document.createElement('span');
+				optionalBadge.className = 'recipe-step-optional-badge';
+				optionalBadge.textContent = 'Optional';
+				stepTitle.appendChild(document.createTextNode(' '));
+				stepTitle.appendChild(optionalBadge);
+			}
 			stepLi.appendChild(stepTitle);
 
 			if (step.description) {

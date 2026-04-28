@@ -2332,6 +2332,24 @@ body.my-apps-launcher .recipe-card:active {
 	line-height: 1.3;
 }
 
+.recipe-step-optional::before {
+	background: #b8bcc4;
+}
+
+.recipe-step-optional-badge {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 1px 7px;
+	border-radius: 8px;
+	background: #f0f0f0;
+	color: #757575;
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	vertical-align: middle;
+}
+
 .recipe-step-description {
 	font-size: 13px;
 	line-height: 1.5;

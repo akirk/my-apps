@@ -1,6 +1,11 @@
 {
+	"network-privacy": {
+		"note": "Adds a \"visible only to subscribers\" option in Settings → Reading. Pair with subscriber accounts to make a site private to invited users on multisite hosts like my.wordpress.net.",
+		"categories": ["Privacy"],
+		"landing_page": "/wp-admin/options-reading.php"
+	},
 	"password-protected": {
-		"note": "Lock your entire site behind a single shared password — perfect for a private family blog.",
+		"note": "Lock your entire site behind a single shared password — perfect for a private family blog on a self-hosted WordPress.",
 		"categories": ["Privacy"],
 		"landing_page": "/wp-admin/options-general.php?page=password-protected"
 	},

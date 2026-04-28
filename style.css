@@ -1172,7 +1172,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 		background: #fff;
 	}
 
-	.modal-wide {
+	.modal.modal-wide {
 		max-width: 100%;
 		width: 100%;
 		height: calc(100dvh - 46px);

@@ -1161,14 +1161,15 @@ body.my-apps-launcher .app-detail-share-btn:active {
 }
 
 @media (max-width: 600px) {
-	/* Push the overlay below the WP admin bar (46px on mobile) so its
-	   contents — particularly the sidebar's search bar — aren't hidden
-	   underneath it. Sizing the modal off the remaining viewport keeps
-	   the bottom on-screen too. */
+	/* Sit the modal below the WP admin bar (46px on mobile) so the
+	   sidebar's search bar isn't hidden behind it, and size the modal
+	   off the remaining viewport so the bottom stays on-screen too.
+	   The overlay still spans full-height; padding-top reserves the
+	   admin-bar strip. */
 	#install-software-modal.modal-overlay {
 		padding: 0;
+		padding-top: 46px;
 		background: #fff;
-		top: 46px;
 	}
 
 	.modal-wide {

@@ -18,15 +18,17 @@
 				"type": "plugin",
 				"slug": "network-privacy",
 				"title": "Make the site private",
-				"description": "Network Privacy adds a \"visible only to subscribers\" option in Settings → Reading. Invite family members as subscribers and the rest of the internet can't see in. The right choice on my.wordpress.net and most multisite hosts.",
-				"optional": true
+				"description": "Network Privacy adds a \"visible only to subscribers\" option in Settings → Reading. Invite family members as subscribers and the rest of the internet can't see in. The right choice on multisite hosts where you'd rather hand out user accounts than a shared password.",
+				"optional": true,
+				"context": "self-hosted"
 			},
 			{
 				"type": "plugin",
 				"slug": "password-protected",
 				"title": "Or use a single shared password",
 				"description": "Password Protected locks the whole site behind one password the family knows. Better than Network Privacy when you're self-hosting and don't want to manage user accounts. Pick one privacy approach, not both.",
-				"optional": true
+				"optional": true,
+				"context": "self-hosted"
 			},
 			{
 				"type": "plugin",
@@ -91,7 +93,8 @@
 				"description": "Family Wiki adds its own option in Settings → Reading: \"I would like my site to be private, visible only to myself and users I choose.\" Turn it on and family history stays in the family — only logged-in users you've invited can read or edit.",
 				"url": "/wp-admin/options-reading.php",
 				"url_label": "Open Reading Settings",
-				"optional": true
+				"optional": true,
+				"context": "self-hosted"
 			},
 			{
 				"type": "note",

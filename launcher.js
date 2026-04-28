@@ -2586,6 +2586,11 @@
 		stepsEl.className = 'recipe-steps';
 
 		(recipe.steps || []).forEach(function(step) {
+			// On my.wordpress.net / Playground a site is private by default, so
+			// steps tagged "self-hosted" (e.g., the privacy plugins) don't apply.
+			if (step.context === 'self-hosted' && isPlayground) return;
+			if (step.context === 'playground' && !isPlayground) return;
+
 			var stepLi = document.createElement('li');
 			stepLi.className = 'recipe-step' + (step.optional ? ' recipe-step-optional' : '');
 

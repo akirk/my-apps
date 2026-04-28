@@ -133,6 +133,42 @@
 			}
 		]
 	},
+	"bring-your-data": {
+		"title": "Bring Your Data In",
+		"tagline": "Move old posts, notes, and exports onto your WordPress",
+		"description": "Years of writing scattered across old blogs, journaling apps, and screenshotted notes? WordPress ships with importers for the standard formats — and for the messy stuff, the AI Assistant can take pasted text or files and turn them into draft posts you can clean up.",
+		"icon": "📥",
+		"gradient": "linear-gradient(135deg, #b993d6 0%, #8ca6db 100%)",
+		"learn_more": "https://alex.kirk.at/2026/04/14/why-my-wordpress/",
+		"steps": [
+			{
+				"type": "note",
+				"title": "Try the built-in importers first",
+				"description": "Tools → Import ships with plug-and-play importers for WordPress XML exports, RSS feeds, Blogger, Tumblr, LiveJournal, and a few more. If your old platform exports any of these formats, this is the cleanest path — structure, dates, and authors come across intact.",
+				"url": "/wp-admin/import.php",
+				"url_label": "Open Importers"
+			},
+			{
+				"type": "app",
+				"path": "apps/ai-assistant.json",
+				"title": "Install the AI Assistant for messier sources",
+				"description": "When the source doesn't have a tidy export — emails, Notes app dumps, photos of a paper journal, a Google Doc — the AI Assistant can read pasted content and create draft posts from it.",
+				"optional": true
+			},
+			{
+				"type": "note",
+				"title": "Connect a model",
+				"description": "Add an API key for Claude, OpenAI, or Gemini, or point the AI Assistant at LM Studio / Ollama running locally. The catch for now: the AI Assistant doesn't ship with a built-in model, so you bring your own. A local LLM is free but slower; cloud APIs cost a few cents per import session.",
+				"optional": true
+			},
+			{
+				"type": "note",
+				"title": "Paste in your stuff",
+				"description": "Paste a chunk of text, drop a file, or describe what you have. Ask the assistant to create posts from it — it'll show you what it's about to write before saving anything, so you end up with drafts you can tweak instead of a surprise.",
+				"optional": true
+			}
+		]
+	},
 	"stay-in-touch": {
 		"title": "Stay in Touch",
 		"tagline": "A private contact directory with reminders",

@@ -393,12 +393,32 @@ class My_Apps {
 				'isPlayground'    => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
 				'displayName'     => wp_get_current_user()->display_name,
 				'deletableSlugs'  => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
+				'recipes'         => $this->load_recipes_json(),
 				'i18n'            => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
 					'confirmDelete' => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
 				),
 			)
 		);
+	}
+
+	/**
+	 * Load the shipped recipes.json. Recipes are curated use cases that group
+	 * apps + plugins into a single "here's how to do X with WordPress" card.
+	 *
+	 * @return array
+	 */
+	private function load_recipes_json() {
+		$file = plugin_dir_path( __FILE__ ) . 'recipes.json';
+		if ( ! is_readable( $file ) ) {
+			return new \stdClass(); // Force {} in JSON, not [].
+		}
+		$raw  = file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$data = json_decode( $raw, true );
+		if ( ! is_array( $data ) || empty( $data ) ) {
+			return new \stdClass();
+		}
+		return $data;
 	}
 
 	/**

@@ -1,4 +1,22 @@
 {
+	"password-protected": {
+		"note": "Lock your entire site behind a single shared password — perfect for a private family blog.",
+		"categories": ["Privacy"],
+		"landing_page": "/wp-admin/options-general.php?page=password-protected"
+	},
+	"enable-mastodon-apps": {
+		"note": "Turn your WordPress into a Mastodon-compatible server so anyone can post via any Mastodon app.",
+		"categories": ["Social"],
+		"landing_page": "/wp-admin/options-general.php?page=enable-mastodon-apps"
+	},
+	"send-to-e-reader": {
+		"github": "akirk/send-to-e-reader",
+		"title": "Send to E-Reader",
+		"author": "Alex Kirk",
+		"note": "Push articles to your Kindle or Kobo as ePub or by email — read long-form away from the browser.",
+		"categories": ["Productivity"],
+		"landing_page": "/wp-admin/options-general.php?page=send-to-e-reader"
+	},
 	"pro-mime-types": {
 		"note": "Lets you upload file types WordPress blocks by default (SVG, WebP variants, etc.) without editing code.",
 		"categories": ["Utility"],
@@ -13,6 +31,11 @@
 		"note": "Turn your site into a private family wiki with nested pages and shared editing.",
 		"categories": ["Productivity"],
 		"landing_page": "/wp-admin/edit.php?post_type=page"
+	},
+	"secure-custom-fields": {
+		"note": "Add structured fields (dates, relations, places) to pages so facts stay consistent and searchable. A WordPress-maintained fork of ACF.",
+		"categories": ["Productivity"],
+		"landing_page": "/wp-admin/edit.php?post_type=acf-field-group"
 	},
 	"wp-dashboard-notes": {
 		"note": "Pin sticky notes to your WordPress dashboard — handy for to-dos and reminders you'll actually see.",

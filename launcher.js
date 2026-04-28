@@ -59,6 +59,11 @@
 	}
 
 	function mergeCustomBlueprints(data) {
+		// The App Launcher entry installs this plugin — but you can only
+		// reach the launcher because it's already installed. Hide it from
+		// the catalogue so we don't offer an install for what's running.
+		delete data['apps/app-launcher.json'];
+
 		var custom = getCustomBlueprints();
 		Object.keys(custom).forEach(function(path) {
 			var entry = custom[path];

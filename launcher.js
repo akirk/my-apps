@@ -33,11 +33,20 @@
 	let pendingDeepLink = null;
 	let deepLinkRendered = false;
 	const LONG_PRESS_DURATION = 500;
-	const APPS_INDEX_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/apps.json';
-	const APPS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
+	// Single base for the blueprints repo we read apps and recipes from.
+	// Currently points at akirk/blueprints branch add-recipes (which has
+	// recipes.json on top of trunk's apps.json). After the upstream PR
+	// merges, change this one line to WordPress/blueprints/trunk/.
+	const BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/add-recipes/';
+	const APPS_INDEX_URL = BLUEPRINTS_BASE_URL + 'apps.json';
+	const RECIPES_URL = BLUEPRINTS_BASE_URL + 'recipes.json';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
-	const recipes = (typeof myAppsConfig !== 'undefined' && myAppsConfig.recipes && typeof myAppsConfig.recipes === 'object' && !Array.isArray(myAppsConfig.recipes)) ? myAppsConfig.recipes : {};
-	const hasRecipes = Object.keys(recipes).length > 0;
+	let recipes = {};
+	let hasRecipes = false;
+	let recipesLoadState = 'idle'; // idle | loading | loaded | failed
+	// Stash a recipe slug picked up from ?recipe= so we can render the
+	// detail once recipes finish fetching.
+	let pendingRecipe = null;
 
 	// ── Custom Blueprint Storage (localStorage) ─────────────
 	var CUSTOM_BLUEPRINTS_KEY = 'my_apps_custom_blueprints';
@@ -89,7 +98,7 @@
 		if (custom[path]) {
 			return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(custom[path].blueprint))));
 		}
-		return APPS_BASE_URL + path;
+		return BLUEPRINTS_BASE_URL + path;
 	}
 
 	function showToast(message) {
@@ -1819,7 +1828,9 @@
 	var appStoreNav = document.getElementById('app-store-nav');
 	var appStoreSearchInput = document.getElementById('app-store-search');
 	var appStoreHeading = document.getElementById('app-store-heading');
-	var activeCategory = hasRecipes ? '__recipes__' : 'all';
+	// Optimistic default — assume recipes will load. If the fetch fails
+	// loadAppStore flips this back to 'all' before the first render.
+	var activeCategory = '__recipes__';
 	var activeView = 'apps';
 	var activeRecipe = null;
 
@@ -2039,8 +2050,23 @@
 	function loadAppStore() {
 		appStoreContent.innerHTML = '<div class="app-store-loading">Loading apps\u2026</div>';
 		pluginsLoadState = 'loading';
+		recipesLoadState = 'loading';
 
 		var pluginsPromise = fetchRecommendedPlugins();
+		var recipesPromise = fetch(RECIPES_URL)
+			.then(function(r) { return r.json(); })
+			.then(function(data) {
+				if (data && typeof data === 'object' && !Array.isArray(data)) {
+					recipes = data;
+					hasRecipes = Object.keys(recipes).length > 0;
+					recipesLoadState = 'loaded';
+				} else {
+					recipesLoadState = 'failed';
+				}
+			})
+			.catch(function() {
+				recipesLoadState = 'failed';
+			});
 
 		fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
@@ -2070,17 +2096,17 @@
 				var blueprintPromises = Object.keys(appStoreData)
 					.filter(function(p) { return p.indexOf('apps/') === 0 && !appStoreData[p]._custom; })
 					.map(function(path) {
-						return fetch(APPS_BASE_URL + path)
+						return fetch(BLUEPRINTS_BASE_URL + path)
 							.then(function(r) { return r.json(); })
 							.then(function(bp) { mergeAppBlueprintPlugins(appStoreData, bp); })
 							.catch(function() { /* keep going if one blueprint fails */ });
 					});
 
-				// Wait for both recommended-plugins enrichment AND all
+				// Wait for recipes, recommended-plugins enrichment, and all
 				// blueprint extractions before the final re-render.
 				// Recommended plugins merge LAST so curated metadata wins
 				// over any synthetic blueprint-derived entries.
-				Promise.all([pluginsPromise].concat(blueprintPromises)).then(function(results) {
+				Promise.all([pluginsPromise, recipesPromise].concat(blueprintPromises)).then(function(results) {
 					var plugins = results[0];
 					if (!plugins || !Object.keys(plugins).length) {
 						pluginsLoadState = 'failed';
@@ -2088,6 +2114,22 @@
 						mergeRecommendedPlugins(appStoreData, plugins);
 						pluginsLoadState = 'loaded';
 					}
+
+					// If we had a pending recipe deep-link, resolve it now
+					// that recipes are loaded.
+					if (pendingRecipe && recipes[pendingRecipe]) {
+						activeCategory = '__recipes__';
+						activeRecipe = pendingRecipe;
+					}
+					pendingRecipe = null;
+
+					// If recipes failed (or returned empty) and we'd default
+					// to the recipes grid, fall through to All Apps so the
+					// user sees something useful instead of an error state.
+					if (!hasRecipes && activeCategory === '__recipes__' && !activeRecipe) {
+						activeCategory = 'all';
+					}
+
 					buildAppStoreNav(appStoreData);
 
 					// Plugin deep-links land here (their entries only appear
@@ -2677,6 +2719,21 @@
 		introEl.className = 'app-store-intro';
 		introEl.textContent = 'WordPress can do a lot more than blogging — but turning that into something useful takes knowing which pieces fit together. Each recipe is a guide for one of those use cases.';
 		appStoreContent.appendChild(introEl);
+
+		if (recipesLoadState === 'loading' && !hasRecipes) {
+			var loadingEl = document.createElement('div');
+			loadingEl.className = 'app-store-loading';
+			loadingEl.textContent = 'Loading recipes…';
+			appStoreContent.appendChild(loadingEl);
+			return;
+		}
+		if (recipesLoadState === 'failed' && !hasRecipes) {
+			var failedEl = document.createElement('div');
+			failedEl.className = 'app-store-error';
+			failedEl.textContent = 'Recipes are unavailable right now. Try All Apps instead.';
+			appStoreContent.appendChild(failedEl);
+			return;
+		}
 
 		var grid = document.createElement('div');
 		grid.className = 'recipe-grid';
@@ -3797,17 +3854,14 @@
 		var appParam = url.searchParams.get('app');
 		var pluginParam = url.searchParams.get('plugin');
 
-		// If a recipe is in the URL, set up state before opening the modal
-		// so the modal lands on the recipe detail rather than flashing the
-		// grid first. The app/plugin detail handler below stacks on top of
-		// it when both params are present.
-		if (recipeParam && recipes[recipeParam]) {
+		// Recipes load async, so we can't validate recipeParam against the
+		// recipes map here. Stash it; loadAppStore will resolve it once
+		// the recipes fetch settles. App/plugin deep-links without a
+		// recipe context land in the regular app list (back → All Apps).
+		if (recipeParam) {
+			pendingRecipe = recipeParam;
 			activeCategory = '__recipes__';
-			activeRecipe = recipeParam;
 		} else if (appParam || pluginParam) {
-			// Direct deep-link to a detail without a recipe context — the
-			// user didn't navigate from the recipes grid, so back should
-			// land in the regular app list ("← All Apps"), not "← Recipes".
 			activeCategory = 'all';
 			activeRecipe = null;
 		}
@@ -3818,9 +3872,10 @@
 		} else if (pluginParam) {
 			pendingDeepLink = { type: 'plugin', path: pluginParam };
 			openInstallSoftwareModal();
-		} else if (recipeParam && recipes[recipeParam]) {
-			// Recipe-only deep link: open the modal; renderAppStore will
-			// route to the recipe detail because activeRecipe is set.
+		} else if (recipeParam) {
+			// Recipe-only deep link: open the modal; the recipes-promise
+			// resolution in loadAppStore will set activeRecipe and the
+			// final render will route to the recipe detail.
 			openInstallSoftwareModal();
 		}
 	}

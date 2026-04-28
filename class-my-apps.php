@@ -393,71 +393,12 @@ class My_Apps {
 				'isPlayground'    => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
 				'displayName'     => wp_get_current_user()->display_name,
 				'deletableSlugs'  => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
-				'recipes'         => $this->load_recipes_json(),
 				'i18n'            => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
 					'confirmDelete' => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
 				),
 			)
 		);
-	}
-
-	/**
-	 * Source of truth for recipes — branch in akirk/blueprints holding the
-	 * recipes.json that's destined for an upstream PR into WordPress/blueprints.
-	 * When the upstream PR lands, switch this to that URL and the plugin
-	 * picks up new recipes without a release.
-	 */
-	const RECIPES_REMOTE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/add-recipes/recipes.json';
-
-	/**
-	 * Load recipes. Tries a transient-cached remote fetch first (so recipe
-	 * edits land in everyone's launcher without a plugin release) and falls
-	 * back to the bundled recipes.json if the network is unavailable or the
-	 * response can't be parsed.
-	 *
-	 * Recipes are curated use cases that group apps + plugins into a single
-	 * "here's how to do X with WordPress" card.
-	 *
-	 * @return array|\stdClass
-	 */
-	private function load_recipes_json() {
-		$cache_key = 'my_apps_recipes';
-		$cached    = get_transient( $cache_key );
-		if ( is_array( $cached ) && ! empty( $cached ) ) {
-			return $cached;
-		}
-
-		$response = wp_remote_get(
-			self::RECIPES_REMOTE_URL,
-			array(
-				'timeout' => 5,
-			)
-		);
-
-		if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
-			$data = json_decode( wp_remote_retrieve_body( $response ), true );
-			if ( is_array( $data ) && ! empty( $data ) ) {
-				set_transient( $cache_key, $data, HOUR_IN_SECONDS );
-				return $data;
-			}
-		}
-
-		// Remote unreachable or bad payload — fall back to the bundled
-		// copy so the launcher still has something to render. Cache the
-		// fallback briefly so a flaky remote doesn't hammer GitHub on
-		// every request, but expire fast enough to recover quickly.
-		$file = plugin_dir_path( __FILE__ ) . 'recipes.json';
-		if ( ! is_readable( $file ) ) {
-			return new \stdClass(); // Force {} in JSON, not [].
-		}
-		$raw    = file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		$bundle = json_decode( $raw, true );
-		if ( ! is_array( $bundle ) || empty( $bundle ) ) {
-			return new \stdClass();
-		}
-		set_transient( $cache_key, $bundle, 5 * MINUTE_IN_SECONDS );
-		return $bundle;
 	}
 
 	/**

@@ -1969,15 +1969,20 @@
 
 		appStoreNav.innerHTML = '';
 
-		// Recipes are curated use cases — surface them prominently as the
-		// first sidebar entry so people see what WordPress can actually do
-		// before drilling into individual apps.
+		// Recipes are curated use cases — surface them as the first sidebar
+		// entry so people see what WordPress can actually do before drilling
+		// into individual apps. A divider visually groups them apart from
+		// the regular category list below.
 		if (hasRecipes) {
 			var recipesLi = document.createElement('li');
-			recipesLi.className = 'app-store-nav-item app-store-nav-recipes' + (activeView === 'apps' && activeCategory === '__recipes__' ? ' active' : '');
+			recipesLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === '__recipes__' ? ' active' : '');
 			recipesLi.dataset.category = '__recipes__';
 			recipesLi.textContent = 'Recipes';
 			appStoreNav.appendChild(recipesLi);
+
+			var recipesDivider = document.createElement('li');
+			recipesDivider.className = 'app-store-nav-divider';
+			appStoreNav.appendChild(recipesDivider);
 		}
 
 		var discoverLi = document.createElement('li');

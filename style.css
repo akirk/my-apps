@@ -2173,10 +2173,6 @@ body.edit-mode .hidden-count {
 
 /* ── Recipes ── */
 
-.app-store-nav-recipes {
-	font-weight: 600;
-}
-
 .recipe-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

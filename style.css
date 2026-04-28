@@ -845,6 +845,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	gap: 4px;
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -852,6 +853,13 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	padding: 0;
 	margin-right: 8px;
 	vertical-align: middle;
+	font-family: inherit;
+}
+
+.app-detail-back-label {
+	font-size: inherit;
+	font-weight: inherit;
+	color: inherit;
 }
 
 body.my-apps-launcher .app-detail-back:hover,

@@ -2743,12 +2743,17 @@
 
 		appStoreContent.innerHTML = '';
 
-		// Heading: back arrow + recipe title
+		// Heading: back arrow + parent label (Recipes grid). The recipe
+		// title itself appears in the hero below.
 		appStoreHeading.innerHTML = '';
 		var backBtn = document.createElement('button');
 		backBtn.type = 'button';
 		backBtn.className = 'app-detail-back';
 		backBtn.innerHTML = BACK_ARROW_SVG;
+		var backLabel = document.createElement('span');
+		backLabel.className = 'app-detail-back-label';
+		backLabel.textContent = 'Recipes';
+		backBtn.appendChild(backLabel);
 		backBtn.addEventListener('click', function() {
 			activeRecipe = null;
 
@@ -2761,10 +2766,7 @@
 			appStoreHeading.textContent = categoryLabel('__recipes__');
 			filterAppStore();
 		});
-		var headingText = document.createElement('span');
-		headingText.textContent = recipe.title;
 		appStoreHeading.appendChild(backBtn);
-		appStoreHeading.appendChild(headingText);
 
 		// Hero
 		var hero = document.createElement('div');
@@ -3013,11 +3015,12 @@
 		backBtn.type = 'button';
 		backBtn.className = 'app-detail-back';
 		backBtn.innerHTML = BACK_ARROW_SVG;
+		var backLabel = document.createElement('span');
+		backLabel.className = 'app-detail-back-label';
+		backLabel.textContent = categoryLabel(activeCategory);
+		backBtn.appendChild(backLabel);
 		backBtn.addEventListener('click', closePluginDetail);
-		var headingText = document.createElement('span');
-		headingText.textContent = plugin.title;
 		appStoreHeading.appendChild(backBtn);
-		appStoreHeading.appendChild(headingText);
 
 		var cats = plugin.categories || [];
 		var gradient = defaultGradient;
@@ -3198,20 +3201,20 @@
 		var sidebar = document.getElementById('app-store-sidebar');
 		sidebar.classList.add('app-store-sidebar-hidden');
 
-		// Update heading to back button + share
+		// Update heading: back arrow + parent label, all clickable.
 		appStoreHeading.innerHTML = '';
 
 		var backBtn = document.createElement('button');
 		backBtn.type = 'button';
 		backBtn.className = 'app-detail-back';
 		backBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>';
+		var backLabel = document.createElement('span');
+		backLabel.className = 'app-detail-back-label';
+		backLabel.textContent = categoryLabel(activeCategory);
+		backBtn.appendChild(backLabel);
 		backBtn.addEventListener('click', closeAppDetail);
 
-		var headingText = document.createElement('span');
-		headingText.textContent = categoryLabel(activeCategory);
-
 		appStoreHeading.appendChild(backBtn);
-		appStoreHeading.appendChild(headingText);
 
 		// Build detail content
 		var detail = document.createElement('div');

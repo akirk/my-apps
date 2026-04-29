@@ -2032,79 +2032,6 @@
 		} catch (e) { /* localStorage full or disabled — fine, we'll refetch */ }
 	}
 
-	// Walk an app blueprint's installPlugin steps and add each referenced
-	// plugin to the catalogue as a synthetic Recommended Plugins entry, so
-	// the underlying plugins of every app in apps.json are discoverable on
-	// their own. Recommended-Plugins curated entries (loaded after this)
-	// overwrite anything we add here, so curated metadata always wins.
-	function mergeAppBlueprintPlugins(data, blueprint) {
-		if (!blueprint || !Array.isArray(blueprint.steps)) return;
-
-		var pluginInstallUrl = myAppsConfig.ajaxUrl.replace('admin-ajax.php', 'plugin-install.php');
-
-		blueprint.steps.forEach(function(step) {
-			if (step.step !== 'installPlugin') return;
-			var pd = step.pluginData || {};
-			var key = null;
-			var entry = null;
-
-			if (pd.resource === 'wordpress.org/plugins' && pd.slug) {
-				key = 'plugin/' + pd.slug;
-				if (data[key]) return;
-				entry = {
-					title: humanizeSlug(pd.slug),
-					description: '',
-					author: '',
-					categories: ['Plugins'],
-					_type: 'plugin',
-					_source: 'wp.org',
-					_slug: pd.slug,
-					_repo: '',
-					_icon: '',
-					_shortDescription: '',
-					_note: '',
-					_installUrl: pluginInstallUrl + '?tab=plugin-information&plugin=' + pd.slug,
-					_landingPage: ''
-				};
-			} else {
-				// git:directory uses pd.url; release zips use pd.url too.
-				var url = pd.url || '';
-				var m = url.match(/github\.com\/([\w.-]+)\/([\w.-]+?)(?:\/|\.git$|$)/);
-				if (!m) return;
-				var owner = m[1];
-				var repoName = m[2].replace(/\.git$/, '').replace(/\.zip$/, '');
-				var repo = owner + '/' + repoName;
-				key = 'plugin/github/' + (owner + '-' + repoName).toLowerCase();
-				if (data[key]) return;
-				entry = {
-					title: humanizeSlug(repoName),
-					description: '',
-					author: owner,
-					categories: ['Plugins'],
-					_type: 'plugin',
-					_source: 'github',
-					_slug: '',
-					_repo: repo,
-					_icon: '',
-					_shortDescription: '',
-					_note: '',
-					_installUrl: 'https://github.com/' + repo,
-					_landingPage: ''
-				};
-			}
-
-			if (entry && key) {
-				data[key] = entry;
-			}
-		});
-	}
-
-	function humanizeSlug(slug) {
-		return String(slug).split(/[-_]+/).map(function(w) {
-			return w ? w.charAt(0).toUpperCase() + w.slice(1) : '';
-		}).join(' ').trim();
-	}
-
 	function mergeRecommendedPlugins(data, plugins) {
 		Object.keys(plugins).forEach(function(key) {
 			var p = plugins[key];
@@ -2209,25 +2136,11 @@
 				}
 				bindAppStoreEvents();
 
-				// Each apps/*.json blueprint may install one or more plugins.
-				// Fetch them all in parallel and add the underlying plugins
-				// to the catalogue as Recommended Plugins entries — so
-				// "Friends" or "Keeping Contact" appear in the plugins tab
-				// even when only the curated app is in apps.json.
-				var blueprintPromises = Object.keys(appStoreData)
-					.filter(function(p) { return p.indexOf('apps/') === 0 && !appStoreData[p]._custom; })
-					.map(function(path) {
-						return fetch(BLUEPRINTS_BASE_URL + path)
-							.then(function(r) { return r.json(); })
-							.then(function(bp) { mergeAppBlueprintPlugins(appStoreData, bp); })
-							.catch(function() { /* keep going if one blueprint fails */ });
-					});
-
-				// Wait for recipes, recommended-plugins enrichment, and all
-				// blueprint extractions before the final re-render.
-				// Recommended plugins merge LAST so curated metadata wins
-				// over any synthetic blueprint-derived entries.
-				Promise.all([pluginsPromise, recipesPromise].concat(blueprintPromises)).then(function(results) {
+				// Wait for recipes + recommended-plugins enrichment before the
+				// final re-render. The plugins from each app's blueprint are
+				// covered by the curated plugins.json now, so we no longer
+				// fetch every blueprint up front to extract them.
+				Promise.all([pluginsPromise, recipesPromise]).then(function(results) {
 					var plugins = results[0];
 					if (!plugins || !Object.keys(plugins).length) {
 						pluginsLoadState = 'failed';
@@ -2254,7 +2167,7 @@
 					buildAppStoreNav(appStoreData);
 
 					// Plugin deep-links land here (their entries only appear
-					// after the blueprint + recommended fetches resolve).
+					// after the recommended-plugins fetch resolves).
 					var renderedNow = tryRenderPendingDeepLink();
 					// Clear any leftover pending target — if it didn't resolve
 					// by now, the slug doesn't exist in the catalogue.

@@ -34,6 +34,14 @@ body.my-apps-launcher input::placeholder {
 	opacity: 1;
 }
 
+/* Without an explicit ::selection rule, OS dark mode picks dark grey
+   text on a dark blue selection background — unreadable inside the
+   light-themed launcher and modals. Force a high-contrast pair. */
+body.my-apps-launcher ::selection {
+	background: #3858e9;
+	color: #fff;
+}
+
 /* Background Options */
 .bg-gradient-purple, body.my-apps-launcher.bg-gradient-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
 .bg-gradient-blue, body.my-apps-launcher.bg-gradient-blue { background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }

@@ -5,6 +5,57 @@ body.my-apps-launcher {
 	min-height: 100vh;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 	box-sizing: border-box;
+	/* Opt the launcher modals into both colour schemes so light-dark()
+	   picks up the OS preference. The launcher grid itself sits on a
+	   user-chosen gradient and is unaffected by these palette vars. */
+	color-scheme: light dark;
+	--ma-bg:           light-dark(#ffffff, #1c1c1e);
+	--ma-bg-secondary: light-dark(#f6f6f6, #2c2c2e);
+	--ma-bg-tertiary:  light-dark(#fafafa, #242426);
+	--ma-bg-tinted:    light-dark(#f6f7ff, #1d2030);
+	--ma-fg:           light-dark(#1e1e1e, #f0f0f0);
+	--ma-fg-secondary: light-dark(#444444, #b8b8b8);
+	--ma-fg-muted:     light-dark(#888888, #8e8e93);
+	--ma-fg-subtle:    light-dark(#aaaaaa, #6e6e72);
+	--ma-border:       light-dark(#e8e8e8, #3a3a3c);
+	--ma-border-subtle:light-dark(#f0f0f0, #2a2a2c);
+	--ma-hover-bg:     light-dark(#e8e8e8, #353537);
+	--ma-button-bg:    light-dark(#ebebeb, #353537);
+	--ma-button-bg-hover: light-dark(#d6d6d6, #45454a);
+}
+
+/* Block themes commonly uppercase button text and tighten letter-spacing
+   via their global button styles. Reset both for buttons inside the
+   launcher so the UI doesn't shout at people. Specific elements that
+   intentionally use uppercase (e.g. .recipe-card-meta) override this. */
+body.my-apps-launcher button {
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+/* The launcher's modals, sidebar, and forms all assume light backgrounds.
+   In OS-level dark mode, browser-default form controls render light text
+   that disappears against our white inputs — pin a dark colour and
+   explicit white background so the rendering is consistent everywhere. */
+body.my-apps-launcher input[type="text"],
+body.my-apps-launcher input[type="url"],
+body.my-apps-launcher input[type="search"],
+body.my-apps-launcher input:not([type]) {
+	background: var(--ma-bg);
+	color: var(--ma-fg);
+}
+
+body.my-apps-launcher input::placeholder {
+	color: var(--ma-fg-muted);
+	opacity: 1;
+}
+
+/* Without an explicit ::selection rule, OS dark mode picks dark grey
+   text on a dark blue selection background — unreadable inside the
+   light-themed launcher and modals. Force a high-contrast pair. */
+body.my-apps-launcher ::selection {
+	background: #3858e9;
+	color: #fff;
 }
 
 /* Background Options */
@@ -418,8 +469,8 @@ body.edit-mode .add-app-btn {
 .app-store-sidebar {
 	width: 180px;
 	flex-shrink: 0;
-	background: #f6f6f6;
-	border-right: 1px solid #e8e8e8;
+	background: var(--ma-bg-secondary);
+	border-right: 1px solid var(--ma-border);
 	display: flex;
 	flex-direction: column;
 	border-radius: 12px 0 0 12px;
@@ -433,10 +484,10 @@ body.edit-mode .add-app-btn {
 .app-store-search input {
 	width: 100%;
 	padding: 7px 10px;
-	border: 1px solid #ddd;
+	border: 1px solid var(--ma-border);
 	border-radius: 6px;
 	font-size: 13px;
-	background: #fff;
+	background: var(--ma-bg);
 	box-sizing: border-box;
 }
 
@@ -458,14 +509,14 @@ body.edit-mode .add-app-btn {
 	padding: 6px 10px;
 	border-radius: 6px;
 	font-size: 13px;
-	color: #1e1e1e;
+	color: var(--ma-fg);
 	cursor: pointer;
 	transition: background 0.12s;
 	margin-bottom: 1px;
 }
 
 .app-store-nav-item:hover {
-	background: #e8e8e8;
+	background: var(--ma-hover-bg);
 }
 
 .app-store-nav-item.active {
@@ -475,19 +526,19 @@ body.edit-mode .add-app-btn {
 
 .app-store-nav-divider {
 	height: 1px;
-	background: #e0e0e0;
+	background: var(--ma-border);
 	margin: 6px 10px;
 	list-style: none;
 }
 
 .app-store-nav-external a {
-	color: #757575;
+	color: var(--ma-fg-muted);
 	text-decoration: none;
 	display: block;
 }
 
 .app-store-nav-external:hover a {
-	color: #1e1e1e;
+	color: var(--ma-fg);
 }
 
 .app-store-main {
@@ -510,7 +561,7 @@ body.edit-mode .add-app-btn {
 	margin: 0;
 	font-size: 24px;
 	font-weight: 700;
-	color: #1e1e1e;
+	color: var(--ma-fg);
 }
 
 .app-store-main-header .modal-close {
@@ -518,7 +569,7 @@ body.edit-mode .add-app-btn {
 	border: none;
 	font-size: 24px;
 	cursor: pointer;
-	color: #999;
+	color: var(--ma-fg-muted);
 	padding: 0;
 	line-height: 1;
 }
@@ -583,7 +634,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	align-items: center;
 	gap: 14px;
 	padding: 14px 0;
-	border-bottom: 1px solid #f0f0f0;
+	border-bottom: 1px solid var(--ma-border-subtle);
 }
 
 .app-store-item:last-child {
@@ -629,14 +680,14 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 .app-store-title {
 	font-size: 14px;
 	font-weight: 600;
-	color: #1e1e1e;
+	color: var(--ma-fg);
 	margin: 0;
 	line-height: 1.3;
 }
 
 .app-store-category {
 	font-size: 11px;
-	color: #757575;
+	color: var(--ma-fg-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.3px;
 	font-weight: 500;
@@ -645,7 +696,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 
 .app-store-description {
 	font-size: 12px;
-	color: #999;
+	color: var(--ma-fg-muted);
 	line-height: 1.4;
 	margin: 2px 0 0;
 	overflow: hidden;
@@ -688,7 +739,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 
 .app-store-author {
 	font-size: 11px;
-	color: #a7aaad;
+	color: var(--ma-fg-subtle);
 }
 
 .app-store-actions {
@@ -700,7 +751,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	padding: 5px 16px;
 	border: none;
 	border-radius: 14px;
-	background: #ebebeb;
+	background: var(--ma-button-bg);
 	color: #3858e9;
 	font-size: 13px;
 	font-weight: 600;
@@ -765,25 +816,23 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 .app-store-error {
 	text-align: center;
 	padding: 60px 20px;
-	color: #888;
+	color: var(--ma-fg-muted);
 	font-size: 15px;
 }
 
 .app-store-intro {
 	margin: 0 0 16px;
 	padding: 12px 16px;
-	background: #f6f7ff;
-	border-left: 3px solid #3858e9;
-	color: #444;
+	background: var(--ma-bg-tinted);
+	color: var(--ma-fg-secondary);
 	font-size: 14px;
 	line-height: 1.5;
-	border-radius: 4px;
 }
 
 .app-store-footer-link {
 	margin: 24px 0 0;
 	padding: 16px 0 0;
-	border-top: 1px solid #f0f0f0;
+	border-top: 1px solid var(--ma-border-subtle);
 	text-align: center;
 	font-size: 14px;
 }
@@ -838,6 +887,7 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	gap: 4px;
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -845,6 +895,13 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	padding: 0;
 	margin-right: 8px;
 	vertical-align: middle;
+	font-family: inherit;
+}
+
+.app-detail-back-label {
+	font-size: inherit;
+	font-weight: inherit;
+	color: inherit;
 }
 
 body.my-apps-launcher .app-detail-back:hover,
@@ -898,14 +955,14 @@ body.my-apps-launcher .app-detail-back:active {
 .app-detail-title {
 	font-size: 22px;
 	font-weight: 700;
-	color: #1e1e1e;
+	color: var(--ma-fg);
 	margin: 0 0 2px;
 	line-height: 1.2;
 }
 
 .app-detail-subtitle {
 	font-size: 13px;
-	color: #757575;
+	color: var(--ma-fg-muted);
 	margin: 0 0 8px;
 }
 
@@ -918,7 +975,7 @@ body.my-apps-launcher .app-detail-back:active {
 
 .app-detail-categories {
 	font-size: 12px;
-	color: #999;
+	color: var(--ma-fg-muted);
 }
 
 .app-detail-header-actions {
@@ -1009,7 +1066,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 /* Detail sections */
 .app-detail-section {
 	padding: 20px 0;
-	border-bottom: 1px solid #f0f0f0;
+	border-bottom: 1px solid var(--ma-border-subtle);
 }
 
 .app-detail-section:last-child {
@@ -1019,28 +1076,28 @@ body.my-apps-launcher .app-detail-share-btn:active {
 .app-detail-section h4 {
 	font-size: 16px;
 	font-weight: 600;
-	color: #1e1e1e;
+	color: var(--ma-fg);
 	margin: 0 0 8px;
 }
 
 .app-detail-section p {
 	font-size: 14px;
-	color: #555;
+	color: var(--ma-fg-secondary);
 	line-height: 1.6;
 	margin: 0;
 }
 
 .app-detail-comp-loading {
-	color: #999;
+	color: var(--ma-fg-muted);
 	font-style: italic;
 }
 
 .app-detail-comp-note {
-	color: #999;
+	color: var(--ma-fg-muted);
 }
 
 .app-detail-recipe-intro {
-	color: #757575;
+	color: var(--ma-fg-muted);
 	margin: 0 0 12px;
 }
 
@@ -1055,7 +1112,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .app-detail-recipe-list li {
 	font-size: 14px;
-	color: #1e1e1e;
+	color: var(--ma-fg);
 	line-height: 1.5;
 	padding: 4px 0;
 }
@@ -1069,7 +1126,6 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	color: #3858e9;
 	text-decoration: none;
 	font-weight: 500;
-	text-transform: capitalize;
 }
 
 .app-detail-recipe-link:hover {
@@ -1078,12 +1134,12 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .app-detail-recipe-source {
 	font-size: 12px;
-	color: #757575;
+	color: var(--ma-fg-muted);
 }
 
 .app-detail-recipe-source a {
 	font-size: 12px;
-	color: #757575;
+	color: var(--ma-fg-muted);
 	text-transform: none;
 	word-break: break-all;
 }
@@ -1094,7 +1150,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .app-detail-recipe-ref {
 	font-size: 12px;
-	background: #f0f0f0;
+	background: var(--ma-button-bg);
 	padding: 1px 5px;
 	border-radius: 4px;
 }
@@ -1163,24 +1219,30 @@ body.my-apps-launcher .app-detail-share-btn:active {
 }
 
 @media (max-width: 600px) {
+	/* Sit the modal below the WP admin bar (46px on mobile) so the
+	   sidebar's search bar isn't hidden behind it, and size the modal
+	   off the remaining viewport so the bottom stays on-screen too.
+	   The overlay still spans full-height; padding-top reserves the
+	   admin-bar strip. */
 	#install-software-modal.modal-overlay {
 		padding: 0;
-		background: #fff;
+		padding-top: 46px;
+		background: var(--ma-bg);
 	}
 
-	.modal-wide {
+	.modal.modal-wide {
 		max-width: 100%;
 		width: 100%;
-		height: 100dvh;
-		max-height: 100dvh;
+		height: calc(100dvh - 46px);
+		max-height: calc(100dvh - 46px);
 		margin: 0;
 		border-radius: 0;
 	}
 
 	.app-store-layout {
 		flex-direction: column;
-		height: 100dvh;
-		max-height: 100dvh;
+		height: calc(100dvh - 46px);
+		max-height: calc(100dvh - 46px);
 	}
 
 	.app-store-sidebar {
@@ -1454,7 +1516,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 }
 
 .modal {
-	background: #fff;
+	background: var(--ma-bg);
 	border-radius: 12px;
 	width: 100%;
 	max-width: 400px;
@@ -2165,5 +2227,319 @@ body.edit-mode .hidden-count {
 	text-align: center;
 	color: #888;
 	font-size: 14px;
+}
+
+/* ── Recipes ── */
+
+.recipe-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 16px;
+	margin: 0;
+}
+
+.recipe-card {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	padding: 18px;
+	min-height: 180px;
+	background: var(--ma-bg);
+	border: 1px solid var(--ma-border);
+	border-radius: 12px;
+	color: var(--ma-fg);
+	cursor: pointer;
+	text-align: left;
+	transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+	font-family: inherit;
+	overflow: hidden;
+	position: relative;
+}
+
+/* Block themes globally style button:hover with their preset colours
+   (contrast-2 background, base text), which on our cards reads as a
+   dark wash with white-on-white text. Pin both background and colour
+   across all interaction states. */
+body.my-apps-launcher .recipe-card:hover {
+	background: var(--ma-bg);
+	color: var(--ma-fg);
+	border-color: light-dark(#cfcfcf, #50505a);
+	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+body.my-apps-launcher .recipe-card:focus,
+body.my-apps-launcher .recipe-card:active {
+	background: var(--ma-bg);
+	color: var(--ma-fg);
+	outline: 2px solid #3858e9;
+	outline-offset: -2px;
+}
+
+.recipe-card-icon {
+	width: 44px;
+	height: 44px;
+	border-radius: 11px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 24px;
+	line-height: 1;
+	margin-bottom: 14px;
+	color: #fff;
+}
+
+.recipe-card-title {
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.3;
+	margin-bottom: 4px;
+}
+
+.recipe-card-tagline {
+	font-size: 13px;
+	line-height: 1.45;
+	color: var(--ma-fg-secondary);
+	flex: 1;
+}
+
+.recipe-card-meta {
+	margin-top: 12px;
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.3px;
+	text-transform: uppercase;
+	color: var(--ma-fg-muted);
+}
+
+/* Recipe detail */
+
+.recipe-hero {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 16px 0;
+	margin-bottom: 12px;
+	color: var(--ma-fg);
+}
+
+.recipe-hero-icon {
+	width: 56px;
+	height: 56px;
+	border-radius: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 28px;
+	line-height: 1;
+	flex-shrink: 0;
+	color: #fff;
+}
+
+.recipe-hero-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.recipe-hero-title {
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1.25;
+	margin-bottom: 2px;
+}
+
+.recipe-hero-tagline {
+	font-size: 14px;
+	line-height: 1.45;
+	color: var(--ma-fg-secondary);
+}
+
+.recipe-description {
+	font-size: 14px;
+	line-height: 1.55;
+	color: var(--ma-fg-secondary);
+	margin: 0 0 24px;
+}
+
+.recipe-steps {
+	list-style: none;
+	counter-reset: recipe-step;
+	margin: 0;
+	padding: 0;
+}
+
+.recipe-step {
+	counter-increment: recipe-step;
+	position: relative;
+	padding: 16px 0 16px 44px;
+	border-bottom: 1px solid var(--ma-border-subtle);
+}
+
+.recipe-step:last-child {
+	border-bottom: none;
+}
+
+.recipe-step::before {
+	content: counter(recipe-step);
+	position: absolute;
+	left: 0;
+	top: 16px;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: #3858e9;
+	color: #fff;
+	font-size: 14px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.recipe-step-title {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--ma-fg);
+	margin: 0 0 6px;
+	line-height: 1.3;
+}
+
+.recipe-step-optional::before {
+	background: light-dark(#b8bcc4, #555558);
+}
+
+.recipe-step-optional-badge {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 1px 7px;
+	border-radius: 8px;
+	background: var(--ma-button-bg);
+	color: var(--ma-fg-muted);
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	vertical-align: middle;
+}
+
+.recipe-step-description {
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--ma-fg-secondary);
+	margin: 0 0 10px;
+}
+
+.recipe-step-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	background: var(--ma-bg-tertiary);
+	border: 1px solid var(--ma-border);
+	border-radius: 10px;
+	margin-top: 8px;
+}
+
+.recipe-step-icon {
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	color: #fff;
+	overflow: hidden;
+	background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+}
+
+.recipe-step-icon svg {
+	width: 22px;
+	height: 22px;
+}
+
+.recipe-step-card-plugin .recipe-step-icon {
+	background: transparent;
+}
+
+.recipe-step-card-plugin .recipe-step-icon img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.recipe-step-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.recipe-step-card-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--ma-fg);
+	line-height: 1.3;
+}
+
+.recipe-step-card-author {
+	font-size: 11px;
+	color: var(--ma-fg-muted);
+	margin-top: 2px;
+}
+
+.recipe-step-card-actions {
+	flex-shrink: 0;
+}
+
+.recipe-step-actions {
+	margin-top: 8px;
+}
+
+.recipe-step-link {
+	display: inline-block;
+	padding: 5px 14px;
+	border-radius: 14px;
+	background: var(--ma-button-bg);
+	color: #3858e9;
+	font-size: 12px;
+	font-weight: 600;
+	text-decoration: none;
+	transition: background 0.12s;
+}
+
+.recipe-step-link:hover {
+	background: var(--ma-button-bg-hover);
+}
+
+.recipe-step-pending {
+	font-size: 12px;
+	color: var(--ma-fg-muted);
+	font-style: italic;
+	margin-top: 8px;
+}
+
+.recipe-learn-more {
+	margin: 24px 0 0;
+	padding: 16px 0 0;
+	border-top: 1px solid var(--ma-border-subtle);
+	text-align: center;
+	font-size: 14px;
+}
+
+.recipe-learn-more a {
+	color: #3858e9;
+	text-decoration: none;
+}
+
+.recipe-learn-more a:hover {
+	text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+	.recipe-grid {
+		grid-template-columns: 1fr;
+	}
+	.recipe-hero-title {
+		font-size: 18px;
+	}
 }
 

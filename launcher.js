@@ -39,8 +39,8 @@
 	// line to WordPress/blueprints/trunk/.
 	const BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/add-recipes/';
 	const APPS_INDEX_URL = BLUEPRINTS_BASE_URL + 'apps.json';
-	const RECIPES_URL = BLUEPRINTS_BASE_URL + 'my-wordpress/recipes.json';
-	const PLUGINS_URL = BLUEPRINTS_BASE_URL + 'my-wordpress/plugins.json';
+	const RECIPES_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/recipes.json';
+	const PLUGINS_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/plugins.json';
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 	let recipes = {};

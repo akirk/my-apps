@@ -16,6 +16,24 @@ body.my-apps-launcher button {
 	letter-spacing: normal;
 }
 
+/* The launcher's modals, sidebar, and forms all assume light backgrounds.
+   In OS-level dark mode, browser-default form controls render light text
+   that disappears against our white inputs — pin a dark colour and
+   explicit white background so the rendering is consistent everywhere. */
+body.my-apps-launcher input[type="text"],
+body.my-apps-launcher input[type="url"],
+body.my-apps-launcher input[type="search"],
+body.my-apps-launcher input:not([type]) {
+	background: #fff;
+	color: #1e1e1e;
+	color-scheme: light;
+}
+
+body.my-apps-launcher input::placeholder {
+	color: #888;
+	opacity: 1;
+}
+
 /* Background Options */
 .bg-gradient-purple, body.my-apps-launcher.bg-gradient-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
 .bg-gradient-blue, body.my-apps-launcher.bg-gradient-blue { background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }

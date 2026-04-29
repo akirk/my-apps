@@ -33,13 +33,15 @@
 	let pendingDeepLink = null;
 	let deepLinkRendered = false;
 	const LONG_PRESS_DURATION = 500;
-	// Single base for the blueprints repo we read apps and recipes from.
-	// Currently points at akirk/blueprints branch add-recipes (which has
-	// recipes.json on top of trunk's apps.json). After the upstream PR
-	// merges, change this one line to WordPress/blueprints/trunk/.
+	// Single base for the blueprints repo we read apps, recipes and the
+	// curated plugin list from. Currently points at akirk/blueprints
+	// branch add-recipes; after the upstream PR merges, change this one
+	// line to WordPress/blueprints/trunk/.
 	const BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/add-recipes/';
 	const APPS_INDEX_URL = BLUEPRINTS_BASE_URL + 'apps.json';
-	const RECIPES_URL = BLUEPRINTS_BASE_URL + 'recipes.json';
+	const RECIPES_URL = BLUEPRINTS_BASE_URL + 'my-wordpress/recipes.json';
+	const PLUGINS_URL = BLUEPRINTS_BASE_URL + 'my-wordpress/plugins.json';
+	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 	let recipes = {};
 	let hasRecipes = false;
@@ -1896,14 +1898,138 @@
 		}
 	}
 
+	// Fetch the curated my-wordpress/plugins.json from the blueprints repo
+	// and enrich wp.org entries with icons + names from the wp.org plugins
+	// API. GitHub-hosted entries use the metadata as-is. Returns an object
+	// keyed the same way the old PHP endpoint returned, so
+	// mergeRecommendedPlugins doesn't need to change.
 	function fetchRecommendedPlugins() {
-		var formData = new FormData();
-		formData.append('action', 'my_apps_get_recommended_plugins');
-		formData.append('nonce', myAppsConfig.nonce);
-		return fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
-			.then(function(res) { return res.json(); })
-			.then(function(json) { return (json && json.success) ? json.data : null; })
+		var pluginInstallUrl = myAppsConfig.ajaxUrl.replace('admin-ajax.php', 'plugin-install.php');
+
+		return fetch(PLUGINS_URL)
+			.then(function(r) { return r.json(); })
+			.then(function(curated) {
+				if (!curated || typeof curated !== 'object') return null;
+
+				var promises = Object.keys(curated).map(function(key) {
+					var meta = curated[key] || {};
+					var categories = Array.isArray(meta.categories) ? meta.categories : [];
+					var note = meta.note || '';
+					var landingPage = (typeof meta.landing_page === 'string' && meta.landing_page.indexOf('/') === 0) ? meta.landing_page : '';
+
+					// GitHub-hosted plugin: use metadata as-is, no wp.org fetch.
+					if (meta.github && /^[\w.-]+\/[\w.-]+$/.test(meta.github)) {
+						var owner = meta.github.split('/')[0];
+						var repoName = meta.github.split('/')[1];
+						var ghKey = 'github/' + (owner + '-' + repoName).toLowerCase();
+						return Promise.resolve({
+							outKey: ghKey,
+							entry: {
+								source: 'github',
+								repo: meta.github,
+								title: meta.title ? cleanText(meta.title) : repoName,
+								author: meta.author ? cleanText(meta.author) : owner,
+								short_description: '',
+								icon: meta.icon || '',
+								note: note,
+								categories: categories,
+								install_url: 'https://github.com/' + meta.github,
+								landing_page: landingPage
+							}
+						});
+					}
+
+					// wp.org plugin keyed by slug.
+					var slug = (key || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+					if (!slug) return Promise.resolve(null);
+
+					return fetchWpOrgPluginInfo(slug).then(function(info) {
+						var icons = (info && info.icons) || {};
+						var icon = icons.svg || icons['2x'] || icons['1x'] || icons['default'] || '';
+						var fallbackTitle = meta.title
+							? cleanText(meta.title)
+							: slug.split('-').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+
+						return {
+							outKey: slug,
+							entry: {
+								source: 'wp.org',
+								slug: slug,
+								title: (info && info.name) ? cleanText(info.name) : fallbackTitle,
+								author: (info && info.author) ? cleanText(info.author) : (meta.author ? cleanText(meta.author) : ''),
+								short_description: (info && info.short_description) ? cleanText(info.short_description) : '',
+								icon: icon,
+								note: note,
+								categories: categories,
+								install_url: pluginInstallUrl + '?tab=plugin-information&plugin=' + slug,
+								landing_page: landingPage
+							}
+						};
+					});
+				});
+
+				return Promise.all(promises).then(function(results) {
+					var out = {};
+					results.forEach(function(r) {
+						if (r) out[r.outKey] = r.entry;
+					});
+					return out;
+				});
+			})
 			.catch(function() { return null; });
+	}
+
+	// Decode HTML entities + strip tags via the browser's parser so wp.org
+	// strings like "Akismet Anti-spam: Spam Protection &#8211; ..." render
+	// as plain text.
+	function cleanText(s) {
+		if (!s) return '';
+		var doc = new DOMParser().parseFromString(String(s), 'text/html');
+		return (doc.body.textContent || '').trim();
+	}
+
+	// Per-slug wp.org plugin info, cached in localStorage so a page reload
+	// doesn't make a fresh request for every curated plugin.
+	var PLUGIN_INFO_CACHE_KEY = 'my_apps_plugin_info_cache';
+	var PLUGIN_INFO_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+	function fetchWpOrgPluginInfo(slug) {
+		var cached = readCachedPluginInfo(slug);
+		if (cached) return Promise.resolve(cached);
+
+		var url = WP_ORG_PLUGIN_INFO_URL +
+			'?action=plugin_information' +
+			'&request[slug]=' + encodeURIComponent(slug) +
+			'&request[fields][short_description]=1' +
+			'&request[fields][icons]=1';
+
+		return fetch(url)
+			.then(function(r) { return r.json(); })
+			.then(function(info) {
+				if (info && !info.error) {
+					writeCachedPluginInfo(slug, info);
+					return info;
+				}
+				return null;
+			})
+			.catch(function() { return null; });
+	}
+
+	function readCachedPluginInfo(slug) {
+		try {
+			var raw = JSON.parse(localStorage.getItem(PLUGIN_INFO_CACHE_KEY)) || {};
+			var entry = raw[slug];
+			if (!entry || (Date.now() - entry.t) > PLUGIN_INFO_CACHE_TTL) return null;
+			return entry.info;
+		} catch (e) { return null; }
+	}
+
+	function writeCachedPluginInfo(slug, info) {
+		try {
+			var raw = JSON.parse(localStorage.getItem(PLUGIN_INFO_CACHE_KEY)) || {};
+			raw[slug] = { info: info, t: Date.now() };
+			localStorage.setItem(PLUGIN_INFO_CACHE_KEY, JSON.stringify(raw));
+		} catch (e) { /* localStorage full or disabled — fine, we'll refetch */ }
 	}
 
 	// Walk an app blueprint's installPlugin steps and add each referenced

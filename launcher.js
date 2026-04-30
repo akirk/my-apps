@@ -2219,8 +2219,11 @@
 		// Recipes are curated use cases — surface them as the first sidebar
 		// entry so people see what WordPress can actually do before drilling
 		// into individual apps. A divider visually groups them apart from
-		// the regular category list below.
-		if (hasRecipes) {
+		// the regular category list below. Render optimistically while the
+		// recipes fetch is still in flight so the second build doesn't
+		// insert a new item at the top and shift the layout.
+		var showRecipesNav = hasRecipes || recipesLoadState === 'idle' || recipesLoadState === 'loading';
+		if (showRecipesNav) {
 			var recipesLi = document.createElement('li');
 			recipesLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === '__recipes__' ? ' active' : '');
 			recipesLi.dataset.category = '__recipes__';

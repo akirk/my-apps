@@ -718,23 +718,23 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	gap: 4px;
 	font-size: 10px;
 	font-weight: 500;
-	color: #1a7f37;
-	background: #dafbe1;
+	color: light-dark(#1a7f37, #7ee2a8);
+	background: light-dark(#dafbe1, #1f3a2a);
 	padding: 2px 8px;
 	border-radius: 10px;
 	white-space: nowrap;
 }
 
 .app-store-badge-modified {
-	color: #9a6700;
-	background: #fff8c5;
+	color: light-dark(#9a6700, #e8c468);
+	background: light-dark(#fff8c5, #3a3320);
 	cursor: pointer;
 	transition: all 0.15s;
 }
 
 .app-store-badge-modified:hover {
-	color: #953800;
-	background: #ffd8b5;
+	color: light-dark(#953800, #f0a070);
+	background: light-dark(#ffd8b5, #4a2f1a);
 }
 
 .app-store-author {
@@ -1565,7 +1565,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	font-size: 13px;
 	font-weight: 600;
 	margin-bottom: 8px;
-	color: #333;
+	color: var(--ma-fg);
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 }
@@ -1574,10 +1574,12 @@ body.my-apps-launcher .app-detail-share-btn:active {
 .form-group input[type="url"] {
 	width: 100%;
 	padding: 10px 12px;
-	border: 1px solid #ddd;
+	border: 1px solid var(--ma-border);
 	border-radius: 6px;
 	font-size: 14px;
 	box-sizing: border-box;
+	background: var(--ma-bg);
+	color: var(--ma-fg);
 }
 
 .form-group input:focus {
@@ -1596,20 +1598,20 @@ body.my-apps-launcher .app-detail-share-btn:active {
 .icon-tab {
 	flex: 1;
 	padding: 8px;
-	border: 1px solid #ccc;
-	background: #f5f5f5;
+	border: 1px solid var(--ma-border);
+	background: var(--ma-bg-secondary);
 	border-radius: 6px;
 	cursor: pointer;
 	font-size: 13px;
 	font-weight: 500;
-	color: #555;
+	color: var(--ma-fg-secondary);
 	transition: all 0.2s;
 }
 
 .icon-tab:hover {
-	background: #e8e8e8;
-	border-color: #999;
-	color: #333;
+	background: var(--ma-hover-bg);
+	border-color: light-dark(#999, #50505a);
+	color: var(--ma-fg);
 }
 
 .icon-tab.active {
@@ -1648,8 +1650,8 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	max-height: 200px;
 	overflow-y: auto;
 	padding: 8px;
-	background: #f9f9f9;
-	border: 1px solid #ddd;
+	background: var(--ma-bg-tertiary);
+	border: 1px solid var(--ma-border);
 	border-radius: 6px;
 	margin-top: 8px;
 }
@@ -1663,13 +1665,13 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	border: 1px solid transparent;
 	border-radius: 4px;
 	cursor: pointer;
-	background: #fff;
+	background: var(--ma-bg);
 	transition: all 0.15s;
 }
 
 .dashicon-option:hover {
-	background: #e8e8e8;
-	border-color: #ccc;
+	background: var(--ma-hover-bg);
+	border-color: var(--ma-border);
 }
 
 .dashicon-option.selected {
@@ -1683,7 +1685,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	width: 20px;
 	height: 20px;
 	line-height: 20px;
-	color: #333;
+	color: var(--ma-fg);
 }
 
 .dashicon-option.selected .dashicons {
@@ -1697,10 +1699,12 @@ body.my-apps-launcher .app-detail-share-btn:active {
 .dashicon-search input {
 	width: 100%;
 	padding: 8px 10px;
-	border: 1px solid #ddd;
+	border: 1px solid var(--ma-border);
 	border-radius: 6px;
 	font-size: 13px;
 	box-sizing: border-box;
+	background: var(--ma-bg);
+	color: var(--ma-fg);
 }
 
 .dashicon-search input:focus {
@@ -1717,8 +1721,8 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	overflow-x: hidden;
 	overflow-y: auto;
 	padding: 8px;
-	background: #f9f9f9;
-	border: 1px solid #ddd;
+	background: var(--ma-bg-tertiary);
+	border: 1px solid var(--ma-border);
 	border-radius: 6px;
 	margin-top: 8px;
 }
@@ -1732,14 +1736,14 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	border: 1px solid transparent;
 	border-radius: 4px;
 	cursor: pointer;
-	background: #fff;
+	background: var(--ma-bg);
 	font-size: 22px;
 	transition: all 0.15s;
 }
 
 .emoji-option:hover {
-	background: #e8e8e8;
-	border-color: #ccc;
+	background: var(--ma-hover-bg);
+	border-color: var(--ma-border);
 	transform: scale(1.15);
 }
 
@@ -1755,10 +1759,12 @@ body.my-apps-launcher .app-detail-share-btn:active {
 .emoji-search input {
 	width: 100%;
 	padding: 8px 10px;
-	border: 1px solid #ddd;
+	border: 1px solid var(--ma-border);
 	border-radius: 6px;
 	font-size: 13px;
 	box-sizing: border-box;
+	background: var(--ma-bg);
+	color: var(--ma-fg);
 }
 
 .emoji-search input:focus {
@@ -1777,7 +1783,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	width: 60px;
 	height: 60px;
 	border-radius: 14px;
-	background: #f0f0f0;
+	background: var(--ma-bg-secondary);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -2048,10 +2054,12 @@ body.edit-mode .hidden-count {
 .admin-menu-search input {
 	width: 100%;
 	padding: 10px 12px;
-	border: 1px solid #ddd;
+	border: 1px solid var(--ma-border);
 	border-radius: 6px;
 	font-size: 14px;
 	box-sizing: border-box;
+	background: var(--ma-bg);
+	color: var(--ma-fg);
 }
 
 .admin-menu-search input:focus {
@@ -2063,18 +2071,19 @@ body.edit-mode .hidden-count {
 .admin-menu-tree {
 	max-height: 400px;
 	overflow-y: auto;
-	border: 1px solid #eee;
+	border: 1px solid var(--ma-border);
 	border-radius: 8px;
+	background: var(--ma-bg);
 }
 
 .admin-menu-loading {
 	padding: 40px 20px;
 	text-align: center;
-	color: #888;
+	color: var(--ma-fg-muted);
 }
 
 .admin-menu-parent {
-	border-bottom: 1px solid #eee;
+	border-bottom: 1px solid var(--ma-border-subtle);
 }
 
 .admin-menu-parent:last-child {
@@ -2086,7 +2095,8 @@ body.edit-mode .hidden-count {
 	align-items: center;
 	padding: 10px 12px;
 	cursor: pointer;
-	background: #f9f9f9;
+	background: var(--ma-bg-tertiary);
+	color: var(--ma-fg);
 	transition: background 0.15s;
 	gap: 10px;
 	border: none;
@@ -2095,12 +2105,17 @@ body.edit-mode .hidden-count {
 	font-size: 14px;
 }
 
-.admin-menu-parent-header:hover {
-	background: #f0f0f0;
+/* Block themes globally style button:hover; .admin-menu-parent-header
+   is a <button>, so we need extra specificity to keep our subtle hover
+   from being replaced with the theme's contrast-2 colour. */
+body.my-apps-launcher .admin-menu-parent-header:hover {
+	background: var(--ma-bg-secondary);
+	color: var(--ma-fg);
 }
 
-.admin-menu-parent.expanded > .admin-menu-parent-header {
-	background: #e8e8e8;
+body.my-apps-launcher .admin-menu-parent.expanded > .admin-menu-parent-header {
+	background: var(--ma-hover-bg);
+	color: var(--ma-fg);
 }
 
 .admin-menu-toggle {
@@ -2116,7 +2131,7 @@ body.edit-mode .hidden-count {
 .admin-menu-toggle svg {
 	width: 12px;
 	height: 12px;
-	fill: #666;
+	fill: var(--ma-fg-secondary);
 }
 
 .admin-menu-parent.expanded > .admin-menu-parent-header .admin-menu-toggle {
@@ -2141,7 +2156,7 @@ body.edit-mode .hidden-count {
 	width: 20px;
 	height: 20px;
 	line-height: 20px;
-	color: #555;
+	color: var(--ma-fg-secondary);
 }
 
 .admin-menu-icon img {
@@ -2155,7 +2170,7 @@ body.edit-mode .hidden-count {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	color: #333;
+	color: var(--ma-fg);
 }
 
 .admin-menu-add {
@@ -2192,7 +2207,7 @@ body.edit-mode .hidden-count {
 
 .admin-menu-children {
 	display: none;
-	background: #fff;
+	background: var(--ma-bg);
 }
 
 .admin-menu-parent.expanded > .admin-menu-children {
@@ -2213,19 +2228,20 @@ body.edit-mode .hidden-count {
 	background: transparent;
 }
 
-.admin-menu-item:hover {
-	background: #f5f5f5;
+body.my-apps-launcher .admin-menu-item:hover {
+	background: var(--ma-bg-secondary);
+	color: var(--ma-fg);
 }
 
 .admin-menu-item .admin-menu-name {
 	font-size: 13px;
-	color: #555;
+	color: var(--ma-fg-secondary);
 }
 
 .admin-menu-empty {
 	padding: 40px 20px;
 	text-align: center;
-	color: #888;
+	color: var(--ma-fg-muted);
 	font-size: 14px;
 }
 

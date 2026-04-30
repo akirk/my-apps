@@ -2,16 +2,10 @@
 /**
  * Plugin Name: My Apps
  * Plugin URI: https://github.com/akirk/my-apps
-<<<<<<< Updated upstream
  * Version: 1.3.0
-||||||| Stash base
- * Version: 1.2.0
-=======
- * Version: 1.2.0
  * Author: Alex Kirk
  * Author URI: https://alex.kirk.at/
->>>>>>> Stashed changes
- * Requires PHP: 5.6
+ * Requires PHP: 7.2
  * Description: WordPress apps launcher
  *
  * License: GPL2

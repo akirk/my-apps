@@ -1,4 +1,5 @@
 assets	export-ignore
+.claude	export-ignore
 .extract-wp-hooks.json	export-ignore
 .git*	export-ignore
 phpcs.xml.dist	export-ignore

@@ -44,5 +44,19 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
 ## Screenshots
 
 1. The Launcher
-2. The App Store
+   ![The Launcher](https://ps.w.org/my-apps/assets/screenshot-1.png)
+2. Launcher settings: layout, icon size, spacing, and import/export
+   ![Launcher settings](https://ps.w.org/my-apps/assets/screenshot-2.png)
+3. The App Store
+   ![The App Store](https://ps.w.org/my-apps/assets/screenshot-3.png)
+4. The Recipes overview — curated multi-step guides for getting the most out of WordPress
+   ![The Recipes overview](https://ps.w.org/my-apps/assets/screenshot-4.png)
+5. A Recipe detail with numbered steps and one-click installs
+   ![A Recipe detail](https://ps.w.org/my-apps/assets/screenshot-5.png)
+6. Another Recipe detail — Bring Your Data In
+   ![Another Recipe detail](https://ps.w.org/my-apps/assets/screenshot-6.png)
+7. Adding an admin link — browse and search all wp-admin menu items
+   ![Adding an admin link](https://ps.w.org/my-apps/assets/screenshot-7.png)
+8. Adding a web link with a custom emoji, image URL, or Dashicon
+   ![Adding a web link](https://ps.w.org/my-apps/assets/screenshot-8.png)
 

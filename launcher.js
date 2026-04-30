@@ -1825,9 +1825,7 @@
 	var appStoreNav = document.getElementById('app-store-nav');
 	var appStoreSearchInput = document.getElementById('app-store-search');
 	var appStoreHeading = document.getElementById('app-store-heading');
-	// Optimistic default — assume recipes will load. If the fetch fails
-	// loadAppStore flips this back to 'all' before the first render.
-	var activeCategory = '__recipes__';
+	var activeCategory = 'all';
 	var activeView = 'apps';
 	var activeRecipe = null;
 
@@ -1872,7 +1870,7 @@
 
 		// Clean up state-bearing params (?app, ?recipe, ?plugin) when
 		// closing the modal, and reset activeRecipe so the next open
-		// lands on the recipes grid instead of a stale recipe detail.
+		// doesn't land on a stale recipe detail.
 		var url = new URL(window.location);
 		var changed = false;
 		['app', 'recipe', 'plugin'].forEach(function(name) {
@@ -2156,13 +2154,6 @@
 						activeRecipe = pendingRecipe;
 					}
 					pendingRecipe = null;
-
-					// If recipes failed (or returned empty) and we'd default
-					// to the recipes grid, fall through to All Apps so the
-					// user sees something useful instead of an error state.
-					if (!hasRecipes && activeCategory === '__recipes__' && !activeRecipe) {
-						activeCategory = 'all';
-					}
 
 					buildAppStoreNav(appStoreData);
 

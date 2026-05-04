@@ -537,6 +537,32 @@ class My_Apps {
 		}
 
 		$additional_apps = get_option( 'my_apps_additional_apps', array() );
+		$user_id         = get_current_user_id();
+
+		// De-dup: the launcher fires this AJAX optimistically the moment a
+		// user clicks "Install", before knowing whether the blueprint
+		// install succeeded. Repeated clicks (or retries after a failed
+		// install) would otherwise leave duplicate icons. Match on URL
+		// scoped to the current user — same URL means same app.
+		foreach ( $additional_apps as $existing_slug => $existing ) {
+			if (
+				isset( $existing['url'], $existing['user'] )
+				&& $existing['url'] === $url
+				&& (int) $existing['user'] === (int) $user_id
+			) {
+				wp_send_json_success(
+					array(
+						'slug'      => $existing_slug,
+						'name'      => isset( $existing['name'] ) ? $existing['name'] : $name,
+						'url'       => $url,
+						'icon_url'  => isset( $existing['icon_url'] ) ? ( $existing['icon_url'] ?: null ) : null,
+						'dashicon'  => isset( $existing['dashicon'] ) ? ( $existing['dashicon'] ?: null ) : null,
+						'emoji'     => isset( $existing['emoji'] ) ? ( $existing['emoji'] ?: null ) : null,
+						'duplicate' => true,
+					)
+				);
+			}
+		}
 
 		$slug = 'custom-' . sanitize_title( $name ) . '-' . count( $additional_apps );
 
@@ -547,7 +573,7 @@ class My_Apps {
 			'dashicon' => $dashicon ?: false,
 			'emoji'    => $emoji ?: false,
 			'gradient' => $gradient ?: false,
-			'user'     => get_current_user_id(),
+			'user'     => $user_id,
 		);
 
 		$additional_apps[ $slug ] = $new_app;

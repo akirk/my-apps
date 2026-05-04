@@ -2553,7 +2553,14 @@
 
 		var hasResults = false;
 
-		Object.keys(data).forEach(function(path) {
+		var keys = Object.keys(data);
+		if (category === '__plugins__') {
+			keys.sort(function(a, b) {
+				return (data[a].title || '').localeCompare(data[b].title || '', undefined, { sensitivity: 'base' });
+			});
+		}
+
+		keys.forEach(function(path) {
 			var app = data[path];
 
 			// Category filter

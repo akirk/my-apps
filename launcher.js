@@ -146,13 +146,17 @@
 	}
 
 	// ── Auto-add icon for blueprint/plugin installs ──
+	// Opt-in: only fires when the blueprint declares `launcher_url` (the
+	// page the launcher icon should open). `landingPage` alone is no
+	// longer enough — it's a Playground concept (where to navigate after
+	// install) and not always a page the user wants pinned.
 	function addAppFromBlueprint(app, blueprint, gradient) {
-		var landingPage = blueprint && blueprint.landingPage;
-		if (!landingPage) return Promise.resolve(false);
+		var launcherUrl = blueprint && blueprint.launcher_url;
+		if (!launcherUrl) return Promise.resolve(false);
 
-		var appUrl = landingPage.indexOf('http') === 0
-			? landingPage
-			: window.location.origin + landingPage;
+		var appUrl = launcherUrl.indexOf('http') === 0
+			? launcherUrl
+			: window.location.origin + launcherUrl;
 
 		var formData = new FormData();
 		formData.append('action', 'my_apps_add');
@@ -1947,6 +1951,15 @@
 					var categories = Array.isArray(meta.categories) ? meta.categories : [];
 					var note = meta.note || '';
 					var landingPage = (typeof meta.landing_page === 'string' && meta.landing_page.indexOf('/') === 0) ? meta.landing_page : '';
+					// `launcher_url` opts the entry into auto-adding a launcher
+					// icon after install. Accepts an absolute http(s) URL or a
+					// site-relative path starting with "/".
+					var launcherUrl = '';
+					if (typeof meta.launcher_url === 'string') {
+						if (/^https?:\/\//.test(meta.launcher_url) || meta.launcher_url.indexOf('/') === 0) {
+							launcherUrl = meta.launcher_url;
+						}
+					}
 
 					// GitHub-hosted plugin: use metadata as-is, no wp.org fetch.
 					if (meta.github && /^[\w.-]+\/[\w.-]+$/.test(meta.github)) {
@@ -1984,7 +1997,8 @@
 								note: note,
 								categories: categories,
 								install_url: 'https://github.com/' + meta.github,
-								landing_page: landingPage
+								landing_page: landingPage,
+								launcher_url: launcherUrl
 							}
 						});
 					}
@@ -2012,7 +2026,8 @@
 								note: note,
 								categories: categories,
 								install_url: pluginInstallUrl + '?tab=plugin-information&plugin=' + slug,
-								landing_page: landingPage
+								landing_page: landingPage,
+								launcher_url: launcherUrl
 							}
 						};
 					});
@@ -2100,7 +2115,8 @@
 				_shortDescription: p.short_description || '',
 				_note: p.note || '',
 				_installUrl: p.install_url || '',
-				_landingPage: p.landing_page || ''
+				_landingPage: p.landing_page || '',
+				_launcherUrl: p.launcher_url || ''
 			};
 		});
 	}
@@ -2130,6 +2146,9 @@
 		};
 		if (app._landingPage) {
 			blueprint.landingPage = app._landingPage;
+		}
+		if (app._launcherUrl) {
+			blueprint.launcher_url = app._launcherUrl;
 		}
 		return retrofitGitTargetFolderName(blueprint);
 	}

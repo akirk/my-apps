@@ -42,7 +42,6 @@ class My_Apps {
 	}
 
 	public function admin_enqueue_scripts() {
-		wp_enqueue_script( 'my-apps', plugin_dir_url( __FILE__ ) . 'admin.js', array( 'jquery' ), MY_APPS_VERSION, true );
 		$this->enqueue_styles();
 	}
 

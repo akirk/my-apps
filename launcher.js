@@ -61,9 +61,42 @@
 		}
 	}
 
+	// Derive a folder name from a git:directory resource. Prefer the
+	// subdirectory's basename when `path` is set, otherwise the repo name
+	// from the URL (with any `.git` suffix stripped).
+	function deriveTargetFolderName(resource) {
+		if (!resource || resource.resource !== 'git:directory' || !resource.url) return '';
+		if (resource.path) {
+			var parts = String(resource.path).split('/').filter(Boolean);
+			if (parts.length) return parts[parts.length - 1];
+		}
+		var m = String(resource.url).match(/^https?:\/\/[^\/]+\/[^\/]+\/([^\/?#]+?)(?:\.git)?(?:[\/?#]|$)/);
+		return m ? m[1] : '';
+	}
+
+	// Retrofit options.targetFolderName onto installPlugin/installTheme
+	// steps that pull from git:directory but don't already specify a
+	// folder name. Without it Playground writes the repo to a generated
+	// path and `activate` can't find the plugin. Mutates the blueprint.
+	function retrofitGitTargetFolderName(blueprint) {
+		if (!blueprint || !Array.isArray(blueprint.steps)) return blueprint;
+		blueprint.steps.forEach(function(step) {
+			if (!step) return;
+			var data = step.step === 'installPlugin' ? step.pluginData
+				: step.step === 'installTheme' ? step.themeData
+				: null;
+			if (!data || data.resource !== 'git:directory') return;
+			step.options = step.options || {};
+			if (step.options.targetFolderName) return;
+			var folder = deriveTargetFolderName(data);
+			if (folder) step.options.targetFolderName = folder;
+		});
+		return blueprint;
+	}
+
 	function saveCustomBlueprint(path, meta, blueprint, overrides) {
 		var custom = getCustomBlueprints();
-		custom[path] = { meta: meta, blueprint: blueprint, overrides: overrides || null };
+		custom[path] = { meta: meta, blueprint: retrofitGitTargetFolderName(blueprint), overrides: overrides || null };
 		localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
 	}
 
@@ -1920,11 +1953,30 @@
 						var owner = meta.github.split('/')[0];
 						var repoName = meta.github.split('/')[1];
 						var ghKey = 'github/' + (owner + '-' + repoName).toLowerCase();
+
+						// Optional ref: shorthand `branch: "develop"`, or
+						// explicit `ref` + `refType` ("branch" | "tag" | "commit").
+						// When ref is a branch or tag name, refType is required
+						// for Playground to resolve it reliably.
+						var ref = '';
+						var refType = '';
+						if (typeof meta.branch === 'string' && /^[\w.\/-]+$/.test(meta.branch)) {
+							ref = meta.branch;
+							refType = 'branch';
+						} else if (typeof meta.ref === 'string' && /^[\w.\/-]+$/.test(meta.ref)) {
+							ref = meta.ref;
+							if (meta.refType === 'branch' || meta.refType === 'tag' || meta.refType === 'commit') {
+								refType = meta.refType;
+							}
+						}
+
 						return Promise.resolve({
 							outKey: ghKey,
 							entry: {
 								source: 'github',
 								repo: meta.github,
+								ref: ref,
+								refType: refType,
 								title: meta.title ? cleanText(meta.title) : repoName,
 								author: meta.author ? cleanText(meta.author) : owner,
 								short_description: '',
@@ -2042,6 +2094,8 @@
 				_source: p.source || 'wp.org',
 				_slug: p.slug || '',
 				_repo: p.repo || '',
+				_ref: p.ref || '',
+				_refType: p.refType || '',
 				_icon: p.icon || '',
 				_shortDescription: p.short_description || '',
 				_note: p.note || '',
@@ -2052,9 +2106,18 @@
 	}
 
 	function buildPluginBlueprint(app) {
-		var pluginData = app._source === 'github'
-			? { resource: 'git:directory', url: 'https://github.com/' + app._repo, ref: 'HEAD' }
-			: { resource: 'wordpress.org/plugins', slug: app._slug };
+		var pluginData;
+		if (app._source === 'github') {
+			pluginData = { resource: 'git:directory', url: 'https://github.com/' + app._repo };
+			if (app._ref) {
+				pluginData.ref = app._ref;
+				if (app._refType) pluginData.refType = app._refType;
+			} else {
+				pluginData.ref = 'HEAD';
+			}
+		} else {
+			pluginData = { resource: 'wordpress.org/plugins', slug: app._slug };
+		}
 		var blueprint = {
 			'$schema': 'https://playground.wordpress.net/blueprint-schema.json',
 			meta: {
@@ -2068,7 +2131,7 @@
 		if (app._landingPage) {
 			blueprint.landingPage = app._landingPage;
 		}
-		return blueprint;
+		return retrofitGitTargetFolderName(blueprint);
 	}
 
 	function installPluginApp(app, gradient) {
@@ -2490,7 +2553,14 @@
 
 		var hasResults = false;
 
-		Object.keys(data).forEach(function(path) {
+		var keys = Object.keys(data);
+		if (category === '__plugins__') {
+			keys.sort(function(a, b) {
+				return (data[a].title || '').localeCompare(data[b].title || '', undefined, { sensitivity: 'base' });
+			});
+		}
+
+		keys.forEach(function(path) {
 			var app = data[path];
 
 			// Category filter

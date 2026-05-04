@@ -37,7 +37,7 @@
 	// curated plugin list from. Currently points at akirk/blueprints
 	// branch add-recipes; after the upstream PR merges, change this one
 	// line to WordPress/blueprints/trunk/.
-	const BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/trunk/';
+	const BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/add-recipes/';
 	const APPS_INDEX_URL = BLUEPRINTS_BASE_URL + 'apps.json';
 	const RECIPES_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/recipes.json';
 	const PLUGINS_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/plugins.json';

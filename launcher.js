@@ -1961,6 +1961,31 @@
 						}
 					}
 
+					// Direct ZIP URL: no wp.org / GitHub lookup, use metadata as-is.
+					if (typeof meta.url === 'string' && /^https?:\/\//.test(meta.url)) {
+						var rawKey = (key || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+						if (!rawKey) return Promise.resolve(null);
+						var urlFallbackTitle = meta.title
+							? cleanText(meta.title)
+							: rawKey.split('-').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+						return Promise.resolve({
+							outKey: 'url/' + rawKey,
+							entry: {
+								source: 'url',
+								url: meta.url,
+								title: urlFallbackTitle,
+								author: meta.author ? cleanText(meta.author) : '',
+								short_description: '',
+								icon: meta.icon || '',
+								note: note,
+								categories: categories,
+								install_url: meta.url,
+								landing_page: landingPage,
+								launcher_url: launcherUrl
+							}
+						});
+					}
+
 					// GitHub-hosted plugin: use metadata as-is, no wp.org fetch.
 					if (meta.github && /^[\w.-]+\/[\w.-]+$/.test(meta.github)) {
 						var owner = meta.github.split('/')[0];
@@ -2109,6 +2134,7 @@
 				_source: p.source || 'wp.org',
 				_slug: p.slug || '',
 				_repo: p.repo || '',
+				_url: p.url || '',
 				_ref: p.ref || '',
 				_refType: p.refType || '',
 				_icon: p.icon || '',
@@ -2131,6 +2157,8 @@
 			} else {
 				pluginData.ref = 'HEAD';
 			}
+		} else if (app._source === 'url') {
+			pluginData = { resource: 'url', url: app._url };
 		} else {
 			pluginData = { resource: 'wordpress.org/plugins', slug: app._slug };
 		}
@@ -3309,6 +3337,14 @@
 		if (plugin._source === 'github' && plugin._repo) {
 			sourceUrl = 'https://github.com/' + plugin._repo;
 			sourceLabel = 'github.com/' + plugin._repo;
+		} else if (plugin._source === 'url' && plugin._url) {
+			sourceUrl = plugin._url;
+			try {
+				var parsedUrl = new URL(plugin._url);
+				sourceLabel = parsedUrl.hostname + parsedUrl.pathname;
+			} catch (e) {
+				sourceLabel = plugin._url;
+			}
 		} else if (plugin._source === 'wp.org' && plugin._slug) {
 			sourceUrl = 'https://wordpress.org/plugins/' + plugin._slug + '/';
 			sourceLabel = 'wordpress.org/plugins/' + plugin._slug + '/';

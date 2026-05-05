@@ -28,6 +28,28 @@ function desktop_mode_register() {
 	add_filter( 'desktop_mode_native_window_allowed_html', __NAMESPACE__ . '\desktop_mode_allow_iframe' );
 
 	desktop_mode_register_window(
+		'my-apps-store',
+		array(
+			'title'     => __( 'Add App', 'my-apps' ),
+			'icon'      => 'dashicons-store',
+			'template'  => __NAMESPACE__ . '\desktop_mode_store_window_template',
+			'width'     => 700,
+			'height'    => 580,
+			'placement' => 'none',
+		)
+	);
+
+	desktop_mode_register_icon(
+		'my-apps-store',
+		array(
+			'title'    => __( 'Add App', 'my-apps' ),
+			'icon'     => 'dashicons-store',
+			'window'   => 'my-apps-store',
+			'position' => 0,
+		)
+	);
+
+	desktop_mode_register_window(
 		'my-apps',
 		array(
 			'title'     => __( 'My Apps', 'my-apps' ),
@@ -135,6 +157,16 @@ function svg_with_white_bg( $svg ) {
 		$svg,
 		1
 	);
+}
+
+function desktop_mode_store_window_template() {
+	?>
+	<iframe
+		src="<?php echo esc_url( home_url( '/my-apps/?add=web-link' ) ); ?>"
+		style="width:100%;height:100%;border:0;display:block;"
+		title="<?php esc_attr_e( 'Add App', 'my-apps' ); ?>"
+	></iframe>
+	<?php
 }
 
 function desktop_mode_window_template() {

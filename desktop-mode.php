@@ -28,28 +28,6 @@ function desktop_mode_register() {
 	add_filter( 'desktop_mode_native_window_allowed_html', __NAMESPACE__ . '\desktop_mode_allow_iframe' );
 
 	desktop_mode_register_window(
-		'my-apps-store',
-		array(
-			'title'     => __( 'Add App', 'my-apps' ),
-			'icon'      => 'dashicons-store',
-			'template'  => __NAMESPACE__ . '\desktop_mode_store_window_template',
-			'width'     => 700,
-			'height'    => 580,
-			'placement' => 'none',
-		)
-	);
-
-	desktop_mode_register_icon(
-		'my-apps-store',
-		array(
-			'title'    => __( 'Add App', 'my-apps' ),
-			'icon'     => 'dashicons-store',
-			'window'   => 'my-apps-store',
-			'position' => 0,
-		)
-	);
-
-	desktop_mode_register_window(
 		'my-apps',
 		array(
 			'title'     => __( 'My Apps', 'my-apps' ),
@@ -58,6 +36,30 @@ function desktop_mode_register() {
 			'width'     => 900,
 			'height'    => 640,
 			'placement' => 'dock',
+		)
+	);
+
+	$add_icon = admin_url( 'admin-ajax.php?action=my_apps_desktop_icon&slug=__add__' );
+
+	desktop_mode_register_window(
+		'my-apps-store',
+		array(
+			'title'    => __( 'Add', 'my-apps' ),
+			'icon'     => $add_icon,
+			'template' => __NAMESPACE__ . '\desktop_mode_store_template',
+			'width'    => 700,
+			'height'   => 580,
+			'placement' => 'none',
+		)
+	);
+
+	desktop_mode_register_icon(
+		'my-apps-store',
+		array(
+			'title'    => __( 'Add', 'my-apps' ),
+			'icon'     => $add_icon,
+			'window'   => 'my-apps-store',
+			'position' => 5,
 		)
 	);
 
@@ -102,6 +104,13 @@ function serve_desktop_mode_icon() {
 	$additional = get_option( 'my_apps_additional_apps', array() );
 	$all_apps   = array_merge( $registered, $additional );
 
+	if ( '__add__' === $slug ) {
+		header( 'Content-Type: image/svg+xml; charset=utf-8' );
+		header( 'Cache-Control: public, max-age=86400' );
+		echo build_add_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped in builder.
+		exit;
+	}
+
 	$app      = isset( $all_apps[ $slug ] ) ? $all_apps[ $slug ] : array();
 	$name     = ! empty( $app['name'] ) ? $app['name'] : $slug;
 	$emoji    = ! empty( $app['emoji'] ) ? $app['emoji'] : '';
@@ -122,6 +131,15 @@ function serve_desktop_mode_icon() {
 	}
 
 	exit;
+}
+
+function build_add_svg() {
+	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' .
+		'<rect width="100" height="100" rx="22" ry="22" fill="rgba(255,255,255,0.25)" ' .
+		'stroke="rgba(255,255,255,0.7)" stroke-width="4" stroke-dasharray="10 5"/>' .
+		'<text x="50" y="50" fill="#fff" text-anchor="middle" dominant-baseline="central" ' .
+		'font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-weight="300" font-size="60">+</text>' .
+		'</svg>';
 }
 
 function build_letter_svg( $name ) {
@@ -159,22 +177,22 @@ function svg_with_white_bg( $svg ) {
 	);
 }
 
-function desktop_mode_store_window_template() {
-	?>
-	<iframe
-		src="<?php echo esc_url( home_url( '/my-apps/?add=web-link' ) ); ?>"
-		style="width:100%;height:100%;border:0;display:block;"
-		title="<?php esc_attr_e( 'Add App', 'my-apps' ); ?>"
-	></iframe>
-	<?php
-}
-
 function desktop_mode_window_template() {
 	?>
 	<iframe
 		src="<?php echo esc_url( home_url( '/my-apps/' ) ); ?>"
 		style="width:100%;height:100%;border:0;display:block;"
 		title="<?php esc_attr_e( 'My Apps', 'my-apps' ); ?>"
+	></iframe>
+	<?php
+}
+
+function desktop_mode_store_template() {
+	?>
+	<iframe
+		src="<?php echo esc_url( home_url( '/my-apps/?app-store=1' ) ); ?>"
+		style="width:100%;height:100%;border:0;display:block;"
+		title="<?php esc_attr_e( 'Add', 'my-apps' ); ?>"
 	></iframe>
 	<?php
 }

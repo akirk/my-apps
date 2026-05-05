@@ -432,6 +432,10 @@
 	];
 
 	function init() {
+		if (new URL(window.location).searchParams.has('app-store')) {
+			checkDeepLink();
+			return;
+		}
 		initSortable();
 		initEmojiPicker();
 		initDashiconPicker();
@@ -3959,6 +3963,10 @@
 	// On initial load, check query params for deep-links into the modal.
 	function checkDeepLink() {
 		var url = new URL(window.location);
+		if (url.searchParams.has('app-store')) {
+			openInstallSoftwareModal();
+			return;
+		}
 		var addParam = url.searchParams.get('add');
 		if (addParam === 'web-link' || addParam === 'admin-link' || addParam === 'apps') {
 			openInstallSoftwareModal();

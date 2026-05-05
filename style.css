@@ -2559,3 +2559,32 @@ body.my-apps-launcher .recipe-card:active {
 	}
 }
 
+/* Chromeless app-store mode (embedded in Desktop Mode native window) */
+body.my-apps-app-store-embedded {
+	background: transparent !important;
+}
+
+body.my-apps-app-store-embedded #install-software-modal.modal-overlay {
+	background: transparent;
+	padding: 0;
+}
+
+body.my-apps-app-store-embedded .modal.modal-wide {
+	max-width: 100%;
+	width: 100%;
+	height: 100dvh;
+	max-height: 100dvh;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+body.my-apps-app-store-embedded .app-store-layout {
+	height: 100dvh;
+	max-height: 100dvh;
+}
+
+body.my-apps-app-store-embedded .modal-close,
+body.my-apps-app-store-embedded .app-store-main-header .modal-close {
+	display: none !important;
+}
+

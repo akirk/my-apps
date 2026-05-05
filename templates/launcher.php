@@ -37,8 +37,11 @@ $can_manage = current_user_can( 'manage_options' );
 $background = get_option( 'my_apps_background', 'gradient-purple' );
 $custom_bg = get_option( 'my_apps_background_custom', '' );
 $custom_bg_style = ( $background === 'custom' && $custom_bg ) ? 'background: ' . $custom_bg : '';
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$is_app_store = isset( $_GET['app-store'] );
 ?>
-<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?>"<?php if ( $custom_bg_style ) : ?> style="<?php echo esc_attr( $custom_bg_style ); ?>"<?php endif; ?>>
+<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?><?php if ( $is_app_store ) : ?> my-apps-app-store-embedded<?php endif; ?>"<?php if ( $custom_bg_style ) : ?> style="<?php echo esc_attr( $custom_bg_style ); ?>"<?php endif; ?>>
+<?php if ( ! $is_app_store ) : ?>
 	<div class="launcher-toolbar">
 		<button type="button" class="toolbar-btn edit-btn" title="<?php esc_attr_e( 'Edit', 'my-apps' ); ?>">
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
@@ -138,6 +141,7 @@ $custom_bg_style = ( $background === 'custom' && $custom_bg ) ? 'background: ' .
 			<p class="app-title"><?php esc_html_e( 'Add', 'my-apps' ); ?></p>
 		</div>
 	</div>
+<?php endif; ?>
 
 	<div class="hidden-popup" id="hidden-popup">
 		<div class="hidden-popup-header"><?php esc_html_e( 'Hidden Apps', 'my-apps' ); ?></div>

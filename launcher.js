@@ -1071,6 +1071,8 @@
 						handleImport();
 					} else if (action === 'toggle-greeting') {
 						toggleGreeting();
+					} else if (action === 'update-my-apps') {
+						updateMyApps();
 					}
 				}
 			});
@@ -2200,6 +2202,20 @@
 			blueprint.launcher_url = app._launcherUrl;
 		}
 		return retrofitGitTargetFolderName(blueprint);
+	}
+
+	function updateMyApps() {
+		var blueprint = {
+			steps: [ {
+				step: 'installPlugin',
+				pluginData: { resource: 'git:directory', url: 'https://github.com/akirk/my-apps', ref: 'HEAD' }
+			} ]
+		};
+		getPlaygroundTarget().postMessage({
+			type: 'relay',
+			relayType: 'install-blueprint',
+			blueprintUrl: 'data:application/json,' + encodeURIComponent(JSON.stringify(blueprint))
+		}, '*');
 	}
 
 	function installPluginApp(app, gradient) {

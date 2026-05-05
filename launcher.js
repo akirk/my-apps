@@ -2208,7 +2208,7 @@
 		var blueprint = {
 			steps: [ {
 				step: 'installPlugin',
-				pluginData: { resource: 'git:directory', url: 'https://github.com/akirk/my-apps', ref: 'HEAD' }
+				pluginData: { resource: 'git:directory', url: 'https://github.com/akirk/my-apps', ref: 'HEAD', targetFolderName: 'my-apps' }
 			} ]
 		};
 		getPlaygroundTarget().postMessage({

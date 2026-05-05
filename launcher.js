@@ -2580,6 +2580,38 @@
 
 	var defaultGradient = 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)';
 
+	// When the same software ships as both a richer "app" entry (apps.json,
+	// path "apps/<slug>.json") and a curated plugin (plugins.json), the app
+	// wins. Two signals identify a collision: the app's path slug matching
+	// the plugin's slug / GitHub repo / URL key, and a case-insensitive
+	// title match. Either is enough.
+	function dedupePluginsAgainstApps(keys, data) {
+		var claimedSlugs = {};
+		var claimedTitles = {};
+		keys.forEach(function(path) {
+			var entry = data[path];
+			if (!entry || entry._type === 'plugin') return;
+			var match = path.match(/^apps\/([^\/]+)\.json$/);
+			if (match) claimedSlugs[match[1].toLowerCase()] = true;
+			if (entry.title) claimedTitles[entry.title.toLowerCase()] = true;
+		});
+		return keys.filter(function(path) {
+			var entry = data[path];
+			if (!entry || entry._type !== 'plugin') return true;
+			if (entry.title && claimedTitles[entry.title.toLowerCase()]) return false;
+			if (entry._slug && claimedSlugs[entry._slug.toLowerCase()]) return false;
+			if (entry._repo) {
+				var repoName = entry._repo.split('/').pop();
+				if (repoName && claimedSlugs[repoName.toLowerCase()]) return false;
+			}
+			// URL entries use a "url/<key>" path; the key portion is the
+			// curator-chosen identifier and may match an app slug.
+			var urlMatch = path.match(/^plugin\/url\/(.+)$/);
+			if (urlMatch && claimedSlugs[urlMatch[1].toLowerCase()]) return false;
+			return true;
+		});
+	}
+
 	function renderAppStore(data, category, search) {
 		category = category || 'all';
 		search = (search || '').toLowerCase();
@@ -2600,12 +2632,10 @@
 
 		var hasResults = false;
 
-		var keys = Object.keys(data);
-		if (category === '__plugins__') {
-			keys.sort(function(a, b) {
-				return (data[a].title || '').localeCompare(data[b].title || '', undefined, { sensitivity: 'base' });
-			});
-		}
+		var keys = dedupePluginsAgainstApps(Object.keys(data), data);
+		keys.sort(function(a, b) {
+			return (data[a].title || '').localeCompare(data[b].title || '', undefined, { sensitivity: 'base' });
+		});
 
 		keys.forEach(function(path) {
 			var app = data[path];

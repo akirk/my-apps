@@ -18,7 +18,7 @@ namespace My_Apps;
 defined( 'ABSPATH' ) || exit;
 
 add_action( 'wp_ajax_my_apps_desktop_icon', __NAMESPACE__ . '\serve_desktop_mode_icon' );
-add_action( 'plugins_loaded', __NAMESPACE__ . '\desktop_mode_register', 20 );
+add_action( 'init', __NAMESPACE__ . '\desktop_mode_register', 20 );
 
 function desktop_mode_register() {
 	if ( ! function_exists( 'desktop_mode_register_window' ) ) {
@@ -88,7 +88,7 @@ function desktop_mode_register() {
 			array(
 				'title'    => $app['name'],
 				'icon'     => $icon,
-				'url'      => $app['url'],
+				'url'      => add_query_arg( 'desktop_mode_chromeless', '1', $app['url'] ),
 				'position' => $position,
 			)
 		);

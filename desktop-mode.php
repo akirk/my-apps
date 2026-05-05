@@ -180,7 +180,7 @@ function svg_with_white_bg( $svg ) {
 function desktop_mode_window_template() {
 	?>
 	<iframe
-		src="<?php echo esc_url( home_url( '/my-apps/' ) ); ?>"
+		src="<?php echo esc_url( home_url( '/my-apps/?desktop_mode_chromeless=1' ) ); ?>"
 		style="width:100%;height:100%;border:0;display:block;"
 		title="<?php esc_attr_e( 'My Apps', 'my-apps' ); ?>"
 	></iframe>
@@ -190,7 +190,7 @@ function desktop_mode_window_template() {
 function desktop_mode_store_template() {
 	?>
 	<iframe
-		src="<?php echo esc_url( home_url( '/my-apps/?app-store=1' ) ); ?>"
+		src="<?php echo esc_url( home_url( '/my-apps/?app-store=1&desktop_mode_chromeless=1' ) ); ?>"
 		style="width:100%;height:100%;border:0;display:block;"
 		title="<?php esc_attr_e( 'Add', 'my-apps' ); ?>"
 	></iframe>

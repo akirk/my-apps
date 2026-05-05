@@ -43,6 +43,23 @@
 	const PLUGINS_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/plugins.json';
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
+
+	// Walk up the parent chain until we reach a cross-origin frame.
+	// In the normal case window.parent is already cross-origin (Playground).
+	// When running inside a Desktop Mode native window, window.parent is a
+	// same-origin intermediate frame, so we need to go one level higher.
+	function getPlaygroundTarget() {
+		var w = window.parent;
+		try {
+			while (w.parent !== w) {
+				void w.document; // throws if cross-origin — that's our target
+				w = w.parent;
+			}
+		} catch (e) {
+			// w is the first cross-origin ancestor: Playground
+		}
+		return w;
+	}
 	let recipes = {};
 	let hasRecipes = false;
 	let recipesLoadState = 'idle'; // idle | loading | loaded | failed
@@ -2190,7 +2207,7 @@
 			var blueprint = buildPluginBlueprint(app);
 			var blueprintUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(blueprint))));
 			addAppFromBlueprint(app, blueprint, gradient);
-			window.parent.postMessage({
+			getPlaygroundTarget().postMessage({
 				type: 'relay',
 				relayType: 'install-blueprint',
 				blueprintUrl: blueprintUrl
@@ -2787,7 +2804,7 @@
 					installBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
 						addAppFromBlueprintUrl(a, bUrl, g);
-						window.parent.postMessage({
+						getPlaygroundTarget().postMessage({
 							type: 'relay',
 							relayType: 'install-blueprint',
 							blueprintUrl: bUrl
@@ -3181,7 +3198,7 @@
 				installBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
 					addAppFromBlueprintUrl(a, bUrl, g);
-					window.parent.postMessage({
+					getPlaygroundTarget().postMessage({
 						type: 'relay',
 						relayType: 'install-blueprint',
 						blueprintUrl: bUrl
@@ -3540,7 +3557,7 @@
 			installBtn.textContent = 'Install';
 			installBtn.addEventListener('click', function() {
 				addAppFromBlueprintUrl(app, blueprintUrl, gradient);
-				window.parent.postMessage({
+				getPlaygroundTarget().postMessage({
 					type: 'relay',
 					relayType: 'install-blueprint',
 					blueprintUrl: blueprintUrl

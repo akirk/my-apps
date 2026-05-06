@@ -204,7 +204,75 @@
 		if (!btn) return;
 		btn.textContent = label;
 		btn.disabled = !!disabled;
-		btn.classList.toggle('is-busy', !!disabled && label !== 'Installed');
+		btn.classList.toggle('is-busy', !!disabled && ['Installed', 'Updated', 'Up to date'].indexOf(label) === -1);
+	}
+
+	function resetInstallButtonState(btn) {
+		setInstallButtonState(btn, (btn && btn.dataset.defaultLabel) || 'Install', false);
+	}
+
+	function absoluteLauncherUrl(url) {
+		if (!url) return '';
+		return url.indexOf('http') === 0 ? url : window.location.origin + url;
+	}
+
+	function getEntryLauncherUrl(app, blueprint) {
+		if (blueprint && blueprint.launcher_url) return blueprint.launcher_url;
+		if (!app) return '';
+		return app._launcherUrl || app.launcher_url || '';
+	}
+
+	function isLauncherUrlInstalled(url) {
+		return !!url && knownAppUrlExists(absoluteLauncherUrl(url));
+	}
+
+	function getInstalledPluginStatus(app) {
+		var installed = myAppsConfig.installedPlugins || {};
+		if (!app) return null;
+		if (app._source === 'wp.org' && app._slug) {
+			return installed[app._slug] || null;
+		}
+		if (app._path) {
+			var appMatch = String(app._path).match(/^apps\/([^\/]+)\.json$/);
+			if (appMatch && installed[appMatch[1]]) {
+				return installed[appMatch[1]];
+			}
+		}
+		return null;
+	}
+
+	function rememberInstalledPlugin(slug, result) {
+		if (!slug) return;
+		myAppsConfig.installedPlugins = myAppsConfig.installedPlugins || {};
+		myAppsConfig.installedPlugins[slug] = {
+			plugin: result.plugin || '',
+			name: result.pluginName || slug,
+			version: result.version || '',
+			active: !!(result.activated || result.alreadyActive),
+			updateAvailable: !!result.updateAvailable
+		};
+	}
+
+	function isStoreEntryInstalled(app, blueprint) {
+		if (getInstalledPluginStatus(app)) return true;
+		return isLauncherUrlInstalled(getEntryLauncherUrl(app, blueprint));
+	}
+
+	function getInstallButtonLabel(app, blueprint) {
+		return isStoreEntryInstalled(app, blueprint) ? 'Update' : 'Install';
+	}
+
+	function prepareInstallButton(btn, app, blueprint) {
+		if (!btn) return;
+		var label = getInstallButtonLabel(app, blueprint);
+		btn.dataset.defaultLabel = label;
+		btn.classList.toggle('is-update', label === 'Update');
+		setInstallButtonState(btn, label, false);
+	}
+
+	function canManageWpOrgPlugin(app) {
+		if (!app || app._source !== 'wp.org' || !app._slug) return false;
+		return !!(myAppsConfig.canInstallPlugins || (myAppsConfig.canUpdatePlugins && getInstalledPluginStatus(app)));
 	}
 
 	function ajaxErrorMessage(data, fallback) {
@@ -222,6 +290,7 @@
 	function addAppFromBlueprint(app, blueprint, gradient) {
 		var launcherUrl = blueprint && blueprint.launcher_url;
 		if (!launcherUrl) return Promise.resolve(false);
+		app._launcherUrl = launcherUrl;
 
 		var appUrl = launcherUrl.indexOf('http') === 0
 			? launcherUrl
@@ -270,7 +339,12 @@
 
 	function addAppFromBlueprintUrl(app, blueprintUrl, gradient) {
 		return resolveBlueprintFromUrl(blueprintUrl)
-			.then(function(blueprint) { return addAppFromBlueprint(app, blueprint, gradient); })
+			.then(function(blueprint) {
+				if (blueprint && blueprint.launcher_url) {
+					app._launcherUrl = blueprint.launcher_url;
+				}
+				return addAppFromBlueprint(app, blueprint, gradient);
+			})
 			.catch(function() { return false; });
 	}
 
@@ -2328,7 +2402,7 @@
 			infoEl.classList.remove('active');
 			infoEl.innerHTML = '';
 		}
-		setInstallButtonState(btn, 'Install', false);
+		resetInstallButtonState(btn);
 	}
 
 	function showManualBlueprintInstall(blueprintUrl, infoEl, btn, message) {
@@ -2404,7 +2478,7 @@
 		if (infoEl.classList.contains('active')) {
 			infoEl.classList.remove('active');
 			infoEl.innerHTML = '';
-			setInstallButtonState(btn, 'Install', false);
+			resetInstallButtonState(btn);
 			return;
 		}
 
@@ -2498,16 +2572,6 @@
 			return;
 		}
 
-		if (!myAppsConfig.canInstallPlugins) {
-			showManualBlueprintInstall(
-				blueprintUrl,
-				infoEl,
-				btn,
-				'This account cannot install plugins on this host.'
-			);
-			return;
-		}
-
 		setInstallButtonState(btn, 'Checking...', true);
 		resolveBlueprintFromUrl(blueprintUrl)
 			.then(function(blueprint) {
@@ -2530,24 +2594,51 @@
 					);
 					return false;
 				}
+				if (!myAppsConfig.canInstallPlugins) {
+					var canUpdateInstalledPlugins = !!myAppsConfig.canUpdatePlugins && plan.plugins.every(function(slug) {
+						return !!((myAppsConfig.installedPlugins || {})[slug]);
+					});
+					if (!canUpdateInstalledPlugins) {
+						showManualBlueprintInstall(
+							blueprintUrl,
+							infoEl,
+							btn,
+							'This account cannot install plugins on this host.'
+						);
+						return false;
+					}
+				}
 
+				var installResults = [];
 				return plan.plugins.reduce(function(promise, slug) {
 					return promise.then(function() {
-						setInstallButtonState(btn, 'Installing...', true);
-						return installWpOrgPluginOnHost(slug);
+						setInstallButtonState(btn, getInstallButtonLabel(app, blueprint) === 'Update' ? 'Updating...' : 'Installing...', true);
+						return installWpOrgPluginOnHost(slug).then(function(result) {
+							rememberInstalledPlugin(slug, result);
+							installResults.push(result);
+							return result;
+						});
 					});
 				}, Promise.resolve())
 					.then(function() {
 						return addAppFromBlueprint(app, blueprint, gradient);
 					})
 					.then(function(added) {
-						setInstallButtonState(btn, 'Installed', true);
-						showToast(added ? 'Installed and added to My Apps' : 'Installed');
+						var updated = installResults.some(function(result) { return result.updated; });
+						var alreadyInstalled = installResults.length && installResults.every(function(result) { return result.alreadyInstalled && !result.updated && !result.activated; });
+						setInstallButtonState(btn, updated ? 'Updated' : (alreadyInstalled ? 'Up to date' : 'Installed'), true);
+						if (updated) {
+							showToast(added ? 'Updated and added to My Apps' : 'Updated');
+						} else if (alreadyInstalled) {
+							showToast(added ? 'Added to My Apps' : 'Already up to date');
+						} else {
+							showToast(added ? 'Installed and added to My Apps' : 'Installed');
+						}
 						return true;
 					});
 			})
 			.catch(function(error) {
-				setInstallButtonState(btn, 'Install', false);
+				resetInstallButtonState(btn);
 				showToast(error && error.message ? error.message : 'Install failed');
 			});
 	}
@@ -2586,10 +2677,11 @@
 			return;
 		}
 
-		if (app._source === 'wp.org' && app._slug && myAppsConfig.canInstallPlugins) {
-			setInstallButtonState(btn, 'Installing...', true);
+		if (canManageWpOrgPlugin(app)) {
+			setInstallButtonState(btn, getInstallButtonLabel(app) === 'Update' ? 'Updating...' : 'Installing...', true);
 			installWpOrgPluginOnHost(app._slug)
 				.then(function(result) {
+					rememberInstalledPlugin(app._slug, result);
 					if (result.activated || result.alreadyActive) {
 						return addAppFromBlueprint(app, buildPluginBlueprint(app), gradient).then(function(added) {
 							return { result: result, added: added };
@@ -2598,7 +2690,20 @@
 					return { result: result, added: false };
 				})
 				.then(function(outcome) {
-					setInstallButtonState(btn, 'Installed', true);
+					if (outcome.result.updated) {
+						setInstallButtonState(btn, 'Updated', true);
+						showToast(outcome.added ? 'Updated and added to My Apps' : 'Updated');
+					} else if (outcome.result.alreadyInstalled && !outcome.result.activated) {
+						setInstallButtonState(btn, 'Up to date', true);
+						showToast(outcome.added ? 'Added to My Apps' : 'Already up to date');
+					} else {
+						setInstallButtonState(btn, 'Installed', true);
+					}
+
+					if (outcome.result.updated || (outcome.result.alreadyInstalled && !outcome.result.activated)) {
+						return;
+					}
+
 					if (outcome.result.activated || outcome.result.alreadyActive) {
 						showToast(outcome.added ? 'Installed and added to My Apps' : 'Installed and activated');
 					} else {
@@ -2606,7 +2711,7 @@
 					}
 				})
 				.catch(function(error) {
-					setInstallButtonState(btn, 'Install', false);
+					resetInstallButtonState(btn);
 					showToast(error && error.message ? error.message : 'Install failed');
 				});
 			return;
@@ -3060,6 +3165,7 @@
 
 		keys.forEach(function(path) {
 			var app = data[path];
+			app._path = path;
 
 			// Category filter
 			if (category === '__plugins__') {
@@ -3187,7 +3293,7 @@
 				var pluginInstallBtn = document.createElement('button');
 				pluginInstallBtn.type = 'button';
 				pluginInstallBtn.className = 'app-store-install-btn';
-				pluginInstallBtn.textContent = 'Install';
+				prepareInstallButton(pluginInstallBtn, app);
 				(function(p, a, g) {
 					pluginInstallBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
@@ -3203,7 +3309,7 @@
 				var installBtn = document.createElement('button');
 				installBtn.type = 'button';
 				installBtn.className = 'app-store-install-btn';
-				installBtn.textContent = 'Install';
+				prepareInstallButton(installBtn, app);
 				(function(a, bUrl, g) {
 					installBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
@@ -3220,7 +3326,7 @@
 				var hostedInstallBtn = document.createElement('button');
 				hostedInstallBtn.type = 'button';
 				hostedInstallBtn.className = 'app-store-install-btn';
-				hostedInstallBtn.textContent = 'Install';
+				prepareInstallButton(hostedInstallBtn, app);
 				(function(p, a, bUrl, g) {
 					hostedInstallBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
@@ -3544,6 +3650,7 @@
 	}
 
 	function buildRecipeStepCard(path, app) {
+		app._path = path;
 		var isPluginEntry = app._type === 'plugin';
 		var blueprintUrl = isPluginEntry ? '' : getBlueprintUrl(path);
 
@@ -3597,7 +3704,7 @@
 			var pluginBtn = document.createElement('button');
 			pluginBtn.type = 'button';
 			pluginBtn.className = 'app-store-install-btn';
-			pluginBtn.textContent = 'Install';
+			prepareInstallButton(pluginBtn, app);
 			(function(p, a, g) {
 				pluginBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
@@ -3613,7 +3720,7 @@
 			var installBtn = document.createElement('button');
 			installBtn.type = 'button';
 			installBtn.className = 'app-store-install-btn';
-			installBtn.textContent = 'Install';
+			prepareInstallButton(installBtn, app);
 			(function(a, bUrl, g) {
 				installBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
@@ -3630,7 +3737,7 @@
 			var hostedInstallBtn = document.createElement('button');
 			hostedInstallBtn.type = 'button';
 			hostedInstallBtn.className = 'app-store-install-btn';
-			hostedInstallBtn.textContent = 'Install';
+			prepareInstallButton(hostedInstallBtn, app);
 			(function(p, a, bUrl, g) {
 				hostedInstallBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
@@ -3693,6 +3800,7 @@
 
 	function renderPluginDetail(pluginPath, plugin, options) {
 		options = options || {};
+		plugin._path = pluginPath;
 		var sidebar = document.getElementById('app-store-sidebar');
 		sidebar.classList.add('app-store-sidebar-hidden');
 
@@ -3774,7 +3882,7 @@
 		var installBtn = document.createElement('button');
 		installBtn.type = 'button';
 		installBtn.className = 'app-store-install-btn app-detail-install-btn';
-		installBtn.textContent = 'Install';
+		prepareInstallButton(installBtn, plugin);
 		installBtn.addEventListener('click', function() {
 			installPluginApp(plugin, gradient, installBtn, pluginInstallInfoEl);
 		});
@@ -3897,6 +4005,7 @@
 	}
 
 	function renderAppDetail(appPath, app, blueprintUrl, gradient) {
+		app._path = appPath;
 		var wpIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/></svg>';
 
 		// Hide sidebar — detail page is full-width in the main area
@@ -3995,7 +4104,7 @@
 			installBtn = document.createElement('button');
 			installBtn.type = 'button';
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
-			installBtn.textContent = 'Install';
+			prepareInstallButton(installBtn, app);
 			installBtn.addEventListener('click', function() {
 				addAppFromBlueprintUrl(app, blueprintUrl, gradient);
 				getPlaygroundTarget().postMessage({
@@ -4008,7 +4117,7 @@
 			installBtn = document.createElement('button');
 			installBtn.type = 'button';
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
-			installBtn.textContent = 'Install';
+			prepareInstallButton(installBtn, app);
 			installBtn.addEventListener('click', function() {
 				installBlueprintOnHost(app, blueprintUrl, gradient, blueprintInfoEl, installBtn);
 			});
@@ -4088,6 +4197,12 @@
 		blueprintPromise
 			.then(function(blueprint) {
 				recipeLoading.remove();
+				if (blueprint && blueprint.launcher_url) {
+					app._launcherUrl = blueprint.launcher_url;
+					if (!installBtn.disabled) {
+						prepareInstallButton(installBtn, app, blueprint);
+					}
+				}
 
 				var steps = blueprint.steps || [];
 				if (steps.length === 0) {

@@ -398,10 +398,12 @@ class My_Apps {
 				'nonce'             => wp_create_nonce( 'my_apps_launcher' ),
 				'isPlayground'      => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
 				'canInstallPlugins' => current_user_can( 'install_plugins' ),
+				'canUpdatePlugins'  => current_user_can( 'update_plugins' ),
 				'pluginInstallUrl'  => self_admin_url( 'plugin-install.php' ),
 				'displayName'       => wp_get_current_user()->display_name,
 				'deletableSlugs'    => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
 				'appUrls'           => array_values( array_unique( array_filter( $app_urls ) ) ),
+				'installedPlugins'  => self::get_installed_plugin_statuses(),
 				'i18n'              => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
 					'confirmDelete' => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
@@ -416,7 +418,7 @@ class My_Apps {
 	public function ajax_install_plugin() {
 		check_ajax_referer( 'my_apps_launcher', 'nonce' );
 
-		if ( ! current_user_can( 'install_plugins' ) ) {
+		if ( ! current_user_can( 'install_plugins' ) && ! current_user_can( 'update_plugins' ) ) {
 			wp_send_json_error(
 				array(
 					'errorMessage' => __( 'Sorry, you are not allowed to install plugins on this site.', 'my-apps' ),
@@ -458,8 +460,18 @@ class My_Apps {
 
 		$status            = install_plugin_install_status( $api );
 		$already_installed = in_array( $status['status'], array( 'latest_installed', 'newer_installed', 'update_available' ), true );
+		$updated           = false;
 
 		if ( 'install' === $status['status'] ) {
+			if ( ! current_user_can( 'install_plugins' ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'errorMessage' => __( 'Sorry, you are not allowed to install plugins on this site.', 'my-apps' ),
+					)
+				);
+			}
+
 			$skin     = new \WP_Ajax_Upgrader_Skin();
 			$upgrader = new \Plugin_Upgrader( $skin );
 			$result   = $upgrader->install( $api->download_link );
@@ -491,6 +503,84 @@ class My_Apps {
 				wp_send_json_error(
 					array(
 						'slug'         => $slug,
+						'errorCode'    => 'unable_to_connect_to_filesystem',
+						'errorMessage' => __( 'Unable to connect to the filesystem. Please confirm your credentials.', 'my-apps' ),
+					)
+				);
+			}
+
+			wp_clean_plugins_cache();
+			$status = install_plugin_install_status( $api );
+		} elseif ( 'update_available' === $status['status'] ) {
+			if ( ! current_user_can( 'update_plugins' ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'errorMessage' => __( 'Sorry, you are not allowed to update plugins on this site.', 'my-apps' ),
+					)
+				);
+			}
+
+			$plugin_file = ! empty( $status['file'] ) ? $status['file'] : $this->find_plugin_file_by_slug( $slug );
+			if ( empty( $plugin_file ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'errorMessage' => __( 'The plugin is installed, but WordPress could not identify its main plugin file.', 'my-apps' ),
+					)
+				);
+			}
+
+			wp_update_plugins();
+
+			$skin     = new \WP_Ajax_Upgrader_Skin();
+			$upgrader = new \Plugin_Upgrader( $skin );
+			$result   = $upgrader->bulk_upgrade( array( $plugin_file ) );
+
+			if ( is_wp_error( $skin->result ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'plugin'       => $plugin_file,
+						'errorCode'    => $skin->result->get_error_code(),
+						'errorMessage' => $skin->result->get_error_message(),
+					)
+				);
+			} elseif ( $skin->get_errors()->has_errors() ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'plugin'       => $plugin_file,
+						'errorMessage' => $skin->get_error_messages(),
+					)
+				);
+			} elseif ( is_array( $result ) && isset( $result[ $plugin_file ] ) ) {
+				if ( is_wp_error( $result[ $plugin_file ] ) ) {
+					wp_send_json_error(
+						array(
+							'slug'         => $slug,
+							'plugin'       => $plugin_file,
+							'errorCode'    => $result[ $plugin_file ]->get_error_code(),
+							'errorMessage' => $result[ $plugin_file ]->get_error_message(),
+						)
+					);
+				}
+
+				$updated = true !== $result[ $plugin_file ];
+			} elseif ( false === $result ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'plugin'       => $plugin_file,
+						'errorCode'    => 'unable_to_connect_to_filesystem',
+						'errorMessage' => __( 'Unable to connect to the filesystem. Please confirm your credentials.', 'my-apps' ),
+					)
+				);
+			} elseif ( is_null( $result ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'plugin'       => $plugin_file,
 						'errorCode'    => 'unable_to_connect_to_filesystem',
 						'errorMessage' => __( 'Unable to connect to the filesystem. Please confirm your credentials.', 'my-apps' ),
 					)
@@ -538,9 +628,60 @@ class My_Apps {
 				'alreadyInstalled' => $already_installed,
 				'activated'        => $activated,
 				'alreadyActive'    => $already_active,
+				'updated'          => $updated,
 				'updateAvailable'  => 'update_available' === $status['status'],
+				'status'           => $status['status'],
+				'version'          => ! empty( $status['version'] ) ? $status['version'] : '',
 			)
 		);
+	}
+
+	/**
+	 * Get installed plugin status keyed by directory slug for launcher UI.
+	 *
+	 * @return array
+	 */
+	private static function get_installed_plugin_statuses() {
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$statuses = array();
+		foreach ( get_plugins() as $plugin_file => $data ) {
+			$slug = dirname( $plugin_file );
+			if ( '.' === $slug ) {
+				$slug = basename( $plugin_file, '.php' );
+			}
+
+			$statuses[ $slug ] = array(
+				'plugin'          => $plugin_file,
+				'name'            => isset( $data['Name'] ) ? $data['Name'] : $slug,
+				'version'         => isset( $data['Version'] ) ? $data['Version'] : '',
+				'active'          => is_plugin_active( $plugin_file ),
+				'updateAvailable' => false,
+				'newVersion'      => '',
+			);
+		}
+
+		$update_plugins = get_site_transient( 'update_plugins' );
+		if ( isset( $update_plugins->response ) ) {
+			foreach ( (array) $update_plugins->response as $plugin_file => $plugin ) {
+				$slug = ! empty( $plugin->slug ) ? $plugin->slug : dirname( $plugin_file );
+				if ( ! isset( $statuses[ $slug ] ) ) {
+					$statuses[ $slug ] = array(
+						'plugin'  => $plugin_file,
+						'name'    => $slug,
+						'version' => '',
+						'active'  => is_plugin_active( $plugin_file ),
+					);
+				}
+
+				$statuses[ $slug ]['updateAvailable'] = true;
+				$statuses[ $slug ]['newVersion']      = isset( $plugin->new_version ) ? $plugin->new_version : '';
+			}
+		}
+
+		return $statuses;
 	}
 
 	/**

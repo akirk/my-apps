@@ -367,11 +367,21 @@ class My_Apps {
 
 		wp_enqueue_style( 'dashicons' );
 
+		if ( current_user_can( 'upload_files' ) ) {
+			wp_enqueue_media();
+		}
+
 		$app_urls = array();
 		foreach ( self::get_apps() as $app ) {
 			if ( ! empty( $app['url'] ) ) {
 				$app_urls[] = self::normalize_app_url( $app['url'] );
 			}
+		}
+
+		$background_image_id  = absint( get_option( 'my_apps_background_image_id', 0 ) );
+		$background_image_url = $background_image_id ? wp_get_attachment_image_url( $background_image_id, 'medium' ) : '';
+		if ( ! $background_image_url && $background_image_id ) {
+			$background_image_url = wp_get_attachment_image_url( $background_image_id, 'full' );
 		}
 
 		wp_enqueue_script(
@@ -404,9 +414,16 @@ class My_Apps {
 				'deletableSlugs'    => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
 				'appUrls'           => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'  => self::get_installed_plugin_statuses(),
+				'canUploadMedia'     => current_user_can( 'upload_files' ),
+				'backgroundImageId'  => $background_image_id,
+				'backgroundImageUrl' => $background_image_url,
 				'i18n'              => array(
-					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
-					'confirmDelete' => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
+					'fillAllFields'         => __( 'Please fill in all fields', 'my-apps' ),
+					'confirmDelete'         => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
+					'chooseBackgroundImage' => __( 'Choose Background Image', 'my-apps' ),
+					'useBackgroundImage'    => __( 'Use as Background', 'my-apps' ),
+					'mediaUnavailable'       => __( 'The media library is unavailable.', 'my-apps' ),
+					'invalidBackgroundImage' => __( 'Please choose an image file.', 'my-apps' ),
 				),
 			)
 		);
@@ -803,10 +820,39 @@ class My_Apps {
 			'gradient-purple', 'gradient-blue', 'gradient-green', 'gradient-orange',
 			'gradient-pink', 'gradient-dark', 'gradient-sunset', 'gradient-ocean',
 			'solid-gray', 'solid-blue', 'solid-green', 'solid-red', 'solid-purple', 'solid-dark',
+			'image',
 		);
 
 		if ( ! in_array( $background, $valid_backgrounds, true ) ) {
 			wp_send_json_error( 'Invalid background' );
+		}
+
+		if ( 'image' === $background ) {
+			if ( ! current_user_can( 'upload_files' ) ) {
+				wp_send_json_error( 'Not allowed' );
+			}
+
+			$attachment_id = isset( $_POST['attachment_id'] )
+				? absint( wp_unslash( $_POST['attachment_id'] ) )
+				: 0;
+			if ( ! $attachment_id || ! wp_attachment_is_image( $attachment_id ) ) {
+				wp_send_json_error( 'Invalid background image' );
+			}
+
+			$background_image_url = wp_get_attachment_image_url( $attachment_id, 'full' );
+			if ( ! $background_image_url ) {
+				wp_send_json_error( 'Invalid background image' );
+			}
+
+			update_option( 'my_apps_background', $background );
+			update_option( 'my_apps_background_image_id', $attachment_id );
+			wp_send_json_success(
+				array(
+					'background'    => $background,
+					'attachment_id' => $attachment_id,
+					'url'           => $background_image_url,
+				)
+			);
 		}
 
 		update_option( 'my_apps_background', $background );
@@ -1157,10 +1203,11 @@ class My_Apps {
 
 		wp_send_json_success(
 			array(
-				'sort'            => get_option( 'my_apps_sort', array() ),
-				'hide_plugins'    => get_option( 'my_apps_hide_plugins', array() ),
-				'additional_apps' => get_option( 'my_apps_additional_apps', array() ),
-				'background'      => get_option( 'my_apps_background', 'gradient-dark' ),
+				'sort'                => get_option( 'my_apps_sort', array() ),
+				'hide_plugins'        => get_option( 'my_apps_hide_plugins', array() ),
+				'additional_apps'     => get_option( 'my_apps_additional_apps', array() ),
+				'background'          => get_option( 'my_apps_background', 'gradient-dark' ),
+				'background_image_id' => absint( get_option( 'my_apps_background_image_id', 0 ) ),
 			)
 		);
 	}
@@ -1192,6 +1239,12 @@ class My_Apps {
 		}
 		if ( isset( $data['background'] ) && is_string( $data['background'] ) ) {
 			update_option( 'my_apps_background', $data['background'] );
+		}
+		if ( isset( $data['background_image_id'] ) ) {
+			$background_image_id = absint( $data['background_image_id'] );
+			if ( $background_image_id && wp_attachment_is_image( $background_image_id ) ) {
+				update_option( 'my_apps_background_image_id', $background_image_id );
+			}
 		}
 
 		wp_send_json_success();

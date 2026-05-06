@@ -26,6 +26,7 @@
 	let adminMenuData = null;
 	let appStoreData = null;
 	let sortable = null;
+	let backgroundMediaFrame = null;
 	let longPressTimer = null;
 	let contextTarget = null;
 	// Tracks a deep-link target picked up by checkDeepLink so loadAppStore
@@ -1253,6 +1254,7 @@
 		hiddenAppsList.addEventListener('click', handleHiddenListClick);
 
 		// Mark current background as selected
+		updateBackgroundImageOption(myAppsConfig.backgroundImageUrl);
 		var currentBg = body.className.match(/bg-[\w-]+/);
 		if (currentBg) {
 			var selected = bgPicker.querySelector('[data-bg="' + currentBg[0].replace('bg-', '') + '"]');
@@ -1268,6 +1270,141 @@
 
 	function closeBgPicker() {
 		bgPicker.classList.remove('active');
+	}
+
+	function getBackgroundI18n(key, fallback) {
+		return myAppsConfig.i18n && myAppsConfig.i18n[key] ? myAppsConfig.i18n[key] : fallback;
+	}
+
+	function getBackgroundAttachmentUrl(attachment) {
+		if (!attachment) return '';
+		if (attachment.sizes && attachment.sizes.full && attachment.sizes.full.url) {
+			return attachment.sizes.full.url;
+		}
+		return attachment.url || '';
+	}
+
+	function openBackgroundMediaFrame() {
+		if (!myAppsConfig.canUploadMedia || !window.wp || !window.wp.media) {
+			showToast(getBackgroundI18n('mediaUnavailable', 'The media library is unavailable.'));
+			return;
+		}
+
+		if (!backgroundMediaFrame) {
+			backgroundMediaFrame = window.wp.media({
+				title: getBackgroundI18n('chooseBackgroundImage', 'Choose Background Image'),
+				button: {
+					text: getBackgroundI18n('useBackgroundImage', 'Use as Background')
+				},
+				library: {
+					type: 'image'
+				},
+				multiple: false
+			});
+
+			backgroundMediaFrame.on('open', function() {
+				var attachmentId = parseInt(myAppsConfig.backgroundImageId || 0, 10);
+				var selection = backgroundMediaFrame.state().get('selection');
+				selection.reset();
+				if (!attachmentId) return;
+
+				var attachment = window.wp.media.attachment(attachmentId);
+				attachment.fetch();
+				selection.add(attachment);
+			});
+
+			backgroundMediaFrame.on('select', function() {
+				var attachment = backgroundMediaFrame.state().get('selection').first();
+				if (!attachment) return;
+
+				attachment = attachment.toJSON();
+				var attachmentId = parseInt(attachment.id || 0, 10);
+				var imageUrl = getBackgroundAttachmentUrl(attachment);
+				if (!attachmentId || !imageUrl) {
+					showToast(getBackgroundI18n('invalidBackgroundImage', 'Please choose an image file.'));
+					return;
+				}
+
+				saveBackground('image', attachmentId, imageUrl);
+			});
+		}
+
+		backgroundMediaFrame.open();
+	}
+
+	function selectBackgroundOption(bg) {
+		bgPicker.querySelectorAll('[data-bg]').forEach(function(opt) {
+			opt.classList.remove('selected');
+		});
+
+		var selected = bgPicker.querySelector('[data-bg="' + bg + '"]');
+		if (selected) {
+			selected.classList.add('selected');
+		}
+	}
+
+	function cssUrl(value) {
+		return String(value).replace(/["\\\n\r\f]/g, '\\$&');
+	}
+
+	function applyBackground(bg, imageUrl) {
+		body.className = body.className.replace(/bg-[\w-]+/g, '').trim();
+		body.classList.add('bg-' + bg);
+		body.style.background = '';
+
+		if (bg === 'image' && imageUrl) {
+			body.style.backgroundImage = 'url("' + cssUrl(imageUrl) + '")';
+		} else {
+			body.style.backgroundImage = '';
+		}
+	}
+
+	function updateBackgroundImageOption(imageUrl) {
+		var imageOption = bgPicker.querySelector('[data-bg="image"]');
+		if (!imageOption || !imageUrl) return;
+
+		var thumb = imageOption.querySelector('.bg-image-thumb');
+		if (thumb) {
+			thumb.style.backgroundImage = 'url("' + cssUrl(imageUrl) + '")';
+			thumb.classList.add('has-image');
+		}
+	}
+
+	function saveBackground(bg, attachmentId, previewUrl) {
+		selectBackgroundOption(bg);
+		applyBackground(bg, previewUrl);
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_save_background');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('background', bg);
+		if (attachmentId) {
+			formData.append('attachment_id', attachmentId);
+		}
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (!data.success) {
+				showToast(data.data || getBackgroundI18n('invalidBackgroundImage', 'Please choose an image file.'));
+				return;
+			}
+
+			if (bg === 'image' && data.data) {
+				myAppsConfig.backgroundImageId = data.data.attachment_id || attachmentId;
+				myAppsConfig.backgroundImageUrl = data.data.url || previewUrl;
+				updateBackgroundImageOption(myAppsConfig.backgroundImageUrl);
+				applyBackground('image', myAppsConfig.backgroundImageUrl);
+			}
+		})
+		.catch(function() {
+			showToast(getBackgroundI18n('mediaUnavailable', 'The media library is unavailable.'));
+		});
+
+		closeBgPicker();
 	}
 
 	function toggleHiddenPopup() {
@@ -1381,33 +1518,17 @@
 	}
 
 	function handleBgSelect(e) {
-		var option = e.target.closest('.bg-option');
+		var option = e.target.closest('[data-bg]');
 		if (!option) return;
 
 		var bg = option.dataset.bg;
 
-		// Update selection UI
-		bgPicker.querySelectorAll('.bg-option').forEach(function(opt) {
-			opt.classList.remove('selected');
-		});
-		option.classList.add('selected');
+		if (bg === 'image') {
+			openBackgroundMediaFrame();
+			return;
+		}
 
-		// Remove old bg classes and add new one
-		body.className = body.className.replace(/bg-[\w-]+/g, '').trim();
-		body.classList.add('bg-' + bg);
-
-		// Save via AJAX
-		var formData = new FormData();
-		formData.append('action', 'my_apps_save_background');
-		formData.append('nonce', myAppsConfig.nonce);
-		formData.append('background', bg);
-
-		fetch(myAppsConfig.ajaxUrl, {
-			method: 'POST',
-			body: formData
-		});
-
-		closeBgPicker();
+		saveBackground(bg);
 	}
 
 	var DISPLAY_KEYS = ['layout', 'icon_size', 'spacing', 'grid_columns'];

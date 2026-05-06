@@ -34,7 +34,7 @@ $can_manage = current_user_can( 'manage_options' );
 </head>
 
 <?php
-$background = get_option( 'my_apps_background', 'gradient-purple' );
+$background = get_option( 'my_apps_background', 'gradient-dark' );
 $custom_bg = get_option( 'my_apps_background_custom', '' );
 $custom_bg_style = ( $background === 'custom' && $custom_bg ) ? 'background: ' . $custom_bg : '';
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended

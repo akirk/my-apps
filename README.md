@@ -41,6 +41,13 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
         return $apps;
     } );
 
+### Abilities API
+
+When the WordPress Abilities API is available, My Apps registers a `my-apps` category with two customization abilities:
+
+- `my-apps/get-customization` returns the server-stored launcher customization state, including the selected background, accepted background slugs, sort order, hidden apps, and app customization metadata.
+- `my-apps/set-background` updates the launcher background using one of the accepted background slugs.
+
 ## Screenshots
 
 1. The Launcher
@@ -59,4 +66,3 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
    ![Adding an admin link](https://ps.w.org/my-apps/assets/screenshot-7.png)
 8. Adding a web link with a custom emoji, image URL, or Dashicon
    ![Adding a web link](https://ps.w.org/my-apps/assets/screenshot-8.png)
-

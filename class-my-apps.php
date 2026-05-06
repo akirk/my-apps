@@ -8,6 +8,22 @@ defined( 'ABSPATH' ) || exit;
  */
 class My_Apps {
 	const ICON_PATH = 'M6 5.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM4 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm11-.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM13 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V6zm5 8.5h-3a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5zM15 13a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2h-3zm-9 1.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM4 15a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3z';
+	const VALID_BACKGROUNDS = array(
+		'gradient-purple',
+		'gradient-blue',
+		'gradient-green',
+		'gradient-orange',
+		'gradient-pink',
+		'gradient-dark',
+		'gradient-sunset',
+		'gradient-ocean',
+		'solid-gray',
+		'solid-blue',
+		'solid-green',
+		'solid-red',
+		'solid-purple',
+		'solid-dark',
+	);
 
 	public static function icon_svg() {
 		return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="' .
@@ -35,6 +51,8 @@ class My_Apps {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 		add_action( 'wp_enqueue_styles', array( $this, 'enqueue_styles' ) );
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
+		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_ability_categories' ) );
+		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 
 		// AJAX handlers for launcher
 		add_action( 'wp_ajax_my_apps_save_display_name', array( $this, 'ajax_save_display_name' ) );
@@ -56,6 +74,142 @@ class My_Apps {
 
 	public function admin_enqueue_scripts() {
 		$this->enqueue_styles();
+	}
+
+	/**
+	 * Register the My Apps ability category.
+	 */
+	public function register_ability_categories() {
+		if ( ! function_exists( 'wp_register_ability_category' ) ) {
+			return;
+		}
+
+		wp_register_ability_category(
+			'my-apps',
+			array(
+				'label'       => __( 'My Apps', 'my-apps' ),
+				'description' => __( 'Abilities for reading and customizing the My Apps launcher.', 'my-apps' ),
+			)
+		);
+	}
+
+	/**
+	 * Register Abilities API actions for launcher customization.
+	 */
+	public function register_abilities() {
+		if ( ! function_exists( 'wp_register_ability' ) ) {
+			return;
+		}
+
+		wp_register_ability(
+			'my-apps/get-customization',
+			array(
+				'label'               => __( 'Get My Apps Customization', 'my-apps' ),
+				'description'         => __( 'Returns the server-stored customization state for the My Apps launcher.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'output_schema'       => self::customization_output_schema(),
+				'execute_callback'    => array( $this, 'ability_get_customization' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+						'idempotent'  => true,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+
+		wp_register_ability(
+			'my-apps/set-background',
+			array(
+				'label'               => __( 'Set My Apps Background', 'my-apps' ),
+				'description'         => __( 'Updates the My Apps launcher background preference.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'required'             => array( 'background' ),
+					'properties'           => array(
+						'background' => array(
+							'type'        => 'string',
+							'enum'        => self::VALID_BACKGROUNDS,
+							'description' => __( 'The launcher background slug.', 'my-apps' ),
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array(
+					'type'                 => 'object',
+					'required'             => array( 'background', 'valid_backgrounds' ),
+					'properties'           => array(
+						'background'        => array(
+							'type'        => 'string',
+							'enum'        => self::VALID_BACKGROUNDS,
+							'description' => __( 'The selected launcher background slug.', 'my-apps' ),
+						),
+						'valid_backgrounds' => array(
+							'type'        => 'array',
+							'description' => __( 'Background slugs accepted by the launcher.', 'my-apps' ),
+							'items'       => array(
+								'type' => 'string',
+								'enum' => self::VALID_BACKGROUNDS,
+							),
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'execute_callback'    => array( $this, 'ability_set_background' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'readonly'    => false,
+						'destructive' => false,
+						'idempotent'  => true,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+	}
+
+	/**
+	 * Permission callback for customization abilities.
+	 *
+	 * @return bool
+	 */
+	public function can_use_customization_abilities() {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * Ability: get launcher customization.
+	 *
+	 * @return array
+	 */
+	public function ability_get_customization() {
+		return self::customization_payload();
+	}
+
+	/**
+	 * Ability: set launcher background.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function ability_set_background( $input = array() ) {
+		$background = is_array( $input ) && isset( $input['background'] ) ? sanitize_text_field( wp_unslash( $input['background'] ) ) : '';
+
+		if ( ! in_array( $background, self::VALID_BACKGROUNDS, true ) ) {
+			return new \WP_Error( 'my_apps_invalid_background', __( 'Invalid background', 'my-apps' ) );
+		}
+
+		update_option( 'my_apps_background', $background );
+
+		return array(
+			'background'        => $background,
+			'valid_backgrounds' => self::VALID_BACKGROUNDS,
+		);
 	}
 
 	/**
@@ -828,14 +982,7 @@ class My_Apps {
 
 		$background = isset( $_POST['background'] ) ? sanitize_text_field( wp_unslash( $_POST['background'] ) ) : '';
 
-		$valid_backgrounds = array(
-			'gradient-purple', 'gradient-blue', 'gradient-green', 'gradient-orange',
-			'gradient-pink', 'gradient-dark', 'gradient-sunset', 'gradient-ocean',
-			'solid-gray', 'solid-blue', 'solid-green', 'solid-red', 'solid-purple', 'solid-dark',
-			'image',
-		);
-
-		if ( ! in_array( $background, $valid_backgrounds, true ) ) {
+		if ( ! in_array( $background, self::VALID_BACKGROUNDS, true ) ) {
 			wp_send_json_error( 'Invalid background' );
 		}
 
@@ -1260,6 +1407,217 @@ class My_Apps {
 		}
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * Build the output schema for launcher customization.
+	 *
+	 * @return array
+	 */
+	private static function customization_output_schema() {
+		return array(
+			'type'                 => 'object',
+			'required'             => array( 'background', 'valid_backgrounds', 'sort', 'hidden', 'apps' ),
+			'properties'           => array(
+				'background'        => array(
+					'type'        => 'string',
+					'description' => __( 'The selected launcher background slug.', 'my-apps' ),
+				),
+				'custom_background' => array(
+					'type'        => 'string',
+					'description' => __( 'Custom CSS background value, when the selected background is custom.', 'my-apps' ),
+				),
+				'valid_backgrounds' => array(
+					'type'        => 'array',
+					'description' => __( 'Background slugs accepted by the launcher background setter.', 'my-apps' ),
+					'items'       => array(
+						'type' => 'string',
+						'enum' => self::VALID_BACKGROUNDS,
+					),
+				),
+				'sort'              => array(
+					'type'        => 'array',
+					'description' => __( 'Stored launcher app order as app slugs.', 'my-apps' ),
+					'items'       => array(
+						'type' => 'string',
+					),
+				),
+				'hidden'            => array(
+					'type'        => 'array',
+					'description' => __( 'Stored hidden launcher app slugs.', 'my-apps' ),
+					'items'       => array(
+						'type' => 'string',
+					),
+				),
+				'apps'              => array(
+					'type'        => 'array',
+					'description' => __( 'Apps available to the launcher with customization metadata.', 'my-apps' ),
+					'items'       => array(
+						'type'                 => 'object',
+						'required'             => array( 'slug', 'name', 'url', 'source', 'hidden', 'deletable' ),
+						'properties'           => array(
+							'slug'      => array(
+								'type'        => 'string',
+								'description' => __( 'The launcher app slug.', 'my-apps' ),
+							),
+							'name'      => array(
+								'type'        => 'string',
+								'description' => __( 'The launcher app display name.', 'my-apps' ),
+							),
+							'url'       => array(
+								'type'        => 'string',
+								'description' => __( 'The launcher app URL.', 'my-apps' ),
+							),
+							'source'    => array(
+								'type'        => 'string',
+								'enum'        => array( 'registered', 'custom' ),
+								'description' => __( 'Whether the app comes from plugin registration or launcher customization.', 'my-apps' ),
+							),
+							'hidden'    => array(
+								'type'        => 'boolean',
+								'description' => __( 'Whether the app is hidden from the launcher.', 'my-apps' ),
+							),
+							'deletable' => array(
+								'type'        => 'boolean',
+								'description' => __( 'Whether the app can be deleted from launcher customization.', 'my-apps' ),
+							),
+							'icon'      => array(
+								'type'                 => 'object',
+								'required'             => array( 'type', 'value' ),
+								'properties'           => array(
+									'type'       => array(
+										'type'        => 'string',
+										'enum'        => array( 'icon_url', 'dashicon', 'emoji', 'gradient', 'letter' ),
+										'description' => __( 'The app icon representation type.', 'my-apps' ),
+									),
+									'value'      => array(
+										'type'        => 'string',
+										'description' => __( 'The app icon value.', 'my-apps' ),
+									),
+									'background' => array(
+										'type'        => 'string',
+										'description' => __( 'The generated letter icon background.', 'my-apps' ),
+									),
+								),
+								'additionalProperties' => false,
+							),
+						),
+						'additionalProperties' => false,
+					),
+				),
+			),
+			'additionalProperties' => false,
+		);
+	}
+
+	/**
+	 * Build the launcher customization payload.
+	 *
+	 * @return array
+	 */
+	private static function customization_payload() {
+		$background      = get_option( 'my_apps_background', 'gradient-dark' );
+		$custom_bg       = get_option( 'my_apps_background_custom', '' );
+		$hidden          = (array) get_option( 'my_apps_hide_plugins', array() );
+		$additional_apps = get_option( 'my_apps_additional_apps', array() );
+		$launcher_apps   = self::get_apps();
+		$sort            = get_option( 'my_apps_sort', array() );
+		$apps            = array();
+
+		$background      = is_string( $background ) ? $background : 'gradient-dark';
+		$custom_bg       = is_string( $custom_bg ) ? $custom_bg : '';
+		$additional_apps = is_array( $additional_apps ) ? $additional_apps : array();
+
+		if ( ! is_array( $sort ) ) {
+			$sort = array();
+		}
+
+		foreach ( $launcher_apps as $slug => $app ) {
+			$apps[] = self::customization_app_payload(
+				$slug,
+				$app,
+				isset( $additional_apps[ $slug ] ),
+				in_array( $slug, $hidden, true )
+			);
+		}
+
+		$payload = array(
+			'background'        => $background,
+			'valid_backgrounds' => self::VALID_BACKGROUNDS,
+			'sort'              => array_values( array_map( 'sanitize_text_field', $sort ) ),
+			'hidden'            => array_values( array_map( 'sanitize_text_field', $hidden ) ),
+			'apps'              => $apps,
+		);
+
+		if ( 'custom' === $background && '' !== $custom_bg ) {
+			$payload['custom_background'] = $custom_bg;
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * Build a customization payload for a single app.
+	 *
+	 * @param string $slug App slug.
+	 * @param array  $app App data.
+	 * @param bool   $is_custom Whether the app is stored as an additional app.
+	 * @param bool   $is_hidden Whether the app is hidden.
+	 * @return array
+	 */
+	private static function customization_app_payload( $slug, $app, $is_custom, $is_hidden ) {
+		return array(
+			'slug'      => $slug,
+			'name'      => isset( $app['name'] ) ? (string) $app['name'] : $slug,
+			'url'       => isset( $app['url'] ) ? (string) $app['url'] : '',
+			'source'    => $is_custom ? 'custom' : 'registered',
+			'hidden'    => (bool) $is_hidden,
+			'deletable' => (bool) $is_custom,
+			'icon'      => self::customization_app_icon_payload( $app ),
+		);
+	}
+
+	/**
+	 * Build a normalized app icon payload.
+	 *
+	 * @param array $app App data.
+	 * @return array
+	 */
+	private static function customization_app_icon_payload( $app ) {
+		if ( ! empty( $app['icon_url'] ) ) {
+			return array(
+				'type'  => 'icon_url',
+				'value' => (string) $app['icon_url'],
+			);
+		}
+
+		if ( ! empty( $app['dashicon'] ) ) {
+			return array(
+				'type'  => 'dashicon',
+				'value' => (string) $app['dashicon'],
+			);
+		}
+
+		if ( ! empty( $app['emoji'] ) ) {
+			return array(
+				'type'  => 'emoji',
+				'value' => (string) $app['emoji'],
+			);
+		}
+
+		if ( ! empty( $app['gradient'] ) ) {
+			return array(
+				'type'  => 'gradient',
+				'value' => (string) $app['gradient'],
+			);
+		}
+
+		$letter_icon = self::letter_icon_data( isset( $app['name'] ) ? $app['name'] : '' );
+		return array(
+			'type'       => 'letter',
+			'value'      => $letter_icon['letters'],
+			'background' => $letter_icon['background'],
+		);
 	}
 
 	/**

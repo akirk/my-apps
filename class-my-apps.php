@@ -366,6 +366,13 @@ class My_Apps {
 
 		wp_enqueue_style( 'dashicons' );
 
+		$app_urls = array();
+		foreach ( self::get_apps() as $app ) {
+			if ( ! empty( $app['url'] ) ) {
+				$app_urls[] = self::normalize_app_url( $app['url'] );
+			}
+		}
+
 		wp_enqueue_script(
 			'sortablejs',
 			plugin_dir_url( __FILE__ ) . 'sortable.min.js',
@@ -391,6 +398,7 @@ class My_Apps {
 				'isPlayground'    => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
 				'displayName'     => wp_get_current_user()->display_name,
 				'deletableSlugs'  => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
+				'appUrls'         => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'i18n'            => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
 					'confirmDelete' => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
@@ -538,29 +546,29 @@ class My_Apps {
 
 		$additional_apps = get_option( 'my_apps_additional_apps', array() );
 		$user_id         = get_current_user_id();
+		$normalized_url  = self::normalize_app_url( $url );
 
 		// De-dup: the launcher fires this AJAX optimistically the moment a
 		// user clicks "Install", before knowing whether the blueprint
 		// install succeeded. Repeated clicks (or retries after a failed
-		// install) would otherwise leave duplicate icons. Match on URL
-		// scoped to the current user — same URL means same app.
+		// install) would otherwise leave duplicate icons. Match registered
+		// apps globally, and user-added apps for the current user.
+		foreach ( apply_filters( 'my_apps_plugins', array() ) as $existing_slug => $existing ) {
+			if (
+				isset( $existing['url'] )
+				&& self::normalize_app_url( $existing['url'] ) === $normalized_url
+			) {
+				wp_send_json_success( self::app_response_payload( $existing_slug, $existing, $name, $url, true ) );
+			}
+		}
+
 		foreach ( $additional_apps as $existing_slug => $existing ) {
 			if (
-				isset( $existing['url'], $existing['user'] )
-				&& $existing['url'] === $url
-				&& (int) $existing['user'] === (int) $user_id
+				isset( $existing['url'] )
+				&& self::normalize_app_url( $existing['url'] ) === $normalized_url
+				&& ( ! isset( $existing['user'] ) || (int) $existing['user'] === (int) $user_id )
 			) {
-				wp_send_json_success(
-					array(
-						'slug'      => $existing_slug,
-						'name'      => isset( $existing['name'] ) ? $existing['name'] : $name,
-						'url'       => $url,
-						'icon_url'  => isset( $existing['icon_url'] ) ? ( $existing['icon_url'] ?: null ) : null,
-						'dashicon'  => isset( $existing['dashicon'] ) ? ( $existing['dashicon'] ?: null ) : null,
-						'emoji'     => isset( $existing['emoji'] ) ? ( $existing['emoji'] ?: null ) : null,
-						'duplicate' => true,
-					)
-				);
+				wp_send_json_success( self::app_response_payload( $existing_slug, $existing, $name, $url, true ) );
 			}
 		}
 
@@ -592,6 +600,7 @@ class My_Apps {
 				'icon_url' => $icon_url ?: null,
 				'dashicon' => $dashicon ?: null,
 				'emoji'    => $emoji ?: null,
+				'gradient' => $gradient ?: null,
 			)
 		);
 	}
@@ -951,6 +960,52 @@ class My_Apps {
 			$font_size,
 			esc_html( $data['letters'] )
 		);
+	}
+
+	/**
+	 * Normalize launcher URLs for duplicate detection.
+	 *
+	 * @param string $url App URL.
+	 * @return string
+	 */
+	private static function normalize_app_url( $url ) {
+		return untrailingslashit( esc_url_raw( $url ) );
+	}
+
+	/**
+	 * Build the AJAX payload for an app.
+	 *
+	 * @param string $slug App slug.
+	 * @param array  $app App data.
+	 * @param string $fallback_name Fallback name.
+	 * @param string $fallback_url Fallback URL.
+	 * @param bool   $duplicate Whether this payload describes an existing app.
+	 * @return array
+	 */
+	private static function app_response_payload( $slug, $app, $fallback_name = '', $fallback_url = '', $duplicate = false ) {
+		$name    = isset( $app['name'] ) ? $app['name'] : $fallback_name;
+		$payload = array(
+			'slug'      => $slug,
+			'name'      => $name,
+			'url'       => isset( $app['url'] ) ? $app['url'] : $fallback_url,
+			'icon_url'  => isset( $app['icon_url'] ) ? ( $app['icon_url'] ?: null ) : null,
+			'dashicon'  => isset( $app['dashicon'] ) ? ( $app['dashicon'] ?: null ) : null,
+			'emoji'     => isset( $app['emoji'] ) ? ( $app['emoji'] ?: null ) : null,
+			'gradient'  => isset( $app['gradient'] ) ? ( $app['gradient'] ?: null ) : null,
+			'duplicate' => $duplicate,
+		);
+
+		if (
+			$name
+			&& ! $payload['icon_url']
+			&& ! $payload['dashicon']
+			&& ! $payload['emoji']
+			&& ! $payload['gradient']
+		) {
+			$payload['letter_icon'] = self::letter_icon_data( $name );
+		}
+
+		return $payload;
 	}
 
 	/**

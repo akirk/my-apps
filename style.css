@@ -441,10 +441,28 @@ body.edit-mode .app-icon.sortable-chosen {
 	border-radius: 14px;
 	background: rgba(255, 255, 255, 0.3);
 	border: 2px dashed rgba(255, 255, 255, 0.6);
+	box-sizing: border-box;
 	margin: 0 auto;
-	font-size: 32px;
-	line-height: 64px;
 	color: #fff;
+	font-size: 0;
+	position: relative;
+}
+
+.add-icon::before,
+.add-icon::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 44%;
+	height: 6.7%;
+	border-radius: 999px;
+	background: currentColor;
+	transform: translate(-50%, -50%);
+}
+
+.add-icon::after {
+	transform: translate(-50%, -50%) rotate(90deg);
 }
 
 body.edit-mode .add-app-btn {
@@ -2587,4 +2605,3 @@ body.my-apps-app-store-embedded .modal-close,
 body.my-apps-app-store-embedded .app-store-main-header .modal-close {
 	display: none !important;
 }
-

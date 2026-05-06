@@ -193,6 +193,27 @@
 		}
 	}
 
+	function getPluginInstallUrl() {
+		if (typeof myAppsConfig === 'undefined') return '/wp-admin/plugin-install.php';
+		return myAppsConfig.pluginInstallUrl
+			? myAppsConfig.pluginInstallUrl
+			: myAppsConfig.ajaxUrl.replace('admin-ajax.php', 'plugin-install.php');
+	}
+
+	function setInstallButtonState(btn, label, disabled) {
+		if (!btn) return;
+		btn.textContent = label;
+		btn.disabled = !!disabled;
+		btn.classList.toggle('is-busy', !!disabled && label !== 'Installed');
+	}
+
+	function ajaxErrorMessage(data, fallback) {
+		if (data && data.data && data.data.errorMessage) return data.data.errorMessage;
+		if (data && data.data && typeof data.data === 'string') return data.data;
+		if (data && data.message) return data.message;
+		return fallback || 'Install failed';
+	}
+
 	// ── Auto-add icon for blueprint/plugin installs ──
 	// Opt-in: only fires when the blueprint declares `launcher_url` (the
 	// page the launcher icon should open). `landingPage` alone is no
@@ -2040,7 +2061,7 @@
 	// keyed the same way the old PHP endpoint returned, so
 	// mergeRecommendedPlugins doesn't need to change.
 	function fetchRecommendedPlugins() {
-		var pluginInstallUrl = myAppsConfig.ajaxUrl.replace('admin-ajax.php', 'plugin-install.php');
+		var pluginInstallUrl = getPluginInstallUrl();
 
 		return fetch(PLUGINS_URL)
 			.then(function(r) { return r.json(); })
@@ -2282,6 +2303,255 @@
 		return retrofitGitTargetFolderName(blueprint);
 	}
 
+	function installWpOrgPluginOnHost(slug) {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_install_plugin');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('slug', slug);
+
+		return fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: formData
+		})
+			.then(function(res) { return res.json(); })
+			.then(function(data) {
+				if (!data || !data.success) {
+					throw new Error(ajaxErrorMessage(data, 'Could not install plugin.'));
+				}
+				return data.data || {};
+			});
+	}
+
+	function closeBlueprintInstallInfo(infoEl, btn) {
+		if (infoEl) {
+			infoEl.classList.remove('active');
+			infoEl.innerHTML = '';
+		}
+		setInstallButtonState(btn, 'Install', false);
+	}
+
+	function showManualBlueprintInstall(blueprintUrl, infoEl, btn, message) {
+		if (!infoEl) {
+			window.location.href = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+			return;
+		}
+
+		var playgroundLink = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
+		infoEl.innerHTML = '';
+
+		var messageEl = document.createElement('p');
+		messageEl.textContent = message || 'This blueprint includes steps that cannot be run safely from this host.';
+		infoEl.appendChild(messageEl);
+
+		var playgroundEl = document.createElement('a');
+		playgroundEl.href = playgroundLink;
+		playgroundEl.target = '_blank';
+		playgroundEl.rel = 'noopener noreferrer';
+		playgroundEl.className = 'app-store-blueprint-url';
+		playgroundEl.textContent = 'Open in WordPress Playground';
+		infoEl.appendChild(playgroundEl);
+
+		var blueprintEl = document.createElement('a');
+		blueprintEl.href = blueprintUrl;
+		blueprintEl.target = '_blank';
+		blueprintEl.rel = 'noopener noreferrer';
+		blueprintEl.className = 'app-store-blueprint-url';
+		blueprintEl.textContent = 'View blueprint JSON';
+		infoEl.appendChild(blueprintEl);
+
+		var noteEl = document.createElement('p');
+		noteEl.textContent = 'You can also follow the installation steps below manually.';
+		infoEl.appendChild(noteEl);
+
+		infoEl.classList.add('active');
+		setInstallButtonState(btn, 'Close', false);
+	}
+
+	function encodeGitHubRefPath(ref) {
+		return String(ref || 'HEAD').split('/').map(function(part) {
+			return encodeURIComponent(part);
+		}).join('/');
+	}
+
+	function getPluginZipUrl(app) {
+		if (app._source === 'github' && app._repo) {
+			var ref = app._ref || 'HEAD';
+			if (app._refType === 'branch') {
+				return 'https://github.com/' + app._repo + '/archive/refs/heads/' + encodeGitHubRefPath(ref) + '.zip';
+			}
+			if (app._refType === 'tag') {
+				return 'https://github.com/' + app._repo + '/archive/refs/tags/' + encodeGitHubRefPath(ref) + '.zip';
+			}
+			return 'https://github.com/' + app._repo + '/archive/' + encodeGitHubRefPath(ref) + '.zip';
+		}
+
+		if (app._source === 'url') {
+			return app._url || app._installUrl || '';
+		}
+
+		return '';
+	}
+
+	function showManualPluginInstall(app, infoEl, btn) {
+		if (!infoEl) {
+			if (app._installUrl) {
+				window.location.href = app._installUrl;
+			}
+			return;
+		}
+
+		if (infoEl.classList.contains('active')) {
+			infoEl.classList.remove('active');
+			infoEl.innerHTML = '';
+			setInstallButtonState(btn, 'Install', false);
+			return;
+		}
+
+		var sourceUrl = app._installUrl || app._url || (app._repo ? 'https://github.com/' + app._repo : '');
+		var zipUrl = getPluginZipUrl(app);
+		infoEl.innerHTML = '';
+
+		var messageEl = document.createElement('p');
+		if (app._source === 'github') {
+			messageEl.textContent = 'This plugin is hosted on GitHub, so it cannot be installed automatically on this host yet.';
+		} else {
+			messageEl.textContent = 'This plugin is provided as a ZIP download. Download it, then upload and activate it in WordPress.';
+		}
+		infoEl.appendChild(messageEl);
+
+		if (zipUrl) {
+			var downloadLink = document.createElement('a');
+			downloadLink.href = zipUrl;
+			downloadLink.target = '_blank';
+			downloadLink.rel = 'noopener noreferrer';
+			downloadLink.className = 'app-store-blueprint-url';
+			downloadLink.textContent = 'Download ZIP';
+			infoEl.appendChild(downloadLink);
+		}
+
+		if (sourceUrl && sourceUrl !== zipUrl) {
+			var sourceLink = document.createElement('a');
+			sourceLink.href = sourceUrl;
+			sourceLink.target = '_blank';
+			sourceLink.rel = 'noopener noreferrer';
+			sourceLink.className = 'app-store-blueprint-url';
+			sourceLink.textContent = app._source === 'github' ? 'Open GitHub repository' : 'Open plugin source';
+			infoEl.appendChild(sourceLink);
+		}
+
+		var uploadLink = document.createElement('a');
+		uploadLink.href = getPluginInstallUrl() + '?tab=upload';
+		uploadLink.target = '_top';
+		uploadLink.className = 'app-store-blueprint-url';
+		uploadLink.textContent = 'Open plugin upload screen';
+		infoEl.appendChild(uploadLink);
+
+		var noteEl = document.createElement('p');
+		noteEl.textContent = 'Download the plugin ZIP, then upload and activate it in WordPress.';
+		infoEl.appendChild(noteEl);
+
+		infoEl.classList.add('active');
+		setInstallButtonState(btn, 'Close', false);
+	}
+
+	function blueprintStepLabel(step) {
+		if (!step || !step.step) return 'unknown step';
+		return String(step.step).replace(/([A-Z])/g, ' $1').toLowerCase().trim();
+	}
+
+	function getHostBlueprintInstallPlan(blueprint) {
+		var plan = {
+			plugins: [],
+			unsupported: []
+		};
+		var seenPlugins = {};
+
+		(blueprint && Array.isArray(blueprint.steps) ? blueprint.steps : []).forEach(function(step) {
+			if (!step || !step.step) return;
+
+			if (step.step === 'installPlugin') {
+				var pluginData = step.pluginData || {};
+				if (pluginData.resource === 'wordpress.org/plugins' && pluginData.slug) {
+					if (!seenPlugins[pluginData.slug]) {
+						seenPlugins[pluginData.slug] = true;
+						plan.plugins.push(pluginData.slug);
+					}
+					return;
+				}
+				plan.unsupported.push(blueprintStepLabel(step));
+				return;
+			}
+
+			// The host installer activates plugins automatically after install.
+			if (step.step === 'activatePlugin' || step.step === 'login') return;
+
+			plan.unsupported.push(blueprintStepLabel(step));
+		});
+
+		return plan;
+	}
+
+	function installBlueprintOnHost(app, blueprintUrl, gradient, infoEl, btn) {
+		if (infoEl && infoEl.classList.contains('active')) {
+			closeBlueprintInstallInfo(infoEl, btn);
+			return;
+		}
+
+		if (!myAppsConfig.canInstallPlugins) {
+			showManualBlueprintInstall(
+				blueprintUrl,
+				infoEl,
+				btn,
+				'This account cannot install plugins on this host.'
+			);
+			return;
+		}
+
+		setInstallButtonState(btn, 'Checking...', true);
+		resolveBlueprintFromUrl(blueprintUrl)
+			.then(function(blueprint) {
+				var plan = getHostBlueprintInstallPlan(blueprint);
+				if (!plan.plugins.length) {
+					showManualBlueprintInstall(
+						blueprintUrl,
+						infoEl,
+						btn,
+						'This blueprint does not contain a WordPress.org plugin install step that can be run on this host.'
+					);
+					return false;
+				}
+				if (plan.unsupported.length) {
+					showManualBlueprintInstall(
+						blueprintUrl,
+						infoEl,
+						btn,
+						'This blueprint includes steps this host installer cannot run: ' + plan.unsupported.join(', ') + '.'
+					);
+					return false;
+				}
+
+				return plan.plugins.reduce(function(promise, slug) {
+					return promise.then(function() {
+						setInstallButtonState(btn, 'Installing...', true);
+						return installWpOrgPluginOnHost(slug);
+					});
+				}, Promise.resolve())
+					.then(function() {
+						return addAppFromBlueprint(app, blueprint, gradient);
+					})
+					.then(function(added) {
+						setInstallButtonState(btn, 'Installed', true);
+						showToast(added ? 'Installed and added to My Apps' : 'Installed');
+						return true;
+					});
+			})
+			.catch(function(error) {
+				setInstallButtonState(btn, 'Install', false);
+				showToast(error && error.message ? error.message : 'Install failed');
+			});
+	}
+
 	function updateMyApps() {
 		var blueprint = {
 			landingPage: '/my-apps/',
@@ -2298,7 +2568,7 @@
 		}, '*');
 	}
 
-	function installPluginApp(app, gradient) {
+	function installPluginApp(app, gradient, btn, infoEl) {
 		if (isPlayground) {
 			var blueprint = buildPluginBlueprint(app);
 			var blueprintUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(blueprint))));
@@ -2310,10 +2580,44 @@
 			}, '*');
 			return;
 		}
+
+		if (app._source !== 'wp.org') {
+			showManualPluginInstall(app, infoEl, btn);
+			return;
+		}
+
+		if (app._source === 'wp.org' && app._slug && myAppsConfig.canInstallPlugins) {
+			setInstallButtonState(btn, 'Installing...', true);
+			installWpOrgPluginOnHost(app._slug)
+				.then(function(result) {
+					if (result.activated || result.alreadyActive) {
+						return addAppFromBlueprint(app, buildPluginBlueprint(app), gradient).then(function(added) {
+							return { result: result, added: added };
+						});
+					}
+					return { result: result, added: false };
+				})
+				.then(function(outcome) {
+					setInstallButtonState(btn, 'Installed', true);
+					if (outcome.result.activated || outcome.result.alreadyActive) {
+						showToast(outcome.added ? 'Installed and added to My Apps' : 'Installed and activated');
+					} else {
+						showToast('Installed. Activate it from Plugins.');
+					}
+				})
+				.catch(function(error) {
+					setInstallButtonState(btn, 'Install', false);
+					showToast(error && error.message ? error.message : 'Install failed');
+				});
+			return;
+		}
+
 		// Hosted WordPress: deep-link to whatever makes sense for this source
 		// (wp-admin plugin-install page for wp.org, repo page for GitHub).
 		if (app._installUrl) {
 			window.location.href = app._installUrl;
+		} else {
+			window.location.href = getPluginInstallUrl();
 		}
 	}
 
@@ -2509,7 +2813,7 @@
 		var pluginDirLi = document.createElement('li');
 		pluginDirLi.className = 'app-store-nav-item app-store-nav-external';
 		var pluginDirLink = document.createElement('a');
-		pluginDirLink.href = myAppsConfig.ajaxUrl.replace('admin-ajax.php', 'plugin-install.php');
+		pluginDirLink.href = getPluginInstallUrl();
 		pluginDirLink.target = '_top';
 		pluginDirLink.textContent = 'Plugin Directory';
 		pluginDirLi.appendChild(pluginDirLink);
@@ -2884,12 +3188,16 @@
 				pluginInstallBtn.type = 'button';
 				pluginInstallBtn.className = 'app-store-install-btn';
 				pluginInstallBtn.textContent = 'Install';
-				(function(a, g) {
+				(function(p, a, g) {
 					pluginInstallBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
-						installPluginApp(a, g);
+						if (!isPlayground && a._source !== 'wp.org') {
+							openPluginDetail(p, a, { autoOpenInstallInfo: true });
+							return;
+						}
+						installPluginApp(a, g, e.currentTarget);
 					});
-				})(app, gradient);
+				})(path, app, gradient);
 				actionsEl.appendChild(pluginInstallBtn);
 			} else if (isPlayground) {
 				var installBtn = document.createElement('button');
@@ -2908,6 +3216,18 @@
 					});
 				})(app, blueprintUrl, gradient);
 				actionsEl.appendChild(installBtn);
+			} else {
+				var hostedInstallBtn = document.createElement('button');
+				hostedInstallBtn.type = 'button';
+				hostedInstallBtn.className = 'app-store-install-btn';
+				hostedInstallBtn.textContent = 'Install';
+				(function(p, a, bUrl, g) {
+					hostedInstallBtn.addEventListener('click', function(e) {
+						e.stopPropagation();
+						openAppDetail(p, a, bUrl, g);
+					});
+				})(path, app, blueprintUrl, gradient);
+				actionsEl.appendChild(hostedInstallBtn);
 			}
 
 			itemEl.appendChild(iconEl);
@@ -2923,7 +3243,7 @@
 				var openDetail = function(e) {
 					e.stopPropagation();
 					if (isPluginEntry) {
-						openPluginDetail(p, a);
+						openPluginDetail(p, a, { autoOpenInstallInfo: true });
 					} else {
 						openAppDetail(p, a, bUrl, g);
 					}
@@ -2962,7 +3282,7 @@
 			var footerEl = document.createElement('p');
 			footerEl.className = 'app-store-footer-link';
 			var footerLink = document.createElement('a');
-			footerLink.href = myAppsConfig.ajaxUrl.replace('admin-ajax.php', 'plugin-install.php');
+			footerLink.href = getPluginInstallUrl();
 			footerLink.target = '_top';
 			footerLink.textContent = 'Browse all WordPress plugins →';
 			footerEl.appendChild(footerLink);
@@ -3278,12 +3598,16 @@
 			pluginBtn.type = 'button';
 			pluginBtn.className = 'app-store-install-btn';
 			pluginBtn.textContent = 'Install';
-			(function(a, g) {
+			(function(p, a, g) {
 				pluginBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
-					installPluginApp(a, g);
+					if (!isPlayground && a._source !== 'wp.org') {
+						openPluginDetail(p, a);
+						return;
+					}
+					installPluginApp(a, g, e.currentTarget);
 				});
-			})(app, gradient);
+			})(path, app, gradient);
 			actions.appendChild(pluginBtn);
 		} else if (isPlayground) {
 			var installBtn = document.createElement('button');
@@ -3302,6 +3626,18 @@
 				});
 			})(app, blueprintUrl, gradient);
 			actions.appendChild(installBtn);
+		} else {
+			var hostedInstallBtn = document.createElement('button');
+			hostedInstallBtn.type = 'button';
+			hostedInstallBtn.className = 'app-store-install-btn';
+			hostedInstallBtn.textContent = 'Install';
+			(function(p, a, bUrl, g) {
+				hostedInstallBtn.addEventListener('click', function(e) {
+					e.stopPropagation();
+					openAppDetail(p, a, bUrl, g);
+				});
+			})(path, app, blueprintUrl, gradient);
+			actions.appendChild(hostedInstallBtn);
 		}
 		card.appendChild(actions);
 
@@ -3327,11 +3663,11 @@
 
 	// ── Plugin Detail Page ──────────────────────────────────
 
-	function openPluginDetail(pluginPath, plugin) {
+	function openPluginDetail(pluginPath, plugin, options) {
 		var url = new URL(window.location);
 		url.searchParams.set('plugin', pluginPath);
 		history.pushState({ pluginDetail: pluginPath }, '', url.toString());
-		renderPluginDetail(pluginPath, plugin);
+		renderPluginDetail(pluginPath, plugin, options);
 	}
 
 	function closePluginDetail() {
@@ -3355,7 +3691,8 @@
 		sidebar.classList.remove('app-store-sidebar-hidden');
 	}
 
-	function renderPluginDetail(pluginPath, plugin) {
+	function renderPluginDetail(pluginPath, plugin, options) {
+		options = options || {};
 		var sidebar = document.getElementById('app-store-sidebar');
 		sidebar.classList.add('app-store-sidebar-hidden');
 
@@ -3431,12 +3768,15 @@
 		var headerActions = document.createElement('div');
 		headerActions.className = 'app-detail-header-actions';
 
+		var pluginInstallInfoEl = document.createElement('div');
+		pluginInstallInfoEl.className = 'app-store-blueprint-info';
+
 		var installBtn = document.createElement('button');
 		installBtn.type = 'button';
 		installBtn.className = 'app-store-install-btn app-detail-install-btn';
 		installBtn.textContent = 'Install';
 		installBtn.addEventListener('click', function() {
-			installPluginApp(plugin, gradient);
+			installPluginApp(plugin, gradient, installBtn, pluginInstallInfoEl);
 		});
 
 		var shareBtn = document.createElement('button');
@@ -3463,6 +3803,7 @@
 		headerEl.appendChild(headerActions);
 
 		detail.appendChild(headerEl);
+		detail.appendChild(pluginInstallInfoEl);
 
 		// About section: prefer the curated note, then short description, then description
 		var aboutText = plugin._note || plugin._shortDescription || plugin.description || '';
@@ -3514,6 +3855,10 @@
 
 		appStoreContent.innerHTML = '';
 		appStoreContent.appendChild(detail);
+
+		if (options.autoOpenInstallInfo && !isPlayground && plugin._source !== 'wp.org') {
+			showManualPluginInstall(plugin, pluginInstallInfoEl, installBtn);
+		}
 	}
 
 	// ── App Detail Page ──────────────────────────────────────
@@ -3665,7 +4010,7 @@
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
 			installBtn.textContent = 'Install';
 			installBtn.addEventListener('click', function() {
-				handleAppInstall(blueprintUrl, blueprintInfoEl, installBtn);
+				installBlueprintOnHost(app, blueprintUrl, gradient, blueprintInfoEl, installBtn);
 			});
 		}
 
@@ -4182,30 +4527,6 @@
 			// final render will route to the recipe detail.
 			openInstallSoftwareModal();
 		}
-	}
-
-	function handleAppInstall(blueprintUrl, infoEl, btn) {
-		// Show the blueprint URL for manual use (non-Playground only)
-		if (infoEl.classList.contains('active')) {
-			infoEl.classList.remove('active');
-			btn.textContent = 'Install';
-			return;
-		}
-
-		// Close any other open info panels
-		appStoreContent.querySelectorAll('.app-store-blueprint-info.active').forEach(function(el) {
-			el.classList.remove('active');
-		});
-		appStoreContent.querySelectorAll('.app-store-install-btn').forEach(function(b) {
-			b.textContent = 'Install';
-		});
-
-		var playgroundLink = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
-		infoEl.innerHTML = '<p>To install, open this blueprint in WordPress Playground:</p>' +
-			'<a href="' + playgroundLink + '" target="_blank" rel="noopener noreferrer" class="app-store-blueprint-url">' + blueprintUrl + '</a>' +
-			'<p style="margin-top:8px;font-size:12px;color:#757575;">Click to open in Playground, or copy the URL to use with any Playground-compatible setup.</p>';
-		infoEl.classList.add('active');
-		btn.textContent = 'Close';
 	}
 
 	if (document.readyState === 'loading') {

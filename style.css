@@ -786,15 +786,29 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	color: #fff;
 }
 
+.app-store-install-btn:disabled {
+	opacity: 0.65;
+	cursor: default;
+}
+
+.app-store-install-btn:disabled:hover {
+	background: var(--ma-button-bg);
+	color: #3858e9;
+}
+
+.app-store-install-btn.is-busy {
+	cursor: wait;
+}
+
 /* Blueprint details shown on non-Playground installs */
 .app-store-blueprint-info {
 	margin-top: 8px;
-	padding: 10px 12px;
-	background: #f6f7f7;
+	padding: 12px;
+	background: var(--ma-bg-tinted);
+	border: 1px solid var(--ma-border);
 	border-radius: 8px;
-	font-size: 12px;
 	line-height: 1.5;
-	color: #3c434a;
+	color: var(--ma-fg-secondary);
 	display: none;
 }
 
@@ -804,6 +818,8 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 
 .app-store-blueprint-info p {
 	margin: 0 0 6px;
+	font-size: 13px;
+	line-height: 1.45;
 }
 
 .app-store-blueprint-info p:last-child {
@@ -811,24 +827,31 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 }
 
 .app-store-blueprint-url {
-	display: block;
-	word-break: break-all;
-	padding: 6px 8px;
-	background: #fff;
-	border: 1px solid #ddd;
+	display: inline-flex;
+	align-items: center;
+	width: fit-content;
+	max-width: 100%;
+	margin: 8px 8px 0 0;
+	padding: 7px 12px;
+	background: var(--ma-bg);
+	border: 1px solid var(--ma-border);
 	border-radius: 6px;
-	font-family: monospace;
-	font-size: 11px;
-	margin-top: 4px;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.2;
+	word-break: normal;
 	cursor: pointer;
-	user-select: all;
 	color: #3858e9;
 	text-decoration: none;
+	box-shadow: 0 1px 1px light-dark(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.2));
+	transition: border-color 0.12s, background 0.12s, color 0.12s;
 }
 
 .app-store-blueprint-url:hover {
 	border-color: #3858e9;
-	background: #f6f7ff;
+	background: var(--ma-bg);
+	color: #2145d4;
 }
 
 .app-store-error {

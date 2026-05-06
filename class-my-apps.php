@@ -857,7 +857,7 @@ class My_Apps {
 				'sort'            => get_option( 'my_apps_sort', array() ),
 				'hide_plugins'    => get_option( 'my_apps_hide_plugins', array() ),
 				'additional_apps' => get_option( 'my_apps_additional_apps', array() ),
-				'background'      => get_option( 'my_apps_background', 'gradient-purple' ),
+				'background'      => get_option( 'my_apps_background', 'gradient-dark' ),
 			)
 		);
 	}

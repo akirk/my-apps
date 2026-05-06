@@ -35,6 +35,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
 		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
+		add_action( 'wp_ajax_my_apps_install_plugin', array( $this, 'ajax_install_plugin' ) );
 	}
 
 	public function enqueue_styles() {
@@ -393,18 +394,170 @@ class My_Apps {
 			'my-apps-launcher',
 			'myAppsConfig',
 			array(
-				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
-				'nonce'           => wp_create_nonce( 'my_apps_launcher' ),
-				'isPlayground'    => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
-				'displayName'     => wp_get_current_user()->display_name,
-				'deletableSlugs'  => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
-				'appUrls'         => array_values( array_unique( array_filter( $app_urls ) ) ),
-				'i18n'            => array(
+				'ajaxUrl'           => admin_url( 'admin-ajax.php' ),
+				'nonce'             => wp_create_nonce( 'my_apps_launcher' ),
+				'isPlayground'      => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
+				'canInstallPlugins' => current_user_can( 'install_plugins' ),
+				'pluginInstallUrl'  => self_admin_url( 'plugin-install.php' ),
+				'displayName'       => wp_get_current_user()->display_name,
+				'deletableSlugs'    => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
+				'appUrls'           => array_values( array_unique( array_filter( $app_urls ) ) ),
+				'i18n'              => array(
 					'fillAllFields' => __( 'Please fill in all fields', 'my-apps' ),
 					'confirmDelete' => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
 				),
 			)
 		);
+	}
+
+	/**
+	 * AJAX: Install and activate a wordpress.org plugin by slug.
+	 */
+	public function ajax_install_plugin() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! current_user_can( 'install_plugins' ) ) {
+			wp_send_json_error(
+				array(
+					'errorMessage' => __( 'Sorry, you are not allowed to install plugins on this site.', 'my-apps' ),
+				)
+			);
+		}
+
+		$slug = isset( $_POST['slug'] ) ? sanitize_key( wp_unslash( $_POST['slug'] ) ) : '';
+		if ( empty( $slug ) ) {
+			wp_send_json_error(
+				array(
+					'errorMessage' => __( 'No plugin specified.', 'my-apps' ),
+				)
+			);
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+		$api = plugins_api(
+			'plugin_information',
+			array(
+				'slug'   => $slug,
+				'fields' => array(
+					'sections' => false,
+				),
+			)
+		);
+
+		if ( is_wp_error( $api ) ) {
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'errorMessage' => $api->get_error_message(),
+				)
+			);
+		}
+
+		$status            = install_plugin_install_status( $api );
+		$already_installed = in_array( $status['status'], array( 'latest_installed', 'newer_installed', 'update_available' ), true );
+
+		if ( 'install' === $status['status'] ) {
+			$skin     = new \WP_Ajax_Upgrader_Skin();
+			$upgrader = new \Plugin_Upgrader( $skin );
+			$result   = $upgrader->install( $api->download_link );
+
+			if ( is_wp_error( $result ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'errorCode'    => $result->get_error_code(),
+						'errorMessage' => $result->get_error_message(),
+					)
+				);
+			} elseif ( is_wp_error( $skin->result ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'errorCode'    => $skin->result->get_error_code(),
+						'errorMessage' => $skin->result->get_error_message(),
+					)
+				);
+			} elseif ( $skin->get_errors()->has_errors() ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'errorMessage' => $skin->get_error_messages(),
+					)
+				);
+			} elseif ( is_null( $result ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'errorCode'    => 'unable_to_connect_to_filesystem',
+						'errorMessage' => __( 'Unable to connect to the filesystem. Please confirm your credentials.', 'my-apps' ),
+					)
+				);
+			}
+
+			wp_clean_plugins_cache();
+			$status = install_plugin_install_status( $api );
+		}
+
+		$plugin_file = ! empty( $status['file'] ) ? $status['file'] : $this->find_plugin_file_by_slug( $slug );
+		if ( empty( $plugin_file ) ) {
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'errorMessage' => __( 'The plugin was installed, but WordPress could not identify its main plugin file.', 'my-apps' ),
+				)
+			);
+		}
+
+		$activated      = false;
+		$already_active = is_plugin_active( $plugin_file );
+
+		if ( ! $already_active ) {
+			if ( current_user_can( 'activate_plugin', $plugin_file ) ) {
+				$activation = activate_plugin( $plugin_file );
+				if ( is_wp_error( $activation ) ) {
+					wp_send_json_error(
+						array(
+							'slug'         => $slug,
+							'plugin'       => $plugin_file,
+							'errorMessage' => $activation->get_error_message(),
+						)
+					);
+				}
+				$activated = true;
+			}
+		}
+
+		wp_send_json_success(
+			array(
+				'slug'             => $slug,
+				'plugin'           => $plugin_file,
+				'pluginName'       => isset( $api->name ) ? $api->name : $slug,
+				'alreadyInstalled' => $already_installed,
+				'activated'        => $activated,
+				'alreadyActive'    => $already_active,
+				'updateAvailable'  => 'update_available' === $status['status'],
+			)
+		);
+	}
+
+	/**
+	 * Find the main plugin file inside an installed plugin directory.
+	 *
+	 * @param string $slug Plugin directory slug.
+	 * @return string
+	 */
+	private function find_plugin_file_by_slug( $slug ) {
+		$installed = get_plugins( '/' . $slug );
+		if ( empty( $installed ) ) {
+			return '';
+		}
+
+		$files = array_keys( $installed );
+		$file  = reset( $files );
+		return $file ? $slug . '/' . $file : '';
 	}
 
 	/**

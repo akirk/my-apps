@@ -27,11 +27,13 @@ function desktop_mode_register() {
 
 	add_filter( 'desktop_mode_native_window_allowed_html', __NAMESPACE__ . '\desktop_mode_allow_iframe' );
 
+	$my_apps_icon = My_Apps::icon_data_uri();
+
 	desktop_mode_register_window(
 		'my-apps',
 		array(
 			'title'     => __( 'My Apps', 'my-apps' ),
-			'icon'      => 'dashicons-grid-view',
+			'icon'      => $my_apps_icon,
 			'template'  => __NAMESPACE__ . '\desktop_mode_window_template',
 			'width'     => 900,
 			'height'    => 640,

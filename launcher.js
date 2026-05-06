@@ -162,6 +162,37 @@
 		}, 3000);
 	}
 
+	function normalizeAppUrl(url) {
+		if (!url) return '';
+		var link = document.createElement('a');
+		link.href = url;
+		return link.href.replace(/\/$/, '');
+	}
+
+	function knownAppUrlExists(url) {
+		var normalized = normalizeAppUrl(url);
+		if (!normalized) return false;
+
+		var configuredUrls = Array.isArray(myAppsConfig.appUrls) ? myAppsConfig.appUrls : [];
+		for (var i = 0; i < configuredUrls.length; i++) {
+			if (normalizeAppUrl(configuredUrls[i]) === normalized) {
+				return true;
+			}
+		}
+
+		return Array.prototype.some.call(document.querySelectorAll('.app-icon[data-url]'), function(el) {
+			return normalizeAppUrl(el.dataset.url) === normalized;
+		});
+	}
+
+	function rememberAppUrl(url) {
+		if (!url) return;
+		myAppsConfig.appUrls = Array.isArray(myAppsConfig.appUrls) ? myAppsConfig.appUrls : [];
+		if (!knownAppUrlExists(url)) {
+			myAppsConfig.appUrls.push(normalizeAppUrl(url));
+		}
+	}
+
 	// ── Auto-add icon for blueprint/plugin installs ──
 	// Opt-in: only fires when the blueprint declares `launcher_url` (the
 	// page the launcher icon should open). `landingPage` alone is no
@@ -174,6 +205,10 @@
 		var appUrl = launcherUrl.indexOf('http') === 0
 			? launcherUrl
 			: window.location.origin + launcherUrl;
+
+		if (knownAppUrlExists(appUrl)) {
+			return Promise.resolve(false);
+		}
 
 		var formData = new FormData();
 		formData.append('action', 'my_apps_add');
@@ -188,7 +223,13 @@
 
 		return fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
 			.then(function(res) { return res.json(); })
-			.then(function(data) { return !!(data && data.success); })
+			.then(function(data) {
+				if (data && data.success) {
+					rememberAppUrl(appUrl);
+					return !(data.data && data.data.duplicate);
+				}
+				return false;
+			})
 			.catch(function() { return false; });
 	}
 
@@ -1741,23 +1782,54 @@
 	}
 
 	function insertAndHighlightApp(app) {
+		var existing = findExistingAppElement(app);
+		if (existing) {
+			return highlightAppElement(existing);
+		}
 		if (app && app.slug && Array.isArray(myAppsConfig.deletableSlugs) && myAppsConfig.deletableSlugs.indexOf(app.slug) === -1) {
 			myAppsConfig.deletableSlugs.push(app.slug);
 		}
 		var newApp = createAppElement(app);
 		var addBtn = document.querySelector('.add-app-btn');
-		newApp.classList.add('just-added');
 		container.insertBefore(newApp, addBtn);
+		rememberAppUrl(app.url);
+		return highlightAppElement(newApp);
+	}
+
+	function findExistingAppElement(app) {
+		if (!app) return null;
+		if (app.slug) {
+			var slugIcons = container.querySelectorAll('.app-icon[data-slug]');
+			for (var s = 0; s < slugIcons.length; s++) {
+				if (slugIcons[s].dataset.slug === app.slug) {
+					return slugIcons[s];
+				}
+			}
+		}
+		if (app.url) {
+			var normalized = normalizeAppUrl(app.url);
+			var icons = container.querySelectorAll('.app-icon[data-url]');
+			for (var i = 0; i < icons.length; i++) {
+				if (normalizeAppUrl(icons[i].dataset.url) === normalized) {
+					return icons[i];
+				}
+			}
+		}
+		return null;
+	}
+
+	function highlightAppElement(appEl) {
+		appEl.classList.add('just-added');
 		requestAnimationFrame(function() {
-			newApp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			appEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		});
-		newApp.addEventListener('animationend', function onEnd(ev) {
+		appEl.addEventListener('animationend', function onEnd(ev) {
 			if (ev.animationName === 'my-apps-glow-pulse') {
-				newApp.classList.remove('just-added');
-				newApp.removeEventListener('animationend', onEnd);
+				appEl.classList.remove('just-added');
+				appEl.removeEventListener('animationend', onEnd);
 			}
 		});
-		return newApp;
+		return appEl;
 	}
 
 	function buildLetterIconSvg(data, extraClass) {
@@ -1838,6 +1910,12 @@
 			link.appendChild(emojiDiv);
 		} else if (app.letter_icon) {
 			link.appendChild(buildLetterIconSvg(app.letter_icon));
+		} else if (app.gradient) {
+			var gradientDiv = document.createElement('div');
+			gradientDiv.className = 'app-gradient-icon';
+			gradientDiv.style.background = app.gradient;
+			gradientDiv.innerHTML = WP_ICON_SVG || '';
+			link.appendChild(gradientDiv);
 		}
 
 		var title = document.createElement('p');

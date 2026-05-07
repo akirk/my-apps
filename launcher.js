@@ -44,7 +44,6 @@
 	const PLUGINS_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/plugins.json';
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
-	const PLAYGROUND_WINDOW_STATE_TIMEOUT = 2000;
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
 
 	// Walk up the parent chain until we reach a cross-origin frame.
@@ -116,13 +115,6 @@
 		}
 	}
 
-	function createInstallRequestId() {
-		if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-			return window.crypto.randomUUID();
-		}
-		return 'my-apps-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
-	}
-
 	function getPostMessageTargetOrigin(target) {
 		try {
 			return target.location.origin || window.location.origin;
@@ -131,125 +123,6 @@
 		}
 	}
 
-	var playgroundWindowState = null;
-	var playgroundWindowStatePromise = null;
-
-	function getPlaygroundWindowState() {
-		if (playgroundWindowState) {
-			return Promise.resolve(playgroundWindowState);
-		}
-		if (playgroundWindowStatePromise) {
-			return playgroundWindowStatePromise;
-		}
-
-		playgroundWindowStatePromise = requestPlaygroundWindowState()
-			.then(function(state) {
-				playgroundWindowState = state;
-				applyPlaygroundInstallAvailability(document);
-				return state;
-			});
-
-		return playgroundWindowStatePromise;
-	}
-
-	function requestPlaygroundWindowState() {
-		return new Promise(function(resolve) {
-			var requestId = createInstallRequestId();
-			var target = getPlaygroundTarget();
-			var settled = false;
-			var timer = null;
-
-			function finish(state) {
-				if (settled) return;
-				settled = true;
-				window.removeEventListener('message', onMessage);
-				if (timer) {
-					clearTimeout(timer);
-				}
-				resolve(state);
-			}
-
-			function onMessage(event) {
-				var data = event && event.data;
-				if (
-					data &&
-					data.type === 'relay' &&
-					data.relayType === 'playground-window-state' &&
-					data.requestId === requestId
-				) {
-					finish({
-						isDependentMode: !!data.isDependentMode,
-						canInstallBlueprint: data.canInstallBlueprint !== false
-					});
-				}
-			}
-
-			window.addEventListener('message', onMessage);
-			timer = setTimeout(function() {
-				finish({
-					isDependentMode: false,
-					canInstallBlueprint: true,
-					timedOut: true
-				});
-			}, PLAYGROUND_WINDOW_STATE_TIMEOUT);
-
-			try {
-				target.postMessage({
-					type: 'relay',
-					relayType: 'get-playground-window-state',
-					requestId: requestId
-				}, getPostMessageTargetOrigin(target));
-			} catch (e) {
-				finish({
-					isDependentMode: false,
-					canInstallBlueprint: true,
-					error: e
-				});
-			}
-		});
-	}
-
-	function playgroundCanInstallBlueprint(state) {
-		return !state || state.canInstallBlueprint !== false;
-	}
-
-	function applyPlaygroundInstallAvailability(root) {
-		if (!isPlayground || playgroundCanInstallBlueprint(playgroundWindowState)) {
-			return;
-		}
-		Array.prototype.forEach.call(
-			(root || document).querySelectorAll('.app-store-install-btn'),
-			function(btn) {
-				btn.hidden = true;
-				btn.disabled = true;
-				btn.setAttribute('aria-disabled', 'true');
-				btn.title = playgroundWindowState.isDependentMode
-					? 'Install from the main Playground window.'
-					: 'This Playground window cannot install blueprints.';
-			}
-		);
-	}
-
-	function watchPlaygroundInstallAvailability() {
-		if (!isPlayground) return;
-		getPlaygroundWindowState();
-		if (typeof MutationObserver !== 'function' || !document.body) return;
-		var observer = new MutationObserver(function(mutations) {
-			mutations.forEach(function(mutation) {
-				Array.prototype.forEach.call(mutation.addedNodes, function(node) {
-					if (!node || node.nodeType !== 1) return;
-					if (node.matches && node.matches('.app-store-install-btn')) {
-						applyPlaygroundInstallAvailability(node.parentNode || document);
-						return;
-					}
-					if (node.querySelector) {
-						applyPlaygroundInstallAvailability(node);
-					}
-				});
-			});
-		});
-		observer.observe(document.body, { childList: true, subtree: true });
-	}
 	let recipes = {};
 	let hasRecipes = false;
 	let recipesLoadState = 'idle'; // idle | loading | loaded | failed
@@ -516,12 +389,6 @@
 		return /^install failed/i.test(details) ? details : 'Install failed: ' + details;
 	}
 
-	function playgroundCannotInstallMessage(state) {
-		var details = describeErrorValue(state && state.error);
-		return 'Install failed: This Playground window cannot install blueprints.' +
-			(details ? ' ' + details : '');
-	}
-
 	// ── Auto-add icon for blueprint/plugin installs ──
 	// Opt-in: only fires when the blueprint declares `launcher_url` (the
 	// page the launcher icon should open). `landingPage` alone is no
@@ -587,8 +454,6 @@
 			})
 			.catch(function() { return false; });
 	}
-
-	var pendingPlaygroundInstalls = {};
 
 	function encodeBlueprintDataUrl(blueprint) {
 		return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(blueprint))));
@@ -704,57 +569,90 @@
 		}, getPostMessageTargetOrigin(target));
 	}
 
-	function rememberPendingPlaygroundInstall(requestId, install) {
-		install.resultTimeout = setTimeout(function() {
-			if (!pendingPlaygroundInstalls[requestId]) return;
-			delete pendingPlaygroundInstalls[requestId];
+	function startPlaygroundBlueprintInstall(blueprintUrl, install) {
+		var requestId = window.crypto && typeof window.crypto.randomUUID === 'function'
+			? window.crypto.randomUUID()
+			: 'my-apps-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+		var settled = false;
+		var resultTimeout = null;
+
+		function cleanup() {
+			if (settled) return false;
+			settled = true;
+			window.removeEventListener('message', onMessage);
+			if (resultTimeout) {
+				clearTimeout(resultTimeout);
+				resultTimeout = null;
+			}
+			return true;
+		}
+
+		function finishResult(data) {
+			if (data.status === 'success') {
+				handlePlaygroundInstallSuccess(install);
+				return;
+			}
+
+			resetInstallButtonState(install.btn);
+			if (data.status === 'cancelled') {
+				showToast('Install cancelled');
+			} else {
+				showToast(playgroundInstallErrorMessage(data));
+			}
+		}
+
+		function onMessage(event) {
+			var data = event && event.data;
+			if (
+				!data ||
+				data.type !== 'relay' ||
+				data.relayType !== 'install-blueprint-result' ||
+				data.requestId !== requestId
+			) {
+				return;
+			}
+			if (!cleanup()) return;
+			finishResult(data);
+		}
+
+		window.addEventListener('message', onMessage);
+		resultTimeout = setTimeout(function() {
+			if (!cleanup()) return;
 			resetInstallButtonState(install.btn);
 			showToast('Install status unknown: Playground did not report whether the install finished.');
 		}, PLAYGROUND_INSTALL_RESULT_TIMEOUT);
-		pendingPlaygroundInstalls[requestId] = install;
-	}
 
-	function clearPendingPlaygroundInstallTimer(install) {
-		if (install && install.resultTimeout) {
-			clearTimeout(install.resultTimeout);
-			install.resultTimeout = null;
+		try {
+			postPlaygroundBlueprintInstall(blueprintUrl, requestId);
+		} catch (error) {
+			cleanup();
+			resetInstallButtonState(install.btn);
+			showToast(playgroundInstallErrorMessage({ error: error }));
+			return null;
 		}
+		return requestId;
 	}
 
 	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, gradient, btn) {
-		var requestId = createInstallRequestId();
 		var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 		var blueprintUrl = getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl);
+		var optimisticAddPromise = null;
 
 		setInstallButtonState(btn, 'Installing...', true);
-		return getPlaygroundWindowState().then(function(windowState) {
-			var optimisticAddPromise = null;
+		if (!desktopMode && app && blueprint) {
+			optimisticAddPromise = addAppFromBlueprint(app, blueprint, gradient);
+		}
 
-			if (!playgroundCanInstallBlueprint(windowState)) {
-				resetInstallButtonState(btn);
-				showToast(playgroundCannotInstallMessage(windowState));
-				return null;
-			}
-
-			if (!desktopMode && app && blueprint) {
-				optimisticAddPromise = addAppFromBlueprint(app, blueprint, gradient);
-			}
-
-			rememberPendingPlaygroundInstall(requestId, {
-				app: app || null,
-				blueprint: blueprint || null,
-				gradient: gradient || '',
-				btn: btn || null,
-				desktopMode: desktopMode,
-				landingUrl: getInstallLandingUrl(app, blueprint),
-				blueprintUrl: blueprintUrl,
-				optimisticAddPromise: optimisticAddPromise,
-				playgroundWindowState: windowState
-			});
-
-			postPlaygroundBlueprintInstall(blueprintUrl, requestId);
-			return requestId;
-		});
+		return Promise.resolve(startPlaygroundBlueprintInstall(blueprintUrl, {
+			app: app || null,
+			blueprint: blueprint || null,
+			gradient: gradient || '',
+			btn: btn || null,
+			desktopMode: desktopMode,
+			landingUrl: getInstallLandingUrl(app, blueprint),
+			blueprintUrl: blueprintUrl,
+			optimisticAddPromise: optimisticAddPromise
+		}));
 	}
 
 	function installBlueprintInPlayground(app, blueprintUrl, gradient, btn) {
@@ -764,7 +662,6 @@
 				return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, gradient, btn);
 			})
 			.catch(function(error) {
-				var requestId = createInstallRequestId();
 				var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 				if (desktopMode) {
 					var message = 'Install failed: Could not load the blueprint before sending it to Playground.';
@@ -775,24 +672,14 @@
 					showToast(message);
 					return null;
 				}
-				return getPlaygroundWindowState().then(function(windowState) {
-					if (!playgroundCanInstallBlueprint(windowState)) {
-						resetInstallButtonState(btn);
-						showToast(playgroundCannotInstallMessage(windowState));
-						return null;
-					}
-					rememberPendingPlaygroundInstall(requestId, {
-						app: app || null,
-						blueprint: null,
-						gradient: gradient || '',
-						btn: btn || null,
-						desktopMode: desktopMode,
-						landingUrl: '',
-						blueprintUrl: blueprintUrl,
-						playgroundWindowState: windowState
-					});
-					postPlaygroundBlueprintInstall(blueprintUrl, requestId);
-					return requestId;
+				return startPlaygroundBlueprintInstall(blueprintUrl, {
+					app: app || null,
+					blueprint: null,
+					gradient: gradient || '',
+					btn: btn || null,
+					desktopMode: desktopMode,
+					landingUrl: '',
+					blueprintUrl: blueprintUrl
 				});
 			});
 	}
@@ -830,38 +717,6 @@
 			return added;
 		});
 	}
-
-	function handlePlaygroundInstallResult(event) {
-		var data = event && event.data;
-		if (
-			!data ||
-			data.type !== 'relay' ||
-			data.relayType !== 'install-blueprint-result' ||
-			!data.requestId ||
-			!pendingPlaygroundInstalls[data.requestId]
-		) {
-			return;
-		}
-
-		var install = pendingPlaygroundInstalls[data.requestId];
-		delete pendingPlaygroundInstalls[data.requestId];
-		clearPendingPlaygroundInstallTimer(install);
-
-		if (data.status === 'success') {
-			handlePlaygroundInstallSuccess(install);
-			return;
-		}
-
-		resetInstallButtonState(install.btn);
-		if (data.status === 'cancelled') {
-			showToast('Install cancelled');
-		} else {
-			showToast(playgroundInstallErrorMessage(data));
-		}
-	}
-
-	window.addEventListener('message', handlePlaygroundInstallResult);
-	watchPlaygroundInstallAvailability();
 
 	var emojis = [
 		{ emoji: '📱', keywords: 'phone mobile smartphone device' },
@@ -3455,14 +3310,7 @@
 			if (!appStoreData[appPath]) return false;
 			var app = appStoreData[appPath];
 			var blueprintUrl = getBlueprintUrl(appPath);
-			var cats = app.categories || [];
-			var gradient = defaultGradient;
-			for (var i = cats.length - 1; i >= 0; i--) {
-				if (categoryGradients[cats[i]]) {
-					gradient = categoryGradients[cats[i]];
-					break;
-				}
-			}
+			var gradient = getCategoryGradient(app.categories);
 			renderAppDetail(appPath, app, blueprintUrl, gradient);
 			pendingDeepLink = null;
 			deepLinkRendered = true;
@@ -3742,6 +3590,16 @@
 
 	var defaultGradient = 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)';
 
+	function getCategoryGradient(categories) {
+		var cats = Array.isArray(categories) ? categories : [];
+		for (var i = cats.length - 1; i >= 0; i--) {
+			if (categoryGradients[cats[i]]) {
+				return categoryGradients[cats[i]];
+			}
+		}
+		return defaultGradient;
+	}
+
 	// When the same software ships as both a richer "app" entry (apps.json,
 	// path "apps/<slug>.json") and a curated plugin (plugins.json), the app
 	// wins. Two signals identify a collision: the app's path slug matching
@@ -3827,15 +3685,7 @@
 			var iconEl = document.createElement('div');
 			iconEl.className = 'app-store-icon';
 
-			// Pick gradient based on most specific category
-			var cats = app.categories || [];
-			var gradient = defaultGradient;
-			for (var i = cats.length - 1; i >= 0; i--) {
-				if (categoryGradients[cats[i]]) {
-					gradient = categoryGradients[cats[i]];
-					break;
-				}
-			}
+			var gradient = getCategoryGradient(app.categories);
 
 			if (isPluginEntry && app._icon) {
 				var pluginIcon = document.createElement('img');
@@ -4285,14 +4135,7 @@
 		var isPluginEntry = app._type === 'plugin';
 		var blueprintUrl = isPluginEntry ? '' : getBlueprintUrl(path);
 
-		var cats = app.categories || [];
-		var gradient = defaultGradient;
-		for (var i = cats.length - 1; i >= 0; i--) {
-			if (categoryGradients[cats[i]]) {
-				gradient = categoryGradients[cats[i]];
-				break;
-			}
-		}
+		var gradient = getCategoryGradient(app.categories);
 
 		var card = document.createElement('div');
 		card.className = 'recipe-step-card' + (isPluginEntry ? ' recipe-step-card-plugin' : '');
@@ -4442,14 +4285,7 @@
 		backBtn.addEventListener('click', closePluginDetail);
 		appStoreHeading.appendChild(backBtn);
 
-		var cats = plugin.categories || [];
-		var gradient = defaultGradient;
-		for (var i = cats.length - 1; i >= 0; i--) {
-			if (categoryGradients[cats[i]]) {
-				gradient = categoryGradients[cats[i]];
-				break;
-			}
-		}
+		var gradient = getCategoryGradient(plugin.categories);
 
 		var detail = document.createElement('div');
 		detail.className = 'app-detail';
@@ -5194,14 +5030,7 @@
 		if (appParam && appStoreData && appStoreData[appParam]) {
 			var app = appStoreData[appParam];
 			var blueprintUrl = getBlueprintUrl(appParam);
-			var cats = app.categories || [];
-			var gradient = defaultGradient;
-			for (var i = cats.length - 1; i >= 0; i--) {
-				if (categoryGradients[cats[i]]) {
-					gradient = categoryGradients[cats[i]];
-					break;
-				}
-			}
+			var gradient = getCategoryGradient(app.categories);
 			renderAppDetail(appParam, app, blueprintUrl, gradient);
 		} else if (pluginParam && appStoreData && appStoreData[pluginParam]) {
 			renderPluginDetail(pluginParam, appStoreData[pluginParam]);

@@ -114,13 +114,6 @@
 		}
 	}
 
-	function createInstallRequestId() {
-		if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-			return window.crypto.randomUUID();
-		}
-		return 'my-apps-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
-	}
-
 	function getPostMessageTargetOrigin(target) {
 		try {
 			return target.location.origin || window.location.origin;
@@ -461,8 +454,6 @@
 			.catch(function() { return false; });
 	}
 
-	var pendingPlaygroundInstalls = {};
-
 	function encodeBlueprintDataUrl(blueprint) {
 		return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(blueprint))));
 	}
@@ -577,25 +568,71 @@
 		}, getPostMessageTargetOrigin(target));
 	}
 
-	function rememberPendingPlaygroundInstall(requestId, install) {
-		install.resultTimeout = setTimeout(function() {
-			if (!pendingPlaygroundInstalls[requestId]) return;
-			delete pendingPlaygroundInstalls[requestId];
+	function startPlaygroundBlueprintInstall(blueprintUrl, install) {
+		var requestId = window.crypto && typeof window.crypto.randomUUID === 'function'
+			? window.crypto.randomUUID()
+			: 'my-apps-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+		var settled = false;
+		var resultTimeout = null;
+
+		function cleanup() {
+			if (settled) return false;
+			settled = true;
+			window.removeEventListener('message', onMessage);
+			if (resultTimeout) {
+				clearTimeout(resultTimeout);
+				resultTimeout = null;
+			}
+			return true;
+		}
+
+		function finishResult(data) {
+			if (data.status === 'success') {
+				handlePlaygroundInstallSuccess(install);
+				return;
+			}
+
+			resetInstallButtonState(install.btn);
+			if (data.status === 'cancelled') {
+				showToast('Install cancelled');
+			} else {
+				showToast(playgroundInstallErrorMessage(data));
+			}
+		}
+
+		function onMessage(event) {
+			var data = event && event.data;
+			if (
+				!data ||
+				data.type !== 'relay' ||
+				data.relayType !== 'install-blueprint-result' ||
+				data.requestId !== requestId
+			) {
+				return;
+			}
+			if (!cleanup()) return;
+			finishResult(data);
+		}
+
+		window.addEventListener('message', onMessage);
+		resultTimeout = setTimeout(function() {
+			if (!cleanup()) return;
 			resetInstallButtonState(install.btn);
 			showToast('Install status unknown: Playground did not report whether the install finished.');
 		}, PLAYGROUND_INSTALL_RESULT_TIMEOUT);
-		pendingPlaygroundInstalls[requestId] = install;
-	}
 
-	function clearPendingPlaygroundInstallTimer(install) {
-		if (install && install.resultTimeout) {
-			clearTimeout(install.resultTimeout);
-			install.resultTimeout = null;
+		try {
+			postPlaygroundBlueprintInstall(blueprintUrl, requestId);
+		} catch (error) {
+			cleanup();
+			resetInstallButtonState(install.btn);
+			showToast(playgroundInstallErrorMessage({ error: error }));
+			return null;
 		}
+		return requestId;
 	}
 
 	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, gradient, btn) {
-		var requestId = createInstallRequestId();
 		var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 		var blueprintUrl = getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl);
 		var optimisticAddPromise = null;
@@ -605,7 +642,7 @@
 			optimisticAddPromise = addAppFromBlueprint(app, blueprint, gradient);
 		}
 
-		rememberPendingPlaygroundInstall(requestId, {
+		return Promise.resolve(startPlaygroundBlueprintInstall(blueprintUrl, {
 			app: app || null,
 			blueprint: blueprint || null,
 			gradient: gradient || '',
@@ -614,10 +651,7 @@
 			landingUrl: getInstallLandingUrl(app, blueprint),
 			blueprintUrl: blueprintUrl,
 			optimisticAddPromise: optimisticAddPromise
-		});
-
-		postPlaygroundBlueprintInstall(blueprintUrl, requestId);
-		return Promise.resolve(requestId);
+		}));
 	}
 
 	function installBlueprintInPlayground(app, blueprintUrl, gradient, btn) {
@@ -627,7 +661,6 @@
 				return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, gradient, btn);
 			})
 			.catch(function(error) {
-				var requestId = createInstallRequestId();
 				var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 				if (desktopMode) {
 					var message = 'Install failed: Could not load the blueprint before sending it to Playground.';
@@ -638,7 +671,7 @@
 					showToast(message);
 					return null;
 				}
-				rememberPendingPlaygroundInstall(requestId, {
+				return startPlaygroundBlueprintInstall(blueprintUrl, {
 					app: app || null,
 					blueprint: null,
 					gradient: gradient || '',
@@ -647,8 +680,6 @@
 					landingUrl: '',
 					blueprintUrl: blueprintUrl
 				});
-				postPlaygroundBlueprintInstall(blueprintUrl, requestId);
-				return requestId;
 			});
 	}
 
@@ -685,37 +716,6 @@
 			return added;
 		});
 	}
-
-	function handlePlaygroundInstallResult(event) {
-		var data = event && event.data;
-		if (
-			!data ||
-			data.type !== 'relay' ||
-			data.relayType !== 'install-blueprint-result' ||
-			!data.requestId ||
-			!pendingPlaygroundInstalls[data.requestId]
-		) {
-			return;
-		}
-
-		var install = pendingPlaygroundInstalls[data.requestId];
-		delete pendingPlaygroundInstalls[data.requestId];
-		clearPendingPlaygroundInstallTimer(install);
-
-		if (data.status === 'success') {
-			handlePlaygroundInstallSuccess(install);
-			return;
-		}
-
-		resetInstallButtonState(install.btn);
-		if (data.status === 'cancelled') {
-			showToast('Install cancelled');
-		} else {
-			showToast(playgroundInstallErrorMessage(data));
-		}
-	}
-
-	window.addEventListener('message', handlePlaygroundInstallResult);
 
 	var emojis = [
 		{ emoji: '📱', keywords: 'phone mobile smartphone device' },

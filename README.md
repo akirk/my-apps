@@ -18,7 +18,7 @@ Apps can be plugins that register their own icon, custom links you add yourself,
 ### Features
 
 - **Launcher** at `/my-apps/` with grid or flow layouts, drag-to-reorder, and an edit mode for customization.
-- **Display settings** live in the launcher itself (no admin page): icon size, spacing, grid columns, layout toggle, and an optional personalized greeting. Settings are stored per-device while in edit mode.
+- **Display settings** live in the launcher itself (no admin page): icon size, spacing, grid columns, layout toggle, background color/image, and an optional personalized greeting. Settings are stored per-device while in edit mode.
 - **App Store** for installing new apps: browse a curated catalog, view app detail pages, and install via WordPress Playground blueprints. Paste a custom blueprint JSON from the clipboard to install anything.
 - **Auto-registered icons** after a blueprint install — if the installed plugin doesn't register its own icon, one is generated with a category-colored gradient.
 - **Import/export** your launcher configuration from the settings dropdown.
@@ -41,6 +41,13 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
         return $apps;
     } );
 
+### Abilities API
+
+When the WordPress Abilities API is available, My Apps registers a `my-apps` category with two customization abilities:
+
+- `my-apps/get-customization` returns the server-stored launcher customization state, including the selected background, accepted background slugs, custom image metadata, sort order, hidden apps, and app customization metadata.
+- `my-apps/set-background` updates the launcher background using a preset slug, an image attachment ID, or a remote image URL to sideload.
+
 ## Screenshots
 
 1. The Launcher
@@ -59,4 +66,3 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
    ![Adding an admin link](https://ps.w.org/my-apps/assets/screenshot-7.png)
 8. Adding a web link with a custom emoji, image URL, or Dashicon
    ![Adding a web link](https://ps.w.org/my-apps/assets/screenshot-8.png)
-

@@ -3189,14 +3189,7 @@
 			if (!appStoreData[appPath]) return false;
 			var app = appStoreData[appPath];
 			var blueprintUrl = getBlueprintUrl(appPath);
-			var cats = app.categories || [];
-			var gradient = defaultGradient;
-			for (var i = cats.length - 1; i >= 0; i--) {
-				if (categoryGradients[cats[i]]) {
-					gradient = categoryGradients[cats[i]];
-					break;
-				}
-			}
+			var gradient = getCategoryGradient(app.categories);
 			renderAppDetail(appPath, app, blueprintUrl, gradient);
 			pendingDeepLink = null;
 			deepLinkRendered = true;
@@ -3476,6 +3469,16 @@
 
 	var defaultGradient = 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)';
 
+	function getCategoryGradient(categories) {
+		var cats = Array.isArray(categories) ? categories : [];
+		for (var i = cats.length - 1; i >= 0; i--) {
+			if (categoryGradients[cats[i]]) {
+				return categoryGradients[cats[i]];
+			}
+		}
+		return defaultGradient;
+	}
+
 	// When the same software ships as both a richer "app" entry (apps.json,
 	// path "apps/<slug>.json") and a curated plugin (plugins.json), the app
 	// wins. Two signals identify a collision: the app's path slug matching
@@ -3561,15 +3564,7 @@
 			var iconEl = document.createElement('div');
 			iconEl.className = 'app-store-icon';
 
-			// Pick gradient based on most specific category
-			var cats = app.categories || [];
-			var gradient = defaultGradient;
-			for (var i = cats.length - 1; i >= 0; i--) {
-				if (categoryGradients[cats[i]]) {
-					gradient = categoryGradients[cats[i]];
-					break;
-				}
-			}
+			var gradient = getCategoryGradient(app.categories);
 
 			if (isPluginEntry && app._icon) {
 				var pluginIcon = document.createElement('img');
@@ -4019,14 +4014,7 @@
 		var isPluginEntry = app._type === 'plugin';
 		var blueprintUrl = isPluginEntry ? '' : getBlueprintUrl(path);
 
-		var cats = app.categories || [];
-		var gradient = defaultGradient;
-		for (var i = cats.length - 1; i >= 0; i--) {
-			if (categoryGradients[cats[i]]) {
-				gradient = categoryGradients[cats[i]];
-				break;
-			}
-		}
+		var gradient = getCategoryGradient(app.categories);
 
 		var card = document.createElement('div');
 		card.className = 'recipe-step-card' + (isPluginEntry ? ' recipe-step-card-plugin' : '');
@@ -4176,14 +4164,7 @@
 		backBtn.addEventListener('click', closePluginDetail);
 		appStoreHeading.appendChild(backBtn);
 
-		var cats = plugin.categories || [];
-		var gradient = defaultGradient;
-		for (var i = cats.length - 1; i >= 0; i--) {
-			if (categoryGradients[cats[i]]) {
-				gradient = categoryGradients[cats[i]];
-				break;
-			}
-		}
+		var gradient = getCategoryGradient(plugin.categories);
 
 		var detail = document.createElement('div');
 		detail.className = 'app-detail';
@@ -4928,14 +4909,7 @@
 		if (appParam && appStoreData && appStoreData[appParam]) {
 			var app = appStoreData[appParam];
 			var blueprintUrl = getBlueprintUrl(appParam);
-			var cats = app.categories || [];
-			var gradient = defaultGradient;
-			for (var i = cats.length - 1; i >= 0; i--) {
-				if (categoryGradients[cats[i]]) {
-					gradient = categoryGradients[cats[i]];
-					break;
-				}
-			}
+			var gradient = getCategoryGradient(app.categories);
 			renderAppDetail(appParam, app, blueprintUrl, gradient);
 		} else if (pluginParam && appStoreData && appStoreData[pluginParam]) {
 			renderPluginDetail(pluginParam, appStoreData[pluginParam]);

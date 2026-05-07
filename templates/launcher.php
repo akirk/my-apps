@@ -35,12 +35,24 @@ $can_manage = current_user_can( 'manage_options' );
 
 <?php
 $background = get_option( 'my_apps_background', 'gradient-dark' );
-$custom_bg = get_option( 'my_apps_background_custom', '' );
-$custom_bg_style = ( $background === 'custom' && $custom_bg ) ? 'background: ' . $custom_bg : '';
+$custom_bg  = get_option( 'my_apps_background_custom', '' );
+$body_style = '';
+
+if ( 'image' === $background ) {
+	$background_image_id  = absint( get_option( 'my_apps_background_image_id', 0 ) );
+	$background_image_url = $background_image_id ? wp_get_attachment_image_url( $background_image_id, 'full' ) : '';
+	if ( $background_image_url ) {
+		$body_style = 'background-image: url("' . esc_url( $background_image_url ) . '");';
+	} else {
+		$background = 'gradient-dark';
+	}
+} elseif ( 'custom' === $background && $custom_bg ) {
+	$body_style = 'background: ' . $custom_bg;
+}
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $is_app_store = isset( $_GET['app-store'] );
 ?>
-<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?><?php if ( $is_app_store ) : ?> my-apps-app-store-embedded<?php endif; ?>"<?php if ( $custom_bg_style ) : ?> style="<?php echo esc_attr( $custom_bg_style ); ?>"<?php endif; ?>>
+<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?><?php if ( $is_app_store ) : ?> my-apps-app-store-embedded<?php endif; ?>"<?php if ( $body_style ) : ?> style="<?php echo esc_attr( $body_style ); ?>"<?php endif; ?>>
 <?php if ( ! $is_app_store ) : ?>
 	<div class="launcher-toolbar">
 		<button type="button" class="toolbar-btn edit-btn" title="<?php esc_attr_e( 'Edit', 'my-apps' ); ?>">
@@ -217,6 +229,15 @@ $is_app_store = isset( $_GET['app-store'] );
 				<button type="button" class="bg-option bg-solid-dark" data-bg="solid-dark" title="Dark"></button>
 			</div>
 		</div>
+		<?php if ( current_user_can( 'upload_files' ) ) : ?>
+		<div class="bg-picker-section">
+			<div class="bg-picker-label"><?php esc_html_e( 'Image', 'my-apps' ); ?></div>
+			<button type="button" class="bg-option bg-image-option" data-bg="image" title="<?php esc_attr_e( 'Choose Image', 'my-apps' ); ?>">
+				<span class="bg-image-thumb"><span class="dashicons dashicons-format-image"></span></span>
+				<span class="bg-image-label"><?php esc_html_e( 'Choose Image', 'my-apps' ); ?></span>
+			</button>
+		</div>
+		<?php endif; ?>
 	</div>
 
 	<div class="context-menu" id="context-menu">

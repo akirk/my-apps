@@ -615,6 +615,17 @@
 		return toAbsoluteUrl(blueprint.landingPage);
 	}
 
+	function getAppLandingUrl(app) {
+		if (!app || typeof app._landingPage !== 'string' || !app._landingPage.trim()) {
+			return '';
+		}
+		return toAbsoluteUrl(app._landingPage);
+	}
+
+	function getInstallLandingUrl(app, blueprint) {
+		return getBlueprintLandingUrl(blueprint) || getAppLandingUrl(app);
+	}
+
 	function getDesktopModeWindowUrl(url) {
 		try {
 			var parsed = new URL(url, window.location.origin);
@@ -674,8 +685,9 @@
 		}
 	}
 
-	function getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl, desktopMode) {
-		if (desktopMode && blueprint && blueprint.landingPage) {
+	function getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl) {
+		if (blueprint && blueprint.landingPage) {
+			// Navigate after the relay confirms success, not from the install blueprint.
 			return encodeBlueprintDataUrl(cloneBlueprintWithoutLandingPage(blueprint));
 		}
 		return originalBlueprintUrl || encodeBlueprintDataUrl(blueprint);
@@ -711,7 +723,7 @@
 	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, gradient, btn) {
 		var requestId = createInstallRequestId();
 		var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
-		var blueprintUrl = getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl, desktopMode);
+		var blueprintUrl = getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl);
 
 		setInstallButtonState(btn, 'Installing...', true);
 		return getPlaygroundWindowState().then(function(windowState) {
@@ -733,7 +745,7 @@
 				gradient: gradient || '',
 				btn: btn || null,
 				desktopMode: desktopMode,
-				landingUrl: desktopMode ? getBlueprintLandingUrl(blueprint) : '',
+				landingUrl: getInstallLandingUrl(app, blueprint),
 				blueprintUrl: blueprintUrl,
 				optimisticAddPromise: optimisticAddPromise,
 				playgroundWindowState: windowState
@@ -793,12 +805,12 @@
 
 		return addPromise
 			.then(function(added) {
-				if (!install.desktopMode) {
-					return added;
-				}
-				return refreshDesktopModeShell().then(function() {
+				var shellRefresh = install.desktopMode ? refreshDesktopModeShell() : Promise.resolve();
+				return shellRefresh.then(function() {
 					if (install.landingUrl) {
-						openDesktopModeLandingPage(install);
+						if (!install.desktopMode || !openDesktopModeLandingPage(install)) {
+							window.location.href = install.landingUrl;
+						}
 					}
 					return added;
 				});
@@ -2870,9 +2882,6 @@
 			},
 			steps: [ { step: 'installPlugin', pluginData: pluginData } ]
 		};
-		if (app._landingPage) {
-			blueprint.landingPage = app._landingPage;
-		}
 		if (app._launcherUrl) {
 			blueprint.launcher_url = app._launcherUrl;
 		}
@@ -3129,7 +3138,7 @@
 							blueprint: blueprint,
 							gradient: gradient,
 							desktopMode: desktopMode,
-							landingUrl: desktopMode ? getBlueprintLandingUrl(blueprint) : ''
+							landingUrl: getInstallLandingUrl(app, blueprint)
 						});
 					})
 					.then(function(added) {
@@ -3154,14 +3163,13 @@
 
 	function updateMyApps() {
 		var blueprint = {
-			landingPage: '/my-apps/',
 			steps: [ {
 				step: 'installPlugin',
 				pluginData: { resource: 'git:directory', url: 'https://github.com/akirk/my-apps', ref: 'HEAD' },
 				options: { targetFolderName: 'my-apps' }
 			} ]
 		};
-		installResolvedBlueprintInPlayground({ title: 'My Apps' }, blueprint, '', '', null);
+		installResolvedBlueprintInPlayground({ title: 'My Apps', _landingPage: '/my-apps/' }, blueprint, '', '', null);
 	}
 
 	function installPluginApp(app, gradient, btn, infoEl) {
@@ -3189,7 +3197,7 @@
 							blueprint: blueprint,
 							gradient: gradient,
 							desktopMode: desktopMode,
-							landingUrl: desktopMode ? getBlueprintLandingUrl(blueprint) : ''
+							landingUrl: getInstallLandingUrl(app, blueprint)
 						}).then(function(added) {
 							return { result: result, added: added };
 						});

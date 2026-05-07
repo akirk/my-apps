@@ -73,11 +73,10 @@ body.my-apps-launcher ::selection {
 .bg-solid-red, body.my-apps-launcher.bg-solid-red { background: #ef4444; }
 .bg-solid-purple, body.my-apps-launcher.bg-solid-purple { background: #8b5cf6; }
 .bg-solid-dark, body.my-apps-launcher.bg-solid-dark { background: #1f2937; }
-body.my-apps-launcher.bg-image {
-	background-color: #1f2937;
-	background-position: center;
-	background-repeat: no-repeat;
+body.my-apps-launcher.bg-custom {
+	background-position: center center;
 	background-size: cover;
+	background-repeat: no-repeat;
 	background-attachment: fixed;
 }
 
@@ -1507,42 +1506,95 @@ body.my-apps-launcher .app-detail-share-btn:active {
 }
 
 .bg-image-option {
-	width: 100%;
-	height: 44px;
-	box-sizing: border-box;
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	background: #f5f5f5;
+	width: 100%;
+	margin-top: 8px;
+	padding: 8px 10px;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	background: #fff;
 	color: #333;
-	text-align: left;
+	cursor: pointer;
 	font-size: 13px;
 	font-weight: 500;
-	padding: 4px 10px 4px 4px;
+	text-align: left;
+}
+
+.bg-image-option:first-of-type {
+	margin-top: 0;
 }
 
 .bg-image-option:hover {
-	transform: none;
-	background: #eeeeee;
+	background: #f7f7f7;
+}
+
+.bg-image-option.selected,
+.bg-image-option.is-active {
+	border-color: #000;
+	box-shadow: 0 0 0 1px #000;
 }
 
 .bg-image-thumb {
-	width: 34px;
-	height: 34px;
+	width: 36px;
+	height: 36px;
 	border-radius: 6px;
-	background: #e0e0e0;
+	background: linear-gradient(135deg, #eceff4 0%, #d8dee9 100%);
 	background-position: center;
-	background-repeat: no-repeat;
 	background-size: cover;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	flex: 0 0 auto;
-	color: #666;
+	flex-shrink: 0;
 }
 
-.bg-image-thumb.has-image .dashicons {
+.bg-url-thumb {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #3858e9;
+}
+
+.bg-url-thumb .dashicons {
+	width: 20px;
+	height: 20px;
+	font-size: 20px;
+}
+
+.bg-url-form {
+	display: flex;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.bg-url-form[hidden] {
 	display: none;
+}
+
+.bg-url-form input {
+	min-width: 0;
+	flex: 1;
+	height: 34px;
+	padding: 6px 8px;
+	border: 1px solid #ddd;
+	border-radius: 7px;
+	font-size: 13px;
+}
+
+.bg-url-form button {
+	height: 34px;
+	padding: 0 12px;
+	border: none;
+	border-radius: 7px;
+	background: #3858e9;
+	color: #fff;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.bg-picker-popup.is-loading .bg-url-form button,
+.bg-picker-popup.is-loading .bg-image-option {
+	opacity: 0.65;
+	pointer-events: none;
 }
 
 /* Context Menu */

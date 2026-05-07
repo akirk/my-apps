@@ -8,6 +8,23 @@ defined( 'ABSPATH' ) || exit;
  */
 class My_Apps {
 	const ICON_PATH = 'M6 5.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM4 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm11-.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM13 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V6zm5 8.5h-3a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5zM15 13a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2h-3zm-9 1.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM4 15a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3z';
+	const CUSTOM_BACKGROUND = 'custom';
+	const PRESET_BACKGROUNDS = array(
+		'gradient-purple',
+		'gradient-blue',
+		'gradient-green',
+		'gradient-orange',
+		'gradient-pink',
+		'gradient-dark',
+		'gradient-sunset',
+		'gradient-ocean',
+		'solid-gray',
+		'solid-blue',
+		'solid-green',
+		'solid-red',
+		'solid-purple',
+		'solid-dark',
+	);
 	const VALID_BACKGROUNDS = array(
 		'gradient-purple',
 		'gradient-blue',
@@ -23,6 +40,7 @@ class My_Apps {
 		'solid-red',
 		'solid-purple',
 		'solid-dark',
+		self::CUSTOM_BACKGROUND,
 	);
 
 	public static function icon_svg() {
@@ -133,8 +151,7 @@ class My_Apps {
 					'properties'           => array(
 						'background' => array(
 							'type'        => 'string',
-							'enum'        => self::VALID_BACKGROUNDS,
-							'description' => __( 'The launcher background slug.', 'my-apps' ),
+							'description' => __( 'A preset background slug, image attachment ID, or remote image URL to sideload.', 'my-apps' ),
 						),
 					),
 					'additionalProperties' => false,
@@ -145,7 +162,6 @@ class My_Apps {
 					'properties'           => array(
 						'background'        => array(
 							'type'        => 'string',
-							'enum'        => self::VALID_BACKGROUNDS,
 							'description' => __( 'The selected launcher background slug.', 'my-apps' ),
 						),
 						'valid_backgrounds' => array(
@@ -153,8 +169,20 @@ class My_Apps {
 							'description' => __( 'Background slugs accepted by the launcher.', 'my-apps' ),
 							'items'       => array(
 								'type' => 'string',
-								'enum' => self::VALID_BACKGROUNDS,
+								'enum' => self::PRESET_BACKGROUNDS,
 							),
+						),
+						'custom_background' => array(
+							'type'        => 'string',
+							'description' => __( 'Custom CSS background value, when the selected background is custom.', 'my-apps' ),
+						),
+						'image_url'         => array(
+							'type'        => 'string',
+							'description' => __( 'The selected custom background image URL.', 'my-apps' ),
+						),
+						'attachment_id'     => array(
+							'type'        => 'integer',
+							'description' => __( 'The selected custom background image attachment ID, when available.', 'my-apps' ),
 						),
 					),
 					'additionalProperties' => false,
@@ -198,18 +226,157 @@ class My_Apps {
 	 * @return array|\WP_Error
 	 */
 	public function ability_set_background( $input = array() ) {
-		$background = is_array( $input ) && isset( $input['background'] ) ? sanitize_text_field( wp_unslash( $input['background'] ) ) : '';
+		$background = is_array( $input ) && isset( $input['background'] ) ? (string) wp_unslash( $input['background'] ) : '';
 
-		if ( ! in_array( $background, self::VALID_BACKGROUNDS, true ) ) {
-			return new \WP_Error( 'my_apps_invalid_background', __( 'Invalid background', 'my-apps' ) );
+		return self::save_background_value( $background );
+	}
+
+	/**
+	 * Save a background value.
+	 *
+	 * Accepted values are preset slugs, numeric attachment IDs, or remote
+	 * image URLs. Image values are stored as the custom background type.
+	 *
+	 * @param string $value Background value.
+	 * @return array|\WP_Error
+	 */
+	private static function save_background_value( $value ) {
+		$value = trim( (string) $value );
+
+		if ( '' === $value ) {
+			return new \WP_Error( 'my_apps_empty_background', __( 'No background provided.', 'my-apps' ) );
 		}
 
-		update_option( 'my_apps_background', $background );
+		if ( in_array( $value, self::VALID_BACKGROUNDS, true ) ) {
+			if ( self::CUSTOM_BACKGROUND === $value && '' === get_option( 'my_apps_background_custom', '' ) ) {
+				return new \WP_Error( 'my_apps_invalid_background', __( 'Choose an image for the custom background.', 'my-apps' ) );
+			}
 
-		return array(
-			'background'        => $background,
-			'valid_backgrounds' => self::VALID_BACKGROUNDS,
+			update_option( 'my_apps_background', $value );
+			return self::current_background_payload();
+		}
+
+		if ( ctype_digit( $value ) ) {
+			return self::save_attachment_background( absint( $value ) );
+		}
+
+		if ( preg_match( '#^https?://#i', $value ) ) {
+			return self::save_sideloaded_background( $value );
+		}
+
+		return new \WP_Error( 'my_apps_invalid_background', __( 'Invalid background.', 'my-apps' ) );
+	}
+
+	/**
+	 * Save a Media Library image attachment as the custom background.
+	 *
+	 * @param int $attachment_id Attachment post ID.
+	 * @return array|\WP_Error
+	 */
+	private static function save_attachment_background( $attachment_id ) {
+		if ( ! $attachment_id || 'attachment' !== get_post_type( $attachment_id ) || ! wp_attachment_is_image( $attachment_id ) ) {
+			return new \WP_Error( 'my_apps_invalid_background_attachment', __( 'Invalid background image.', 'my-apps' ) );
+		}
+
+		$url = wp_get_attachment_image_url( $attachment_id, 'full' );
+		if ( ! $url ) {
+			return new \WP_Error( 'my_apps_invalid_background_attachment', __( 'Invalid background image.', 'my-apps' ) );
+		}
+
+		self::store_custom_background_image( $url, $attachment_id );
+		return self::current_background_payload();
+	}
+
+	/**
+	 * Sideload a remote image URL and save it as the custom background.
+	 *
+	 * @param string $url Remote image URL.
+	 * @return array|\WP_Error
+	 */
+	private static function save_sideloaded_background( $url ) {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return new \WP_Error( 'my_apps_cannot_upload_background', __( 'Sorry, you are not allowed to upload images.', 'my-apps' ) );
+		}
+
+		$url = esc_url_raw( $url );
+		if ( ! $url || ! wp_http_validate_url( $url ) ) {
+			return new \WP_Error( 'my_apps_invalid_background_url', __( 'Invalid background image URL.', 'my-apps' ) );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$attachment_id = media_sideload_image( $url, 0, null, 'id' );
+		if ( is_wp_error( $attachment_id ) ) {
+			return $attachment_id;
+		}
+
+		return self::save_attachment_background( $attachment_id );
+	}
+
+	/**
+	 * Store custom image background metadata.
+	 *
+	 * @param string $url           Image URL.
+	 * @param int    $attachment_id Attachment post ID.
+	 */
+	private static function store_custom_background_image( $url, $attachment_id = 0 ) {
+		$url = esc_url_raw( $url );
+
+		update_option( 'my_apps_background', self::CUSTOM_BACKGROUND );
+		update_option( 'my_apps_background_custom', self::image_background_css( $url ) );
+		update_option( 'my_apps_background_image_url', $url );
+		update_option( 'my_apps_background_attachment_id', absint( $attachment_id ) );
+	}
+
+	/**
+	 * Build a safe CSS background value for a custom image URL.
+	 *
+	 * @param string $url Image URL.
+	 * @return string
+	 */
+	private static function image_background_css( $url ) {
+		$url = str_replace(
+			array( '"', '\\', "\r", "\n" ),
+			array( '%22', '%5C', '', '' ),
+			esc_url_raw( $url )
 		);
+
+		return 'url("' . $url . '") center center / cover no-repeat fixed';
+	}
+
+	/**
+	 * Get the currently stored background payload.
+	 *
+	 * @return array
+	 */
+	private static function current_background_payload() {
+		$background = get_option( 'my_apps_background', 'gradient-dark' );
+		$background = is_string( $background ) && in_array( $background, self::VALID_BACKGROUNDS, true ) ? $background : 'gradient-dark';
+
+		$payload = array(
+			'background'        => $background,
+			'valid_backgrounds' => self::PRESET_BACKGROUNDS,
+		);
+
+		if ( self::CUSTOM_BACKGROUND === $background ) {
+			$custom_bg     = get_option( 'my_apps_background_custom', '' );
+			$image_url     = get_option( 'my_apps_background_image_url', '' );
+			$attachment_id = absint( get_option( 'my_apps_background_attachment_id', 0 ) );
+
+			if ( is_string( $custom_bg ) && '' !== $custom_bg ) {
+				$payload['custom_background'] = $custom_bg;
+			}
+			if ( is_string( $image_url ) && '' !== $image_url ) {
+				$payload['image_url'] = $image_url;
+			}
+			if ( $attachment_id ) {
+				$payload['attachment_id'] = $attachment_id;
+			}
+		}
+
+		return $payload;
 	}
 
 	/**
@@ -533,7 +700,8 @@ class My_Apps {
 
 		wp_enqueue_style( 'dashicons' );
 
-		if ( current_user_can( 'upload_files' ) ) {
+		$can_upload_media = current_user_can( 'upload_files' );
+		if ( $can_upload_media ) {
 			wp_enqueue_media();
 		}
 
@@ -544,11 +712,7 @@ class My_Apps {
 			}
 		}
 
-		$background_image_id  = absint( get_option( 'my_apps_background_image_id', 0 ) );
-		$background_image_url = $background_image_id ? wp_get_attachment_image_url( $background_image_id, 'medium' ) : '';
-		if ( ! $background_image_url && $background_image_id ) {
-			$background_image_url = wp_get_attachment_image_url( $background_image_id, 'full' );
-		}
+		$background_payload = self::current_background_payload();
 
 		wp_enqueue_script(
 			'sortablejs',
@@ -570,20 +734,22 @@ class My_Apps {
 			'my-apps-launcher',
 			'myAppsConfig',
 			array(
-				'ajaxUrl'           => admin_url( 'admin-ajax.php' ),
-				'nonce'             => wp_create_nonce( 'my_apps_launcher' ),
-				'isPlayground'      => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
-				'canInstallPlugins' => current_user_can( 'install_plugins' ),
-				'canUpdatePlugins'  => current_user_can( 'update_plugins' ),
-				'pluginInstallUrl'  => self_admin_url( 'plugin-install.php' ),
-				'displayName'       => wp_get_current_user()->display_name,
-				'deletableSlugs'    => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
-				'appUrls'           => array_values( array_unique( array_filter( $app_urls ) ) ),
-				'installedPlugins'  => self::get_installed_plugin_statuses(),
-				'canUploadMedia'     => current_user_can( 'upload_files' ),
-				'backgroundImageId'  => $background_image_id,
-				'backgroundImageUrl' => $background_image_url,
-				'i18n'              => array(
+				'ajaxUrl'                => admin_url( 'admin-ajax.php' ),
+				'nonce'                  => wp_create_nonce( 'my_apps_launcher' ),
+				'isPlayground'           => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
+				'canInstallPlugins'      => current_user_can( 'install_plugins' ),
+				'canUpdatePlugins'       => current_user_can( 'update_plugins' ),
+				'canUploadMedia'         => $can_upload_media,
+				'pluginInstallUrl'       => self_admin_url( 'plugin-install.php' ),
+				'displayName'            => wp_get_current_user()->display_name,
+				'deletableSlugs'         => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
+				'appUrls'                => array_values( array_unique( array_filter( $app_urls ) ) ),
+				'installedPlugins'       => self::get_installed_plugin_statuses(),
+				'background'             => $background_payload['background'],
+				'customBackground'       => isset( $background_payload['custom_background'] ) ? $background_payload['custom_background'] : '',
+				'backgroundImageUrl'     => isset( $background_payload['image_url'] ) ? $background_payload['image_url'] : '',
+				'backgroundAttachmentId' => isset( $background_payload['attachment_id'] ) ? $background_payload['attachment_id'] : 0,
+				'i18n'                   => array(
 					'fillAllFields'         => __( 'Please fill in all fields', 'my-apps' ),
 					'confirmDelete'         => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
 					'chooseBackgroundImage' => __( 'Choose Background Image', 'my-apps' ),
@@ -980,42 +1146,15 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$background = isset( $_POST['background'] ) ? sanitize_text_field( wp_unslash( $_POST['background'] ) ) : '';
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Parsed and validated by save_background_value().
+		$background = isset( $_POST['background'] ) ? (string) wp_unslash( $_POST['background'] ) : '';
+		$result     = self::save_background_value( $background );
 
-		if ( ! in_array( $background, self::VALID_BACKGROUNDS, true ) ) {
-			wp_send_json_error( 'Invalid background' );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
 		}
 
-		if ( 'image' === $background ) {
-			if ( ! current_user_can( 'upload_files' ) ) {
-				wp_send_json_error( 'Not allowed' );
-			}
-
-			$attachment_id = isset( $_POST['attachment_id'] )
-				? absint( wp_unslash( $_POST['attachment_id'] ) )
-				: 0;
-			if ( ! $attachment_id || ! wp_attachment_is_image( $attachment_id ) ) {
-				wp_send_json_error( 'Invalid background image' );
-			}
-
-			$background_image_url = wp_get_attachment_image_url( $attachment_id, 'full' );
-			if ( ! $background_image_url ) {
-				wp_send_json_error( 'Invalid background image' );
-			}
-
-			update_option( 'my_apps_background', $background );
-			update_option( 'my_apps_background_image_id', $attachment_id );
-			wp_send_json_success(
-				array(
-					'background'    => $background,
-					'attachment_id' => $attachment_id,
-					'url'           => $background_image_url,
-				)
-			);
-		}
-
-		update_option( 'my_apps_background', $background );
-		wp_send_json_success();
+		wp_send_json_success( $result );
 	}
 
 	/**
@@ -1360,13 +1499,17 @@ class My_Apps {
 			wp_send_json_error( 'Not allowed' );
 		}
 
+		$background_payload = self::current_background_payload();
+		unset( $background_payload['valid_backgrounds'] );
+
 		wp_send_json_success(
-			array(
-				'sort'                => get_option( 'my_apps_sort', array() ),
-				'hide_plugins'        => get_option( 'my_apps_hide_plugins', array() ),
-				'additional_apps'     => get_option( 'my_apps_additional_apps', array() ),
-				'background'          => get_option( 'my_apps_background', 'gradient-dark' ),
-				'background_image_id' => absint( get_option( 'my_apps_background_image_id', 0 ) ),
+			array_merge(
+				array(
+					'sort'            => get_option( 'my_apps_sort', array() ),
+					'hide_plugins'    => get_option( 'my_apps_hide_plugins', array() ),
+					'additional_apps' => get_option( 'my_apps_additional_apps', array() ),
+				),
+				$background_payload
 			)
 		);
 	}
@@ -1381,7 +1524,8 @@ class My_Apps {
 			wp_send_json_error( 'Not allowed' );
 		}
 
-		$data = isset( $_POST['data'] ) ? json_decode( sanitize_text_field( wp_unslash( $_POST['data'] ) ), true ) : null;
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Decoded below; supported keys are validated individually before saving.
+		$data = isset( $_POST['data'] ) ? json_decode( wp_unslash( $_POST['data'] ), true ) : null;
 
 		if ( ! is_array( $data ) ) {
 			wp_send_json_error( 'Invalid data' );
@@ -1396,13 +1540,22 @@ class My_Apps {
 		if ( isset( $data['additional_apps'] ) && is_array( $data['additional_apps'] ) ) {
 			update_option( 'my_apps_additional_apps', $data['additional_apps'] );
 		}
-		if ( isset( $data['background'] ) && is_string( $data['background'] ) ) {
-			update_option( 'my_apps_background', $data['background'] );
-		}
-		if ( isset( $data['background_image_id'] ) ) {
-			$background_image_id = absint( $data['background_image_id'] );
-			if ( $background_image_id && wp_attachment_is_image( $background_image_id ) ) {
-				update_option( 'my_apps_background_image_id', $background_image_id );
+		if ( isset( $data['background'] ) && is_scalar( $data['background'] ) ) {
+			if ( 'image' === $data['background'] && ! empty( $data['background_image_id'] ) ) {
+				$background_result = self::save_background_value( (string) absint( $data['background_image_id'] ) );
+				if ( is_wp_error( $background_result ) ) {
+					wp_send_json_error( $background_result->get_error_message() );
+				}
+			} elseif ( self::CUSTOM_BACKGROUND === $data['background'] && ! empty( $data['custom_background'] ) ) {
+				update_option( 'my_apps_background', self::CUSTOM_BACKGROUND );
+				update_option( 'my_apps_background_custom', sanitize_text_field( $data['custom_background'] ) );
+				update_option( 'my_apps_background_image_url', ! empty( $data['image_url'] ) ? esc_url_raw( $data['image_url'] ) : '' );
+				update_option( 'my_apps_background_attachment_id', ! empty( $data['attachment_id'] ) ? absint( $data['attachment_id'] ) : 0 );
+			} else {
+				$background_result = self::save_background_value( (string) $data['background'] );
+				if ( is_wp_error( $background_result ) ) {
+					wp_send_json_error( $background_result->get_error_message() );
+				}
 			}
 		}
 
@@ -1427,12 +1580,20 @@ class My_Apps {
 					'type'        => 'string',
 					'description' => __( 'Custom CSS background value, when the selected background is custom.', 'my-apps' ),
 				),
+				'image_url'         => array(
+					'type'        => 'string',
+					'description' => __( 'The selected custom background image URL.', 'my-apps' ),
+				),
+				'attachment_id'     => array(
+					'type'        => 'integer',
+					'description' => __( 'The selected custom background image attachment ID, when available.', 'my-apps' ),
+				),
 				'valid_backgrounds' => array(
 					'type'        => 'array',
-					'description' => __( 'Background slugs accepted by the launcher background setter.', 'my-apps' ),
+					'description' => __( 'Preset background slugs accepted by the launcher background setter.', 'my-apps' ),
 					'items'       => array(
 						'type' => 'string',
-						'enum' => self::VALID_BACKGROUNDS,
+						'enum' => self::PRESET_BACKGROUNDS,
 					),
 				),
 				'sort'              => array(
@@ -1516,16 +1677,12 @@ class My_Apps {
 	 * @return array
 	 */
 	private static function customization_payload() {
-		$background      = get_option( 'my_apps_background', 'gradient-dark' );
-		$custom_bg       = get_option( 'my_apps_background_custom', '' );
 		$hidden          = (array) get_option( 'my_apps_hide_plugins', array() );
 		$additional_apps = get_option( 'my_apps_additional_apps', array() );
 		$launcher_apps   = self::get_apps();
 		$sort            = get_option( 'my_apps_sort', array() );
 		$apps            = array();
 
-		$background      = is_string( $background ) ? $background : 'gradient-dark';
-		$custom_bg       = is_string( $custom_bg ) ? $custom_bg : '';
 		$additional_apps = is_array( $additional_apps ) ? $additional_apps : array();
 
 		if ( ! is_array( $sort ) ) {
@@ -1541,19 +1698,14 @@ class My_Apps {
 			);
 		}
 
-		$payload = array(
-			'background'        => $background,
-			'valid_backgrounds' => self::VALID_BACKGROUNDS,
-			'sort'              => array_values( array_map( 'sanitize_text_field', $sort ) ),
-			'hidden'            => array_values( array_map( 'sanitize_text_field', $hidden ) ),
-			'apps'              => $apps,
+		return array_merge(
+			self::current_background_payload(),
+			array(
+				'sort'   => array_values( array_map( 'sanitize_text_field', $sort ) ),
+				'hidden' => array_values( array_map( 'sanitize_text_field', $hidden ) ),
+				'apps'   => $apps,
+			)
 		);
-
-		if ( 'custom' === $background && '' !== $custom_bg ) {
-			$payload['custom_background'] = $custom_bg;
-		}
-
-		return $payload;
 	}
 
 	/**

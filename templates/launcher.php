@@ -35,20 +35,11 @@ $can_manage = current_user_can( 'manage_options' );
 
 <?php
 $background = get_option( 'my_apps_background', 'gradient-dark' );
-$custom_bg  = get_option( 'my_apps_background_custom', '' );
-$body_style = '';
-
-if ( 'image' === $background ) {
-	$background_image_id  = absint( get_option( 'my_apps_background_image_id', 0 ) );
-	$background_image_url = $background_image_id ? wp_get_attachment_image_url( $background_image_id, 'full' ) : '';
-	if ( $background_image_url ) {
-		$body_style = 'background-image: url("' . esc_url( $background_image_url ) . '");';
-	} else {
-		$background = 'gradient-dark';
-	}
-} elseif ( 'custom' === $background && $custom_bg ) {
-	$body_style = 'background: ' . $custom_bg;
-}
+$background = is_string( $background ) && in_array( $background, My_Apps::VALID_BACKGROUNDS, true ) ? $background : 'gradient-dark';
+$custom_bg = get_option( 'my_apps_background_custom', '' );
+$custom_bg = is_string( $custom_bg ) ? $custom_bg : '';
+$body_style = ( My_Apps::CUSTOM_BACKGROUND === $background && $custom_bg ) ? 'background: ' . $custom_bg : '';
+$can_upload_media = current_user_can( 'upload_files' );
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $is_app_store = isset( $_GET['app-store'] );
 ?>
@@ -229,13 +220,21 @@ $is_app_store = isset( $_GET['app-store'] );
 				<button type="button" class="bg-option bg-solid-dark" data-bg="solid-dark" title="Dark"></button>
 			</div>
 		</div>
-		<?php if ( current_user_can( 'upload_files' ) ) : ?>
+		<?php if ( $can_upload_media ) : ?>
 		<div class="bg-picker-section">
 			<div class="bg-picker-label"><?php esc_html_e( 'Image', 'my-apps' ); ?></div>
-			<button type="button" class="bg-option bg-image-option" data-bg="image" title="<?php esc_attr_e( 'Choose Image', 'my-apps' ); ?>">
-				<span class="bg-image-thumb"><span class="dashicons dashicons-format-image"></span></span>
-				<span class="bg-image-label"><?php esc_html_e( 'Choose Image', 'my-apps' ); ?></span>
+			<button type="button" class="bg-image-option" id="bg-media-btn">
+				<span class="bg-image-thumb" id="bg-image-preview"></span>
+				<span><?php esc_html_e( 'Media Library', 'my-apps' ); ?></span>
 			</button>
+			<button type="button" class="bg-image-option" id="bg-url-toggle" aria-expanded="false" aria-controls="bg-url-form">
+				<span class="bg-image-thumb bg-url-thumb"><span class="dashicons dashicons-admin-links"></span></span>
+				<span><?php esc_html_e( 'Import from URL', 'my-apps' ); ?></span>
+			</button>
+			<form class="bg-url-form" id="bg-url-form" hidden>
+				<input type="url" id="bg-url-input" placeholder="<?php esc_attr_e( 'https://example.com/image.jpg', 'my-apps' ); ?>">
+				<button type="submit" id="bg-url-submit"><?php esc_html_e( 'Set', 'my-apps' ); ?></button>
+			</form>
 		</div>
 		<?php endif; ?>
 	</div>

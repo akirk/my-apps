@@ -5,7 +5,6 @@
 		"description": "Adds an app launcher to your WordPress (git version)",
 		"author": "Alex Kirk"
 	},
-	"landingPage": "/my-apps/",
 	"login": true,
 	"steps": [
 		{

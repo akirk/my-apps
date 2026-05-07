@@ -43,7 +43,6 @@
 	const PLUGINS_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/plugins.json';
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
-	const PLAYGROUND_WINDOW_STATE_TIMEOUT = 2000;
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
 
 	// Walk up the parent chain until we reach a cross-origin frame.
@@ -130,125 +129,6 @@
 		}
 	}
 
-	var playgroundWindowState = null;
-	var playgroundWindowStatePromise = null;
-
-	function getPlaygroundWindowState() {
-		if (playgroundWindowState) {
-			return Promise.resolve(playgroundWindowState);
-		}
-		if (playgroundWindowStatePromise) {
-			return playgroundWindowStatePromise;
-		}
-
-		playgroundWindowStatePromise = requestPlaygroundWindowState()
-			.then(function(state) {
-				playgroundWindowState = state;
-				applyPlaygroundInstallAvailability(document);
-				return state;
-			});
-
-		return playgroundWindowStatePromise;
-	}
-
-	function requestPlaygroundWindowState() {
-		return new Promise(function(resolve) {
-			var requestId = createInstallRequestId();
-			var target = getPlaygroundTarget();
-			var settled = false;
-			var timer = null;
-
-			function finish(state) {
-				if (settled) return;
-				settled = true;
-				window.removeEventListener('message', onMessage);
-				if (timer) {
-					clearTimeout(timer);
-				}
-				resolve(state);
-			}
-
-			function onMessage(event) {
-				var data = event && event.data;
-				if (
-					data &&
-					data.type === 'relay' &&
-					data.relayType === 'playground-window-state' &&
-					data.requestId === requestId
-				) {
-					finish({
-						isDependentMode: !!data.isDependentMode,
-						canInstallBlueprint: data.canInstallBlueprint !== false
-					});
-				}
-			}
-
-			window.addEventListener('message', onMessage);
-			timer = setTimeout(function() {
-				finish({
-					isDependentMode: false,
-					canInstallBlueprint: true,
-					timedOut: true
-				});
-			}, PLAYGROUND_WINDOW_STATE_TIMEOUT);
-
-			try {
-				target.postMessage({
-					type: 'relay',
-					relayType: 'get-playground-window-state',
-					requestId: requestId
-				}, getPostMessageTargetOrigin(target));
-			} catch (e) {
-				finish({
-					isDependentMode: false,
-					canInstallBlueprint: true,
-					error: e
-				});
-			}
-		});
-	}
-
-	function playgroundCanInstallBlueprint(state) {
-		return !state || state.canInstallBlueprint !== false;
-	}
-
-	function applyPlaygroundInstallAvailability(root) {
-		if (!isPlayground || playgroundCanInstallBlueprint(playgroundWindowState)) {
-			return;
-		}
-		Array.prototype.forEach.call(
-			(root || document).querySelectorAll('.app-store-install-btn'),
-			function(btn) {
-				btn.hidden = true;
-				btn.disabled = true;
-				btn.setAttribute('aria-disabled', 'true');
-				btn.title = playgroundWindowState.isDependentMode
-					? 'Install from the main Playground window.'
-					: 'This Playground window cannot install blueprints.';
-			}
-		);
-	}
-
-	function watchPlaygroundInstallAvailability() {
-		if (!isPlayground) return;
-		getPlaygroundWindowState();
-		if (typeof MutationObserver !== 'function' || !document.body) return;
-		var observer = new MutationObserver(function(mutations) {
-			mutations.forEach(function(mutation) {
-				Array.prototype.forEach.call(mutation.addedNodes, function(node) {
-					if (!node || node.nodeType !== 1) return;
-					if (node.matches && node.matches('.app-store-install-btn')) {
-						applyPlaygroundInstallAvailability(node.parentNode || document);
-						return;
-					}
-					if (node.querySelector) {
-						applyPlaygroundInstallAvailability(node);
-					}
-				});
-			});
-		});
-		observer.observe(document.body, { childList: true, subtree: true });
-	}
 	let recipes = {};
 	let hasRecipes = false;
 	let recipesLoadState = 'idle'; // idle | loading | loaded | failed
@@ -515,12 +395,6 @@
 		return /^install failed/i.test(details) ? details : 'Install failed: ' + details;
 	}
 
-	function playgroundCannotInstallMessage(state) {
-		var details = describeErrorValue(state && state.error);
-		return 'Install failed: This Playground window cannot install blueprints.' +
-			(details ? ' ' + details : '');
-	}
-
 	// ── Auto-add icon for blueprint/plugin installs ──
 	// Opt-in: only fires when the blueprint declares `launcher_url` (the
 	// page the launcher icon should open). `landingPage` alone is no
@@ -724,36 +598,26 @@
 		var requestId = createInstallRequestId();
 		var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 		var blueprintUrl = getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl);
+		var optimisticAddPromise = null;
 
 		setInstallButtonState(btn, 'Installing...', true);
-		return getPlaygroundWindowState().then(function(windowState) {
-			var optimisticAddPromise = null;
+		if (!desktopMode && app && blueprint) {
+			optimisticAddPromise = addAppFromBlueprint(app, blueprint, gradient);
+		}
 
-			if (!playgroundCanInstallBlueprint(windowState)) {
-				resetInstallButtonState(btn);
-				showToast(playgroundCannotInstallMessage(windowState));
-				return null;
-			}
-
-			if (!desktopMode && app && blueprint) {
-				optimisticAddPromise = addAppFromBlueprint(app, blueprint, gradient);
-			}
-
-			rememberPendingPlaygroundInstall(requestId, {
-				app: app || null,
-				blueprint: blueprint || null,
-				gradient: gradient || '',
-				btn: btn || null,
-				desktopMode: desktopMode,
-				landingUrl: getInstallLandingUrl(app, blueprint),
-				blueprintUrl: blueprintUrl,
-				optimisticAddPromise: optimisticAddPromise,
-				playgroundWindowState: windowState
-			});
-
-			postPlaygroundBlueprintInstall(blueprintUrl, requestId);
-			return requestId;
+		rememberPendingPlaygroundInstall(requestId, {
+			app: app || null,
+			blueprint: blueprint || null,
+			gradient: gradient || '',
+			btn: btn || null,
+			desktopMode: desktopMode,
+			landingUrl: getInstallLandingUrl(app, blueprint),
+			blueprintUrl: blueprintUrl,
+			optimisticAddPromise: optimisticAddPromise
 		});
+
+		postPlaygroundBlueprintInstall(blueprintUrl, requestId);
+		return Promise.resolve(requestId);
 	}
 
 	function installBlueprintInPlayground(app, blueprintUrl, gradient, btn) {
@@ -774,25 +638,17 @@
 					showToast(message);
 					return null;
 				}
-				return getPlaygroundWindowState().then(function(windowState) {
-					if (!playgroundCanInstallBlueprint(windowState)) {
-						resetInstallButtonState(btn);
-						showToast(playgroundCannotInstallMessage(windowState));
-						return null;
-					}
-					rememberPendingPlaygroundInstall(requestId, {
-						app: app || null,
-						blueprint: null,
-						gradient: gradient || '',
-						btn: btn || null,
-						desktopMode: desktopMode,
-						landingUrl: '',
-						blueprintUrl: blueprintUrl,
-						playgroundWindowState: windowState
-					});
-					postPlaygroundBlueprintInstall(blueprintUrl, requestId);
-					return requestId;
+				rememberPendingPlaygroundInstall(requestId, {
+					app: app || null,
+					blueprint: null,
+					gradient: gradient || '',
+					btn: btn || null,
+					desktopMode: desktopMode,
+					landingUrl: '',
+					blueprintUrl: blueprintUrl
 				});
+				postPlaygroundBlueprintInstall(blueprintUrl, requestId);
+				return requestId;
 			});
 	}
 
@@ -860,7 +716,6 @@
 	}
 
 	window.addEventListener('message', handlePlaygroundInstallResult);
-	watchPlaygroundInstallAvailability();
 
 	var emojis = [
 		{ emoji: '📱', keywords: 'phone mobile smartphone device' },

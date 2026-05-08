@@ -41,6 +41,35 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
         return $apps;
     } );
 
+### Temporarily adding an app from a blueprint
+
+You can add your own app to the App Store by pasting a complete WordPress Playground `blueprint.json`. Open My Apps, choose Add, then paste the blueprint anywhere in the App Store. On mobile, focus the Search field and paste the blueprint there.
+
+My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author` fields to create the app-store entry. If the title matches an existing app, you can temporarily override that app with your pasted blueprint. Custom and modified blueprint entries are stored in this browser and can be removed or reverted from their badge in the App Store.
+
+Example:
+
+```json
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "My Custom App",
+		"description": "Installs my custom WordPress app.",
+		"author": "Your Name"
+	},
+	"landingPage": "/wp-admin/",
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "wordpress.org/plugins",
+				"slug": "gutenberg"
+			}
+		}
+	]
+}
+```
+
 ### Abilities API
 
 When the WordPress Abilities API is available, My Apps registers a `my-apps` category with two customization abilities:

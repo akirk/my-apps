@@ -3460,25 +3460,31 @@
 		appStoreNav.appendChild(submitLi);
 	}
 
-	function handleBlueprintPaste(e) {
-		var text = (e.clipboardData || window.clipboardData).getData('text');
-		if (!text) return;
+	function isJsonTextCandidate(text) {
+		var trimmed = String(text || '').trim();
+		return trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[';
+	}
 
-		var blueprint;
-		try {
-			blueprint = JSON.parse(text);
-		} catch (err) {
-			showToast('Pasted text is not valid JSON');
-			return;
+	function isBlueprintLikeObject(blueprint) {
+		return !!(
+			blueprint &&
+			typeof blueprint === 'object' &&
+			(
+				blueprint.steps ||
+				blueprint.meta ||
+				(
+					typeof blueprint.$schema === 'string' &&
+					blueprint.$schema.indexOf('blueprint') !== -1
+				)
+			)
+		);
+	}
+
+	function importCustomBlueprint(blueprint) {
+		if (!appStoreData) {
+			showToast('Apps are still loading. Try again in a moment.');
+			return true;
 		}
-
-		// Validate it looks like a blueprint
-		if (!blueprint.steps && !blueprint.meta && !(blueprint.$schema && blueprint.$schema.indexOf('blueprint') !== -1)) {
-			showToast('Pasted JSON is not a valid blueprint');
-			return;
-		}
-
-		e.preventDefault();
 
 		var meta = blueprint.meta || {};
 		var title = meta.title || 'Untitled App';
@@ -3511,7 +3517,7 @@
 
 		if (matchedPath) {
 			if (!confirm('An app named "' + title + '" already exists. Override it with your pasted blueprint?')) {
-				return;
+				return true;
 			}
 			// Only delete if the key changes (avoid re-inserting at end)
 			if (matchedPath !== customPath) {
@@ -3538,10 +3544,81 @@
 		buildAppStoreNav(appStoreData);
 		renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 		showToast(matchedPath ? '"' + title + '" overridden with custom blueprint' : '"' + title + '" added');
+		return true;
+	}
+
+	function importBlueprintText(text, options) {
+		options = options || {};
+		if (!isJsonTextCandidate(text)) {
+			return false;
+		}
+
+		var blueprint;
+		try {
+			blueprint = JSON.parse(text);
+		} catch (err) {
+			if (options.showErrors) {
+				showToast('Pasted text is not valid JSON');
+			}
+			return !!options.consumeInvalid;
+		}
+
+		if (!isBlueprintLikeObject(blueprint)) {
+			if (options.showErrors) {
+				showToast('Pasted JSON is not a valid blueprint');
+			}
+			return !!options.consumeInvalid;
+		}
+
+		return importCustomBlueprint(blueprint);
+	}
+
+	function handleBlueprintPaste(e) {
+		if (e.defaultPrevented) return;
+
+		var clipboard = e.clipboardData || window.clipboardData;
+		var text = clipboard ? clipboard.getData('text') : '';
+		if (!text) return;
+
+		if (importBlueprintText(text, { showErrors: true, consumeInvalid: true })) {
+			e.preventDefault();
+			e.stopPropagation();
+		}
+	}
+
+	function handleBlueprintSearchPaste(e) {
+		var clipboard = e.clipboardData || window.clipboardData;
+		var text = clipboard ? clipboard.getData('text') : '';
+		if (!text) return;
+		if (!isJsonTextCandidate(text)) return;
+
+		appStoreSearchInput.value = '';
+		if (importBlueprintText(text, { showErrors: true, consumeInvalid: true })) {
+			e.preventDefault();
+			e.stopPropagation();
+			if (appStoreData) {
+				filterAppStore();
+			}
+		}
+	}
+
+	function handleBlueprintSearchInput() {
+		var value = appStoreSearchInput.value || '';
+		if (!isJsonTextCandidate(value)) {
+			return false;
+		}
+
+		if (importBlueprintText(value, { showErrors: false, consumeInvalid: false })) {
+			appStoreSearchInput.value = '';
+			return true;
+		}
+
+		return false;
 	}
 
 	function bindAppStoreEvents() {
 		installSoftwareModal.addEventListener('paste', handleBlueprintPaste);
+		appStoreSearchInput.addEventListener('paste', handleBlueprintSearchPaste);
 
 		appStoreNav.addEventListener('click', function(e) {
 			var item = e.target.closest('.app-store-nav-item');
@@ -3572,6 +3649,10 @@
 		});
 
 		appStoreSearchInput.addEventListener('input', function() {
+			if (handleBlueprintSearchInput()) {
+				filterAppStore();
+				return;
+			}
 			filterAppStore();
 		});
 	}

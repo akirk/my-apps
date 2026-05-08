@@ -1,0 +1,153 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/akirk/my-apps/schemas/playground-blueprint-consumed.schema.json",
+	"title": "My Apps Consumed Playground Blueprint Fields",
+	"description": "Companion schema for WordPress Playground blueprint fields that My Apps reads or displays.",
+	"type": "object",
+	"properties": {
+		"$schema": {
+			"type": "string"
+		},
+		"meta": {
+			"type": "object",
+			"properties": {
+				"title": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"author": {
+					"type": "string"
+				},
+				"categories": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"screenshots": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					}
+				}
+			},
+			"additionalProperties": true
+		},
+		"landingPage": {
+			"type": "string"
+		},
+		"launcher_url": {
+			"type": "string",
+			"anyOf": [
+				{
+					"format": "uri"
+				},
+				{
+					"pattern": "^/"
+				}
+			],
+			"description": "Absolute URL or site-relative URL for the launcher icon added after install."
+		},
+		"steps": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/blueprintStep"
+			}
+		}
+	},
+	"additionalProperties": true,
+	"$defs": {
+		"resource": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string"
+				},
+				"slug": {
+					"type": "string"
+				},
+				"url": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"ref": {
+					"type": "string"
+				},
+				"refType": {
+					"type": "string",
+					"enum": [
+						"branch",
+						"tag",
+						"commit"
+					]
+				}
+			},
+			"additionalProperties": true
+		},
+		"blueprintStep": {
+			"type": "object",
+			"required": [
+				"step"
+			],
+			"properties": {
+				"step": {
+					"type": "string"
+				},
+				"pluginData": {
+					"$ref": "#/$defs/resource"
+				},
+				"themeData": {
+					"$ref": "#/$defs/resource"
+				},
+				"options": {
+					"type": "object",
+					"properties": {
+						"targetFolderName": {
+							"type": "string"
+						},
+						"activate": {
+							"type": "boolean"
+						}
+					},
+					"additionalProperties": true
+				},
+				"progress": {
+					"type": "object",
+					"properties": {
+						"caption": {
+							"type": "string"
+						}
+					},
+					"additionalProperties": true
+				},
+				"code": {
+					"type": "string"
+				},
+				"pluginPath": {
+					"type": "string"
+				},
+				"themeFolderName": {
+					"type": "string"
+				},
+				"slug": {
+					"type": "string"
+				},
+				"username": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				},
+				"language": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": true
+		}
+	}
+}

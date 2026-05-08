@@ -1,0 +1,34 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/akirk/my-apps/schemas/custom-blueprints.schema.json",
+	"title": "My Apps Custom Blueprints",
+	"description": "Browser localStorage payload stored under my_apps_custom_blueprints.",
+	"type": "object",
+	"propertyNames": {
+		"type": "string",
+		"pattern": "^(apps|custom)/[A-Za-z0-9._-]+\\.json$"
+	},
+	"additionalProperties": {
+		"type": "object",
+		"required": [
+			"meta",
+			"blueprint"
+		],
+		"properties": {
+			"meta": {
+				"$ref": "app-catalog.schema.json#/$defs/appCatalogEntry"
+			},
+			"blueprint": {
+				"$ref": "playground-blueprint-consumed.schema.json"
+			},
+			"overrides": {
+				"type": [
+					"string",
+					"null"
+				],
+				"pattern": "^apps/[A-Za-z0-9._-]+\\.json$"
+			}
+		},
+		"additionalProperties": false
+	}
+}

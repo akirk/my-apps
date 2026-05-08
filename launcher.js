@@ -3452,7 +3452,7 @@
 		var submitLi = document.createElement('li');
 		submitLi.className = 'app-store-nav-item app-store-nav-external';
 		var submitLink = document.createElement('a');
-		submitLink.href = 'https://github.com/WordPress/blueprints/';
+		submitLink.href = 'https://github.com/WordPress/blueprints/blob/trunk/blueprints/my-wordpress/README.md';
 		submitLink.target = '_blank';
 		submitLink.rel = 'noopener noreferrer';
 		submitLink.textContent = 'Submit an App';

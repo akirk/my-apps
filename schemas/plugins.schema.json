@@ -1,0 +1,86 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/akirk/my-apps/schemas/plugins.schema.json",
+	"title": "My Apps Plugins",
+	"description": "Curated plugin recommendation map consumed from blueprints/my-wordpress/plugins.json.",
+	"type": "object",
+	"propertyNames": {
+		"type": "string",
+		"minLength": 1
+	},
+	"additionalProperties": {
+		"$ref": "#/$defs/pluginRecommendation"
+	},
+	"$defs": {
+		"pluginRecommendation": {
+			"type": "object",
+			"properties": {
+				"title": {
+					"type": "string",
+					"minLength": 1
+				},
+				"author": {
+					"type": "string"
+				},
+				"note": {
+					"type": "string"
+				},
+				"categories": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"icon": {
+					"type": "string"
+				},
+				"url": {
+					"type": "string",
+					"format": "uri",
+					"description": "Direct plugin ZIP or source URL."
+				},
+				"github": {
+					"type": "string",
+					"pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+					"description": "GitHub repository in owner/name form."
+				},
+				"branch": {
+					"type": "string",
+					"pattern": "^[A-Za-z0-9_./-]+$"
+				},
+				"ref": {
+					"type": "string",
+					"pattern": "^[A-Za-z0-9_./-]+$"
+				},
+				"refType": {
+					"type": "string",
+					"enum": [
+						"branch",
+						"tag",
+						"commit"
+					]
+				},
+				"landing_page": {
+					"type": "string",
+					"pattern": "^/",
+					"description": "Site-relative page to open after installation."
+				},
+				"launcher_url": {
+					"type": "string",
+					"anyOf": [
+						{
+							"format": "uri"
+						},
+						{
+							"pattern": "^/"
+						}
+					],
+					"description": "Absolute URL or site-relative launcher URL to add after installation."
+				}
+			},
+			"additionalProperties": false
+		}
+	}
+}

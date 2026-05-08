@@ -1,0 +1,45 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/akirk/my-apps/schemas/apps.schema.json",
+	"title": "My Apps Apps Index",
+	"description": "Catalog index consumed from apps.json, keyed by relative blueprint path.",
+	"type": "object",
+	"propertyNames": {
+		"type": "string",
+		"pattern": "^apps/[A-Za-z0-9._-]+\\.json$"
+	},
+	"additionalProperties": {
+		"$ref": "#/$defs/appCatalogEntry"
+	},
+	"$defs": {
+		"appCatalogEntry": {
+			"type": "object",
+			"required": [
+				"title",
+				"description",
+				"categories"
+			],
+			"properties": {
+				"title": {
+					"type": "string",
+					"minLength": 1
+				},
+				"description": {
+					"type": "string"
+				},
+				"author": {
+					"type": "string"
+				},
+				"categories": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				}
+			},
+			"additionalProperties": true
+		}
+	}
+}

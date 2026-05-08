@@ -1,0 +1,149 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/akirk/my-apps/schemas/my-apps-settings.schema.json",
+	"title": "My Apps Settings Export",
+	"description": "Settings file imported and exported as my-apps-settings.json.",
+	"type": "object",
+	"properties": {
+		"sort": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"minLength": 1
+			}
+		},
+		"hide_plugins": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"minLength": 1
+			}
+		},
+		"additional_apps": {
+			"type": "object",
+			"propertyNames": {
+				"type": "string",
+				"minLength": 1
+			},
+			"additionalProperties": {
+				"$ref": "#/$defs/launcherApp"
+			}
+		},
+		"background": {
+			"type": "string"
+		},
+		"custom_background": {
+			"type": "string"
+		},
+		"image_url": {
+			"type": "string",
+			"format": "uri"
+		},
+		"attachment_id": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"background_image_id": {
+			"type": "integer",
+			"minimum": 0,
+			"description": "Legacy import key accepted for image backgrounds."
+		},
+		"display": {
+			"type": "object",
+			"properties": {
+				"layout": {
+					"type": "string",
+					"enum": [
+						"flow",
+						"grid"
+					]
+				},
+				"icon_size": {
+					"$ref": "#/$defs/stringifiedNumber"
+				},
+				"spacing": {
+					"$ref": "#/$defs/stringifiedNumber"
+				},
+				"grid_columns": {
+					"$ref": "#/$defs/stringifiedNumber"
+				},
+				"custom_blueprints": {
+					"type": "string",
+					"description": "Serialized custom-blueprints JSON stored by the exporter."
+				}
+			},
+			"additionalProperties": false
+		},
+		"custom_blueprints": {
+			"type": "string",
+			"description": "Serialized custom-blueprints JSON accepted by the importer."
+		}
+	},
+	"additionalProperties": true,
+	"$defs": {
+		"stringifiedNumber": {
+			"oneOf": [
+				{
+					"type": "string",
+					"pattern": "^[0-9]+$"
+				},
+				{
+					"type": "number"
+				}
+			]
+		},
+		"launcherApp": {
+			"type": "object",
+			"required": [
+				"name",
+				"url"
+			],
+			"properties": {
+				"name": {
+					"type": "string",
+					"minLength": 1
+				},
+				"url": {
+					"type": "string",
+					"minLength": 1
+				},
+				"icon_url": {
+					"type": [
+						"string",
+						"boolean",
+						"null"
+					]
+				},
+				"dashicon": {
+					"type": [
+						"string",
+						"boolean",
+						"null"
+					]
+				},
+				"emoji": {
+					"type": [
+						"string",
+						"boolean",
+						"null"
+					]
+				},
+				"gradient": {
+					"type": [
+						"string",
+						"boolean",
+						"null"
+					]
+				},
+				"user": {
+					"type": [
+						"integer",
+						"null"
+					],
+					"minimum": 0
+				}
+			},
+			"additionalProperties": true
+		}
+	}
+}

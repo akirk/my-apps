@@ -1,0 +1,158 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/akirk/my-apps/schemas/recipes.schema.json",
+	"title": "My Apps Recipes",
+	"description": "Recipe guide map consumed from blueprints/my-wordpress/recipes.json.",
+	"type": "object",
+	"propertyNames": {
+		"type": "string",
+		"pattern": "^[A-Za-z0-9_-]+$"
+	},
+	"additionalProperties": {
+		"$ref": "#/$defs/recipe"
+	},
+	"$defs": {
+		"recipe": {
+			"type": "object",
+			"required": [
+				"title",
+				"steps"
+			],
+			"properties": {
+				"title": {
+					"type": "string",
+					"minLength": 1
+				},
+				"tagline": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"icon": {
+					"type": "string"
+				},
+				"gradient": {
+					"type": "string"
+				},
+				"learn_more": {
+					"type": "string",
+					"format": "uri"
+				},
+				"steps": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/recipeStep"
+					}
+				}
+			},
+			"additionalProperties": false
+		},
+		"recipeStep": {
+			"type": "object",
+			"required": [
+				"type",
+				"title"
+			],
+			"properties": {
+				"type": {
+					"type": "string",
+					"enum": [
+						"app",
+						"plugin",
+						"github",
+						"note"
+					]
+				},
+				"title": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"optional": {
+					"type": "boolean"
+				},
+				"context": {
+					"type": "string",
+					"enum": [
+						"self-hosted",
+						"playground"
+					]
+				},
+				"path": {
+					"type": "string",
+					"pattern": "^apps/[A-Za-z0-9._-]+\\.json$"
+				},
+				"slug": {
+					"type": "string",
+					"pattern": "^[A-Za-z0-9_-]+$"
+				},
+				"repo": {
+					"type": "string",
+					"pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+				},
+				"url": {
+					"type": "string"
+				},
+				"url_label": {
+					"type": "string"
+				}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"const": "app"
+							}
+						},
+						"required": [
+							"type"
+						]
+					},
+					"then": {
+						"required": [
+							"path"
+						]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"const": "plugin"
+							}
+						},
+						"required": [
+							"type"
+						]
+					},
+					"then": {
+						"required": [
+							"slug"
+						]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"const": "github"
+							}
+						},
+						"required": [
+							"type"
+						]
+					},
+					"then": {
+						"required": [
+							"repo"
+						]
+					}
+				}
+			],
+			"additionalProperties": false
+		}
+	}
+}

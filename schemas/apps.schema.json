@@ -1,7 +1,7 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"$id": "https://github.com/akirk/my-apps/schemas/app-catalog.schema.json",
-	"title": "My Apps App Catalog",
+	"$id": "https://github.com/akirk/my-apps/schemas/apps.schema.json",
+	"title": "My Apps Apps Index",
 	"description": "Catalog index consumed from apps.json, keyed by relative blueprint path.",
 	"type": "object",
 	"propertyNames": {

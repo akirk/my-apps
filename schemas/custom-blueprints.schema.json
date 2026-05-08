@@ -16,10 +16,10 @@
 		],
 		"properties": {
 			"meta": {
-				"$ref": "app-catalog.schema.json#/$defs/appCatalogEntry"
+				"$ref": "apps.schema.json#/$defs/appCatalogEntry"
 			},
 			"blueprint": {
-				"$ref": "playground-blueprint-consumed.schema.json"
+				"$ref": "https://playground.wordpress.net/blueprint-schema.json"
 			},
 			"overrides": {
 				"type": [

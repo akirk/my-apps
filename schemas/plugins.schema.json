@@ -1,7 +1,7 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"$id": "https://github.com/akirk/my-apps/schemas/curated-plugins.schema.json",
-	"title": "My Apps Curated Plugins",
+	"$id": "https://github.com/akirk/my-apps/schemas/plugins.schema.json",
+	"title": "My Apps Plugins",
 	"description": "Curated plugin recommendation map consumed from blueprints/my-wordpress/plugins.json.",
 	"type": "object",
 	"propertyNames": {

@@ -1011,13 +1011,16 @@
 	function renderGreeting(greeting, displayName) {
 		var isDefault = displayName.toLowerCase() === 'admin';
 		if ( isDefault ) {
-			greeting.innerHTML = 'Hi, <span class="greeting-name">' + escapeHtml(displayName) + '</span>!' +
+			greeting.innerHTML = '<span class="greeting-line">Hi, <span class="greeting-name">' + escapeHtml(displayName) + '</span>!</span>' +
 				'<span class="greeting-nudge">You\'re not really called admin, are you? Click to change your name!</span>';
 		} else {
-			greeting.innerHTML = 'Hi, <span class="greeting-name">' + escapeHtml(displayName) + '</span>!';
+			greeting.innerHTML = '<span class="greeting-line">Hi, <span class="greeting-name">' + escapeHtml(displayName) + '</span>!</span>';
 		}
-		greeting.querySelector('.greeting-name').addEventListener('click', function() {
+		function openEdit() {
 			startNameEdit(greeting, displayName);
+		}
+		greeting.querySelectorAll('.greeting-line, .greeting-nudge').forEach(function(el) {
+			el.addEventListener('click', openEdit);
 		});
 	}
 

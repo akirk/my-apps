@@ -183,12 +183,18 @@ body.edit-mode .launcher-toolbar .done-btn {
 .greeting:empty {
 	display: none;
 }
-.greeting .greeting-name {
+.greeting .greeting-line {
 	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-block;
+	padding: 2px 4px;
+}
+.greeting .greeting-name {
 	border-bottom: 2px dashed rgba(255, 255, 255, 0.5);
 	transition: border-color 0.2s;
 }
-.greeting .greeting-name:hover {
+.greeting .greeting-line:hover .greeting-name {
 	border-bottom-color: #fff;
 }
 .greeting .greeting-edit {
@@ -222,6 +228,9 @@ body.edit-mode .launcher-toolbar .done-btn {
 	font-weight: 400;
 	margin-top: 4px;
 	opacity: 0.8;
+	cursor: pointer;
+	-webkit-user-select: none;
+	user-select: none;
 }
 
 /* Apps Container */

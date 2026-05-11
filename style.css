@@ -152,6 +152,7 @@ body.my-apps-launcher.bg-custom {
 	gap: 10px;
 	padding: 0 20px;
 	z-index: 100;
+	pointer-events: none;
 }
 
 body:not(.edit-mode) .launcher-toolbar .edit-only {
@@ -190,6 +191,7 @@ body:not(.edit-mode) .launcher-toolbar .edit-only {
 	justify-content: center;
 	gap: 6px;
 	transition: background 0.2s;
+	pointer-events: auto;
 }
 
 .launcher-toolbar .toolbar-btn.done-btn {
@@ -431,6 +433,28 @@ svg.app-letter-icon.app-letter-icon-small {
 	cursor: pointer;
 	display: none;
 	z-index: 10;
+}
+
+/* Block themes can apply global button hover backgrounds; the hide control
+   already draws its own circular SVG affordance, so keep the button box clear. */
+body.my-apps-launcher .hide-btn,
+body.my-apps-launcher .hide-btn:hover,
+body.my-apps-launcher .hide-btn:focus,
+body.my-apps-launcher .hide-btn:active {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: inherit;
+}
+
+body.my-apps-launcher .hide-btn:focus:not(:focus-visible) {
+	outline: none;
+}
+
+body.my-apps-launcher .hide-btn:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+	border-radius: 999px;
 }
 
 .hide-btn svg {
@@ -2202,6 +2226,29 @@ body.edit-mode .hidden-count {
 
 .hidden-app-delete:hover {
 	color: #e74c3c;
+}
+
+/* Keep theme-level button hover styles from painting over the compact trash icon. */
+body.my-apps-launcher .hidden-app-delete,
+body.my-apps-launcher .hidden-app-delete:hover,
+body.my-apps-launcher .hidden-app-delete:focus,
+body.my-apps-launcher .hidden-app-delete:active {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+}
+
+body.my-apps-launcher .hidden-app-delete:hover {
+	color: #e74c3c;
+}
+
+body.my-apps-launcher .hidden-app-delete:focus:not(:focus-visible) {
+	outline: none;
+}
+
+body.my-apps-launcher .hidden-app-delete:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: -2px;
 }
 
 .hidden-app-icon {

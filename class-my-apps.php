@@ -15,9 +15,11 @@ class My_Apps {
 		'gradient-green',
 		'gradient-orange',
 		'gradient-pink',
+		'gradient-white',
 		'gradient-dark',
 		'gradient-sunset',
 		'gradient-ocean',
+		'solid-white',
 		'solid-gray',
 		'solid-blue',
 		'solid-green',
@@ -31,9 +33,11 @@ class My_Apps {
 		'gradient-green',
 		'gradient-orange',
 		'gradient-pink',
+		'gradient-white',
 		'gradient-dark',
 		'gradient-sunset',
 		'gradient-ocean',
+		'solid-white',
 		'solid-gray',
 		'solid-blue',
 		'solid-green',
@@ -352,8 +356,8 @@ class My_Apps {
 	 * @return array
 	 */
 	private static function current_background_payload() {
-		$background = get_option( 'my_apps_background', 'gradient-dark' );
-		$background = is_string( $background ) && in_array( $background, self::VALID_BACKGROUNDS, true ) ? $background : 'gradient-dark';
+		$background = get_option( 'my_apps_background', '' );
+		$background = is_string( $background ) && in_array( $background, self::VALID_BACKGROUNDS, true ) ? $background : '';
 
 		$payload = array(
 			'background'        => $background,
@@ -1541,18 +1545,24 @@ class My_Apps {
 			update_option( 'my_apps_additional_apps', $data['additional_apps'] );
 		}
 		if ( isset( $data['background'] ) && is_scalar( $data['background'] ) ) {
-			if ( 'image' === $data['background'] && ! empty( $data['background_image_id'] ) ) {
+			$background = trim( (string) $data['background'] );
+			if ( '' === $background ) {
+				delete_option( 'my_apps_background' );
+				delete_option( 'my_apps_background_custom' );
+				delete_option( 'my_apps_background_image_url' );
+				delete_option( 'my_apps_background_attachment_id' );
+			} elseif ( 'image' === $background && ! empty( $data['background_image_id'] ) ) {
 				$background_result = self::save_background_value( (string) absint( $data['background_image_id'] ) );
 				if ( is_wp_error( $background_result ) ) {
 					wp_send_json_error( $background_result->get_error_message() );
 				}
-			} elseif ( self::CUSTOM_BACKGROUND === $data['background'] && ! empty( $data['custom_background'] ) ) {
+			} elseif ( self::CUSTOM_BACKGROUND === $background && ! empty( $data['custom_background'] ) ) {
 				update_option( 'my_apps_background', self::CUSTOM_BACKGROUND );
 				update_option( 'my_apps_background_custom', sanitize_text_field( $data['custom_background'] ) );
 				update_option( 'my_apps_background_image_url', ! empty( $data['image_url'] ) ? esc_url_raw( $data['image_url'] ) : '' );
 				update_option( 'my_apps_background_attachment_id', ! empty( $data['attachment_id'] ) ? absint( $data['attachment_id'] ) : 0 );
 			} else {
-				$background_result = self::save_background_value( (string) $data['background'] );
+				$background_result = self::save_background_value( $background );
 				if ( is_wp_error( $background_result ) ) {
 					wp_send_json_error( $background_result->get_error_message() );
 				}

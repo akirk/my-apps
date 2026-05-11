@@ -1386,9 +1386,13 @@
 				if (data.data && data.data.slug && Array.isArray(myAppsConfig.deletableSlugs) && myAppsConfig.deletableSlugs.indexOf(data.data.slug) === -1) {
 					myAppsConfig.deletableSlugs.push(data.data.slug);
 				}
-				var newApp = createAppElement(data.data);
-				var addBtn = document.querySelector('.add-app-btn');
-				container.insertBefore(newApp, addBtn);
+				if (container) {
+					var newApp = createAppElement(data.data);
+					var addBtn = document.querySelector('.add-app-btn');
+					container.insertBefore(newApp, addBtn);
+				} else if (data.data && data.data.url) {
+					rememberAppUrl(data.data.url);
+				}
 
 				setTimeout(function() {
 					btn.classList.remove('added');
@@ -1455,6 +1459,8 @@
 	}
 
 	function initSortable() {
+		if (!container) return;
+
 		sortable = new Sortable(container, {
 			animation: 150,
 			ghostClass: 'sortable-ghost',
@@ -1739,9 +1745,13 @@
 		.then(function(data) {
 			if (data.success) {
 				var app = data.data;
-				var newApp = createAppElement(app);
-				var addBtn = document.querySelector('.add-app-btn');
-				container.insertBefore(newApp, addBtn);
+				if (container) {
+					var newApp = createAppElement(app);
+					var addBtn = document.querySelector('.add-app-btn');
+					container.insertBefore(newApp, addBtn);
+				} else if (app && app.url) {
+					rememberAppUrl(app.url);
+				}
 
 				removeHiddenRow(item);
 			}
@@ -2010,16 +2020,19 @@
 	}
 
 	function setLayout(mode) {
-		if (mode === 'grid') {
-			container.classList.add('layout-grid');
-		} else {
-			container.classList.remove('layout-grid');
+		if (container) {
+			if (mode === 'grid') {
+				container.classList.add('layout-grid');
+			} else {
+				container.classList.remove('layout-grid');
+			}
 		}
 		saveDisplay('layout', mode);
 		updateLayoutButtons();
 	}
 
 	function applyGridColumns(cols) {
+		if (!container) return;
 		container.style.setProperty('--grid-columns', cols);
 	}
 
@@ -2040,15 +2053,18 @@
 	}
 
 	function applyAppSize(size) {
+		if (!container) return;
 		container.style.setProperty('--app-size', size + 'px');
 	}
 
 	function applySpacing(gap) {
+		if (!container) return;
 		container.style.setProperty('--app-gap', gap + 'px');
 	}
 
 	// Restore settings on load
 	(function() {
+		if (!container) return;
 		if (displaySettings.layout === 'grid') {
 			container.classList.add('layout-grid');
 		}
@@ -2458,6 +2474,12 @@
 	}
 
 	function insertAndHighlightApp(app) {
+		if (!container) {
+			if (app && app.url) {
+				rememberAppUrl(app.url);
+			}
+			return null;
+		}
 		var existing = findExistingAppElement(app);
 		if (existing) {
 			return highlightAppElement(existing);
@@ -2467,12 +2489,17 @@
 		}
 		var newApp = createAppElement(app);
 		var addBtn = document.querySelector('.add-app-btn');
-		container.insertBefore(newApp, addBtn);
+		if (addBtn) {
+			container.insertBefore(newApp, addBtn);
+		} else {
+			container.appendChild(newApp);
+		}
 		rememberAppUrl(app.url);
 		return highlightAppElement(newApp);
 	}
 
 	function findExistingAppElement(app) {
+		if (!container) return null;
 		if (!app) return null;
 		if (app.slug) {
 			var slugIcons = container.querySelectorAll('.app-icon[data-slug]');
@@ -2604,6 +2631,8 @@
 	}
 
 	function saveOrder() {
+		if (!container) return;
+
 		var slugs = [];
 		container.querySelectorAll('.app-icon:not(.add-app-btn)').forEach(function(el) {
 			if (el.dataset.slug) {
@@ -2639,7 +2668,8 @@
 	var appStoreNav = document.getElementById('app-store-nav');
 	var appStoreSearchInput = document.getElementById('app-store-search');
 	var appStoreHeading = document.getElementById('app-store-heading');
-	var activeCategory = 'all';
+	var DEFAULT_APP_STORE_CATEGORY = 'Apps';
+	var activeCategory = DEFAULT_APP_STORE_CATEGORY;
 	var activeView = 'apps';
 	var activeRecipe = null;
 
@@ -2661,8 +2691,8 @@
 	}
 
 	function categoryLabel(cat) {
-		if (cat === 'all') return 'All Apps';
-		if (cat === '__plugins__') return 'Recommended Plugins';
+		if (cat === 'all') return DEFAULT_APP_STORE_CATEGORY;
+		if (cat === '__plugins__') return 'Other Plugins';
 		if (cat === '__recipes__') {
 			return (activeRecipe && recipes[activeRecipe]) ? recipes[activeRecipe].title : 'Recipes';
 		}
@@ -3490,28 +3520,22 @@
 			appStoreNav.appendChild(recipesDivider);
 		}
 
-		var discoverLi = document.createElement('li');
-		discoverLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === 'all' ? ' active' : '');
-		discoverLi.dataset.category = 'all';
-		discoverLi.textContent = 'All Apps';
-		appStoreNav.appendChild(discoverLi);
-
-		// Always show the Recommended Plugins entry — the curated list ships
-		// with the plugin, so even if the wp.org enrichment call fails we still
-		// have something meaningful to render in that section.
-		var pluginsLi = document.createElement('li');
-		pluginsLi.className = 'app-store-nav-item' + (activeCategory === '__plugins__' ? ' active' : '');
-		pluginsLi.dataset.category = '__plugins__';
-		pluginsLi.textContent = 'Recommended Plugins';
-		appStoreNav.appendChild(pluginsLi);
-
 		categories.forEach(function(cat) {
 			var li = document.createElement('li');
-			li.className = 'app-store-nav-item';
+			li.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === cat ? ' active' : '');
 			li.dataset.category = cat;
 			li.textContent = cat;
 			appStoreNav.appendChild(li);
 		});
+
+		// Always show the Other Plugins entry — the curated list ships with
+		// the plugin, so even if the wp.org enrichment call fails we still
+		// have something meaningful to render in that section.
+		var pluginsLi = document.createElement('li');
+		pluginsLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === '__plugins__' ? ' active' : '');
+		pluginsLi.dataset.category = '__plugins__';
+		pluginsLi.textContent = 'Other Plugins';
+		appStoreNav.appendChild(pluginsLi);
 
 		var addDivider = document.createElement('li');
 		addDivider.className = 'app-store-nav-divider';
@@ -3849,7 +3873,7 @@
 	}
 
 	function renderAppStore(data, category, search) {
-		category = category || 'all';
+		category = category || DEFAULT_APP_STORE_CATEGORY;
 		search = (search || '').toLowerCase();
 
 		if (category === '__recipes__') {
@@ -4145,7 +4169,7 @@
 		if (recipesLoadState === 'failed' && !hasRecipes) {
 			var failedEl = document.createElement('div');
 			failedEl.className = 'app-store-error';
-			failedEl.textContent = 'Recipes are unavailable right now. Try All Apps instead.';
+			failedEl.textContent = 'Recipes are unavailable right now. Try Apps instead.';
 			appStoreContent.appendChild(failedEl);
 			return;
 		}
@@ -5299,12 +5323,12 @@
 		// Recipes load async, so we can't validate recipeParam against the
 		// recipes map here. Stash it; loadAppStore will resolve it once
 		// the recipes fetch settles. App/plugin deep-links without a
-		// recipe context land in the regular app list (back → All Apps).
+		// recipe context land in the regular app list (back → Apps).
 		if (recipeParam) {
 			pendingRecipe = recipeParam;
 			activeCategory = '__recipes__';
 		} else if (appParam || pluginParam) {
-			activeCategory = 'all';
+			activeCategory = DEFAULT_APP_STORE_CATEGORY;
 			activeRecipe = null;
 		}
 

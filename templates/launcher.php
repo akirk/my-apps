@@ -40,10 +40,11 @@ $custom_bg = get_option( 'my_apps_background_custom', '' );
 $custom_bg = is_string( $custom_bg ) ? $custom_bg : '';
 $body_style = ( My_Apps::CUSTOM_BACKGROUND === $background && $custom_bg ) ? 'background: ' . $custom_bg : '';
 $can_upload_media = current_user_can( 'upload_files' );
+$has_admin_bar = is_admin_bar_showing();
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $is_app_store = isset( $_GET['app-store'] );
 ?>
-<body class="my-apps-launcher<?php if ( $background ) : ?> bg-<?php echo esc_attr( $background ); ?><?php endif; ?><?php if ( $is_app_store ) : ?> my-apps-app-store-embedded<?php endif; ?>"<?php if ( $body_style ) : ?> style="<?php echo esc_attr( $body_style ); ?>"<?php endif; ?>>
+<body class="my-apps-launcher<?php if ( $background ) : ?> bg-<?php echo esc_attr( $background ); ?><?php endif; ?><?php if ( $is_app_store ) : ?> my-apps-app-store-embedded<?php endif; ?><?php if ( $has_admin_bar ) : ?> my-apps-has-admin-bar<?php endif; ?>"<?php if ( $body_style ) : ?> style="<?php echo esc_attr( $body_style ); ?>"<?php endif; ?>>
 <?php if ( ! $is_app_store ) : ?>
 	<div class="launcher-toolbar">
 		<button type="button" class="toolbar-btn edit-btn" title="<?php esc_attr_e( 'Edit', 'my-apps' ); ?>">
@@ -257,7 +258,7 @@ $is_app_store = isset( $_GET['app-store'] );
 						<input type="text" id="app-store-search" placeholder="<?php esc_attr_e( 'Search', 'my-apps' ); ?>">
 					</div>
 					<ul class="app-store-nav" id="app-store-nav">
-						<li class="app-store-nav-item active" data-category="all"><?php esc_html_e( 'All Apps', 'my-apps' ); ?></li>
+						<li class="app-store-nav-item active" data-category="Apps"><?php esc_html_e( 'Apps', 'my-apps' ); ?></li>
 						<li class="app-store-nav-divider"></li>
 						<li class="app-store-nav-item" data-view="admin-link"><?php esc_html_e( 'Add Admin Link', 'my-apps' ); ?></li>
 						<li class="app-store-nav-item" data-view="web-link"><?php esc_html_e( 'Add Web Link', 'my-apps' ); ?></li>
@@ -265,7 +266,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				</nav>
 				<div class="app-store-main">
 					<div class="app-store-main-header">
-						<h2 id="app-store-heading"><?php esc_html_e( 'All Apps', 'my-apps' ); ?></h2>
+						<h2 id="app-store-heading"><?php esc_html_e( 'Apps', 'my-apps' ); ?></h2>
 						<button type="button" class="modal-close">&times;</button>
 					</div>
 					<div class="app-store-content" id="app-store-content">

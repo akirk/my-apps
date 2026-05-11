@@ -2814,7 +2814,13 @@ body.my-apps-launcher .recipe-card:active {
 
 /* Chromeless app-store mode (embedded in Desktop Mode native window) */
 body.my-apps-app-store-embedded {
+	--my-apps-app-store-height: 100dvh;
 	background: transparent !important;
+}
+
+body.my-apps-app-store-embedded.my-apps-has-admin-bar {
+	--my-apps-admin-bar-height: var(--wp-admin--admin-bar--height, 32px);
+	--my-apps-app-store-height: calc(100dvh - var(--my-apps-admin-bar-height));
 }
 
 body.my-apps-app-store-embedded #install-software-modal.modal-overlay {
@@ -2822,18 +2828,28 @@ body.my-apps-app-store-embedded #install-software-modal.modal-overlay {
 	padding: 0;
 }
 
+body.my-apps-app-store-embedded.my-apps-has-admin-bar #install-software-modal.modal-overlay {
+	top: var(--my-apps-admin-bar-height);
+}
+
 body.my-apps-app-store-embedded .modal.modal-wide {
 	max-width: 100%;
 	width: 100%;
-	height: 100dvh;
-	max-height: 100dvh;
+	height: var(--my-apps-app-store-height);
+	max-height: var(--my-apps-app-store-height);
 	border-radius: 0;
 	box-shadow: none;
 }
 
 body.my-apps-app-store-embedded .app-store-layout {
-	height: 100dvh;
-	max-height: 100dvh;
+	height: var(--my-apps-app-store-height);
+	max-height: var(--my-apps-app-store-height);
+}
+
+@media (max-width: 782px) {
+	body.my-apps-app-store-embedded.my-apps-has-admin-bar {
+		--my-apps-admin-bar-height: var(--wp-admin--admin-bar--height, 46px);
+	}
 }
 
 body.my-apps-app-store-embedded .modal-close,

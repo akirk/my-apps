@@ -6,9 +6,9 @@
  * and exposes every app from the my_apps_plugins filter + the
  * additional-apps option as clickable desktop icons.
  *
- * Icons without an explicit icon_url or dashicon are served as SVGs
- * via an authenticated AJAX endpoint so the desktop-mode JS renderer
- * receives a plain https:// URL it can display as an image.
+ * Icons without an explicit icon_url or dashicon are registered as
+ * inline SVG data URIs. The legacy AJAX endpoint remains available
+ * for previously cached icon URLs.
  *
  * @package My_Apps
  */
@@ -41,16 +41,17 @@ function desktop_mode_register() {
 		)
 	);
 
-	$add_icon = admin_url( 'admin-ajax.php?action=my_apps_desktop_icon&slug=__add__' );
+	$add_svg  = build_add_svg();
+	$add_icon = desktop_mode_svg_data_uri( $add_svg );
 
 	desktop_mode_register_window(
 		'my-apps-store',
 		array(
-			'title'    => __( 'Add', 'my-apps' ),
-			'icon'     => $add_icon,
-			'template' => __NAMESPACE__ . '\desktop_mode_store_template',
-			'width'    => 700,
-			'height'   => 580,
+			'title'     => __( 'Add', 'my-apps' ),
+			'icon'      => $add_icon,
+			'template'  => __NAMESPACE__ . '\desktop_mode_store_template',
+			'width'     => 700,
+			'height'    => 580,
 			'placement' => 'none',
 		)
 	);
@@ -60,6 +61,7 @@ function desktop_mode_register() {
 		array(
 			'title'    => __( 'Add', 'my-apps' ),
 			'icon'     => $add_icon,
+			'icon_svg' => $add_svg,
 			'window'   => 'my-apps-store',
 			'position' => 5,
 		)
@@ -78,24 +80,71 @@ function desktop_mode_register() {
 		if ( in_array( $slug, $hidden, true ) ) {
 			continue;
 		}
-		if ( ! empty( $app['icon_url'] ) && strpos( $app['icon_url'], 'data:' ) !== 0 ) {
-			$icon = $app['icon_url'];
-		} elseif ( ! empty( $app['dashicon'] ) ) {
-			$icon = $app['dashicon'];
-		} else {
-			$icon = admin_url( 'admin-ajax.php?action=my_apps_desktop_icon&slug=' . rawurlencode( $slug ) );
-		}
+		$icon_args = desktop_mode_app_icon_args( $slug, $app );
 		desktop_mode_register_icon(
 			sanitize_key( $slug ),
-			array(
-				'title'    => $app['name'],
-				'icon'     => $icon,
-				'url'      => add_query_arg( 'desktop_mode_chromeless', '1', $app['url'] ),
-				'position' => $position,
+			array_merge(
+				$icon_args,
+				array(
+					'title'    => $app['name'],
+					'url'      => add_query_arg( 'desktop_mode_chromeless', '1', $app['url'] ),
+					'position' => $position,
+				)
 			)
 		);
 		$position += 10;
 	}
+}
+
+function desktop_mode_app_icon_args( $slug, $app ) {
+	$icon_url = ! empty( $app['icon_url'] ) ? (string) $app['icon_url'] : '';
+
+	if ( '' !== $icon_url && strpos( $icon_url, 'data:' ) !== 0 ) {
+		return array( 'icon' => $icon_url );
+	}
+
+	if ( ! empty( $app['dashicon'] ) ) {
+		return array( 'icon' => $app['dashicon'] );
+	}
+
+	$svg = desktop_mode_svg_from_data_uri( $icon_url );
+	if ( '' !== $svg ) {
+		return array( 'icon' => desktop_mode_svg_data_uri( svg_with_white_bg( $svg ) ) );
+	}
+
+	if ( ! empty( $app['emoji'] ) ) {
+		$svg = build_emoji_svg( $app['emoji'] );
+		return array(
+			'icon'     => desktop_mode_svg_data_uri( $svg ),
+			'icon_svg' => $svg,
+		);
+	}
+
+	$name = ! empty( $app['name'] ) ? $app['name'] : $slug;
+	$svg  = build_letter_svg( $name );
+	return array(
+		'icon'     => desktop_mode_svg_data_uri( $svg ),
+		'icon_svg' => $svg,
+	);
+}
+
+function desktop_mode_svg_from_data_uri( $icon_url ) {
+	if ( strpos( $icon_url, 'data:image/svg+xml;base64,' ) === 0 ) {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+		$svg = base64_decode( substr( $icon_url, 26 ), true );
+		return is_string( $svg ) ? $svg : '';
+	}
+
+	if ( strpos( $icon_url, 'data:image/svg+xml,' ) === 0 ) {
+		return rawurldecode( substr( $icon_url, 19 ) );
+	}
+
+	return '';
+}
+
+function desktop_mode_svg_data_uri( $svg ) {
+	// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- SVG data URI for Desktop Mode icon rendering.
+	return 'data:image/svg+xml;base64,' . base64_encode( $svg );
 }
 
 function serve_desktop_mode_icon() {

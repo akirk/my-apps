@@ -497,6 +497,58 @@
 		return getBlueprintLandingUrl(blueprint) || getAppLandingUrl(app);
 	}
 
+	function getInstallOpenUrl(install) {
+		if (!install) return '';
+		var openUrl = install.landingUrl || getInstallLandingUrl(install.app, install.blueprint);
+		if (!openUrl) {
+			openUrl = getEntryLauncherUrl(install.app, install.blueprint);
+		}
+		return toAbsoluteUrl(openUrl);
+	}
+
+	function replaceInstallButtonWithOpenLink(btn, install) {
+		var openUrl = getInstallOpenUrl(install);
+		if (!btn || !btn.parentNode || !openUrl) return false;
+
+		var link = document.createElement('a');
+		link.href = openUrl;
+		link.className = btn.className;
+		link.classList.remove('is-busy', 'is-update');
+		link.classList.add('is-open-link');
+		link.textContent = 'Open';
+
+		if (install && install.app && install.app.title) {
+			link.setAttribute('aria-label', 'Open ' + install.app.title);
+		}
+
+		if (install && install.desktopMode) {
+			link.addEventListener('click', function(e) {
+				if (openDesktopModeLandingPage({
+					app: install.app,
+					landingUrl: openUrl
+				})) {
+					e.preventDefault();
+				}
+			});
+		} else {
+			try {
+				if ((new URL(openUrl, window.location.href)).origin !== window.location.origin) {
+					link.target = '_blank';
+					link.rel = 'noopener noreferrer';
+				}
+			} catch (e) {}
+		}
+
+		btn.replaceWith(link);
+		return true;
+	}
+
+	function finishInstallButton(btn, label, install) {
+		if (!replaceInstallButtonWithOpenLink(btn, install)) {
+			setInstallButtonState(btn, label, true);
+		}
+	}
+
 	function getDesktopModeWindowUrl(url) {
 		try {
 			var parsed = new URL(url, window.location.origin);
@@ -558,7 +610,7 @@
 
 	function getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl) {
 		if (blueprint && blueprint.landingPage) {
-			// Navigate after the relay confirms success, not from the install blueprint.
+			// Keep Playground from navigating during install; show an Open link after success.
 			return encodeBlueprintDataUrl(cloneBlueprintWithoutLandingPage(blueprint));
 		}
 		return originalBlueprintUrl || encodeBlueprintDataUrl(blueprint);
@@ -700,11 +752,6 @@
 			.then(function(added) {
 				var shellRefresh = install.desktopMode ? refreshDesktopModeShell() : Promise.resolve();
 				return shellRefresh.then(function() {
-					if (install.landingUrl) {
-						if (!install.desktopMode || !openDesktopModeLandingPage(install)) {
-							window.location.href = install.landingUrl;
-						}
-					}
 					return added;
 				});
 			});
@@ -713,7 +760,7 @@
 	function handlePlaygroundInstallSuccess(install) {
 		return completeInstalledBlueprint(install).then(function(added) {
 			var wasUpdate = install.btn && install.btn.dataset.defaultLabel === 'Update';
-			setInstallButtonState(install.btn, wasUpdate ? 'Updated' : 'Installed', true);
+			finishInstallButton(install.btn, wasUpdate ? 'Updated' : 'Installed', install);
 			if (wasUpdate) {
 				showToast(added ? 'Updated and added to My Apps' : 'Updated');
 			} else {
@@ -3191,24 +3238,28 @@
 				}, Promise.resolve())
 					.then(function() {
 						var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
-						return completeInstalledBlueprint({
+						var install = {
 							app: app,
 							blueprint: blueprint,
 							gradient: gradient,
+							btn: btn,
 							desktopMode: desktopMode,
 							landingUrl: getInstallLandingUrl(app, blueprint)
+						};
+						return completeInstalledBlueprint(install).then(function(added) {
+							return { added: added, install: install };
 						});
 					})
-					.then(function(added) {
+					.then(function(outcome) {
 						var updated = installResults.some(function(result) { return result.updated; });
 						var alreadyInstalled = installResults.length && installResults.every(function(result) { return result.alreadyInstalled && !result.updated && !result.activated; });
-						setInstallButtonState(btn, updated ? 'Updated' : (alreadyInstalled ? 'Up to date' : 'Installed'), true);
+						finishInstallButton(btn, updated ? 'Updated' : (alreadyInstalled ? 'Up to date' : 'Installed'), outcome.install);
 						if (updated) {
-							showToast(added ? 'Updated and added to My Apps' : 'Updated');
+							showToast(outcome.added ? 'Updated and added to My Apps' : 'Updated');
 						} else if (alreadyInstalled) {
-							showToast(added ? 'Added to My Apps' : 'Already up to date');
+							showToast(outcome.added ? 'Added to My Apps' : 'Already up to date');
 						} else {
-							showToast(added ? 'Installed and added to My Apps' : 'Installed');
+							showToast(outcome.added ? 'Installed and added to My Apps' : 'Installed');
 						}
 						return true;
 					});
@@ -3250,27 +3301,29 @@
 					if (result.activated || result.alreadyActive) {
 						var blueprint = buildPluginBlueprint(app);
 						var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
-						return completeInstalledBlueprint({
+						var install = {
 							app: app,
 							blueprint: blueprint,
 							gradient: gradient,
+							btn: btn,
 							desktopMode: desktopMode,
 							landingUrl: getInstallLandingUrl(app, blueprint)
-						}).then(function(added) {
-							return { result: result, added: added };
+						};
+						return completeInstalledBlueprint(install).then(function(added) {
+							return { result: result, added: added, install: install };
 						});
 					}
 					return { result: result, added: false };
 				})
 				.then(function(outcome) {
 					if (outcome.result.updated) {
-						setInstallButtonState(btn, 'Updated', true);
+						finishInstallButton(btn, 'Updated', outcome.install);
 						showToast(outcome.added ? 'Updated and added to My Apps' : 'Updated');
 					} else if (outcome.result.alreadyInstalled && !outcome.result.activated) {
-						setInstallButtonState(btn, 'Up to date', true);
+						finishInstallButton(btn, 'Up to date', outcome.install);
 						showToast(outcome.added ? 'Added to My Apps' : 'Already up to date');
 					} else {
-						setInstallButtonState(btn, 'Installed', true);
+						finishInstallButton(btn, 'Installed', outcome.install);
 					}
 
 					if (outcome.result.updated || (outcome.result.alreadyInstalled && !outcome.result.activated)) {

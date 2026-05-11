@@ -34,8 +34,8 @@ $can_manage = current_user_can( 'manage_options' );
 </head>
 
 <?php
-$background = get_option( 'my_apps_background', 'gradient-dark' );
-$background = is_string( $background ) && in_array( $background, My_Apps::VALID_BACKGROUNDS, true ) ? $background : 'gradient-dark';
+$background = get_option( 'my_apps_background', '' );
+$background = is_string( $background ) && in_array( $background, My_Apps::VALID_BACKGROUNDS, true ) ? $background : '';
 $custom_bg = get_option( 'my_apps_background_custom', '' );
 $custom_bg = is_string( $custom_bg ) ? $custom_bg : '';
 $body_style = ( My_Apps::CUSTOM_BACKGROUND === $background && $custom_bg ) ? 'background: ' . $custom_bg : '';
@@ -43,7 +43,7 @@ $can_upload_media = current_user_can( 'upload_files' );
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $is_app_store = isset( $_GET['app-store'] );
 ?>
-<body class="my-apps-launcher bg-<?php echo esc_attr( $background ); ?><?php if ( $is_app_store ) : ?> my-apps-app-store-embedded<?php endif; ?>"<?php if ( $body_style ) : ?> style="<?php echo esc_attr( $body_style ); ?>"<?php endif; ?>>
+<body class="my-apps-launcher<?php if ( $background ) : ?> bg-<?php echo esc_attr( $background ); ?><?php endif; ?><?php if ( $is_app_store ) : ?> my-apps-app-store-embedded<?php endif; ?>"<?php if ( $body_style ) : ?> style="<?php echo esc_attr( $body_style ); ?>"<?php endif; ?>>
 <?php if ( ! $is_app_store ) : ?>
 	<div class="launcher-toolbar">
 		<button type="button" class="toolbar-btn edit-btn" title="<?php esc_attr_e( 'Edit', 'my-apps' ); ?>">
@@ -204,6 +204,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				<button type="button" class="bg-option bg-gradient-green" data-bg="gradient-green" title="Green"></button>
 				<button type="button" class="bg-option bg-gradient-orange" data-bg="gradient-orange" title="Orange"></button>
 				<button type="button" class="bg-option bg-gradient-pink" data-bg="gradient-pink" title="Pink"></button>
+				<button type="button" class="bg-option bg-gradient-white" data-bg="gradient-white" title="White Gradient"></button>
 				<button type="button" class="bg-option bg-gradient-dark" data-bg="gradient-dark" title="Dark"></button>
 				<button type="button" class="bg-option bg-gradient-sunset" data-bg="gradient-sunset" title="Sunset"></button>
 				<button type="button" class="bg-option bg-gradient-ocean" data-bg="gradient-ocean" title="Ocean"></button>
@@ -212,6 +213,7 @@ $is_app_store = isset( $_GET['app-store'] );
 		<div class="bg-picker-section">
 			<div class="bg-picker-label"><?php esc_html_e( 'Solid Colors', 'my-apps' ); ?></div>
 			<div class="bg-options">
+				<button type="button" class="bg-option bg-solid-white" data-bg="solid-white" title="White"></button>
 				<button type="button" class="bg-option bg-solid-gray" data-bg="solid-gray" title="Gray"></button>
 				<button type="button" class="bg-option bg-solid-blue" data-bg="solid-blue" title="Blue"></button>
 				<button type="button" class="bg-option bg-solid-green" data-bg="solid-green" title="Green"></button>

@@ -5,9 +5,10 @@ body.my-apps-launcher {
 	min-height: 100vh;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 	box-sizing: border-box;
+	background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
 	/* Opt the launcher modals into both colour schemes so light-dark()
 	   picks up the OS preference. The launcher grid itself sits on a
-	   user-chosen gradient and is unaffected by these palette vars. */
+	   preset/custom background and is unaffected by these palette vars. */
 	color-scheme: light dark;
 	--ma-bg:           light-dark(#ffffff, #1c1c1e);
 	--ma-bg-secondary: light-dark(#f6f6f6, #2c2c2e);
@@ -22,6 +23,56 @@ body.my-apps-launcher {
 	--ma-hover-bg:     light-dark(#e8e8e8, #353537);
 	--ma-button-bg:    light-dark(#ebebeb, #353537);
 	--ma-button-bg-hover: light-dark(#d6d6d6, #45454a);
+	--ma-launcher-fg: #fff;
+	--ma-launcher-text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+	--ma-launcher-toolbar-bg: rgba(255, 255, 255, 0.2);
+	--ma-launcher-toolbar-bg-hover: rgba(255, 255, 255, 0.3);
+	--ma-launcher-done-bg: rgba(255, 255, 255, 0.9);
+	--ma-launcher-done-bg-hover: #fff;
+	--ma-launcher-done-fg: #764ba2;
+	--ma-launcher-soft-bg: rgba(255, 255, 255, 0.3);
+	--ma-launcher-soft-border: rgba(255, 255, 255, 0.6);
+	--ma-launcher-muted-border: rgba(255, 255, 255, 0.5);
+	--ma-launcher-input-bg: rgba(255, 255, 255, 0.2);
+	--ma-launcher-input-bg-focus: rgba(255, 255, 255, 0.3);
+	--ma-launcher-input-placeholder: rgba(255, 255, 255, 0.5);
+}
+
+body.my-apps-launcher:not([class*="bg-"]),
+body.my-apps-launcher.bg-gradient-white,
+body.my-apps-launcher.bg-solid-white {
+	--ma-launcher-fg: #1f2937;
+	--ma-launcher-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+	--ma-launcher-toolbar-bg: rgba(15, 23, 42, 0.08);
+	--ma-launcher-toolbar-bg-hover: rgba(15, 23, 42, 0.14);
+	--ma-launcher-done-bg: #1f2937;
+	--ma-launcher-done-bg-hover: #111827;
+	--ma-launcher-done-fg: #fff;
+	--ma-launcher-soft-bg: rgba(15, 23, 42, 0.06);
+	--ma-launcher-soft-border: rgba(15, 23, 42, 0.22);
+	--ma-launcher-muted-border: rgba(15, 23, 42, 0.35);
+	--ma-launcher-input-bg: rgba(255, 255, 255, 0.82);
+	--ma-launcher-input-bg-focus: #fff;
+	--ma-launcher-input-placeholder: rgba(15, 23, 42, 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+	body.my-apps-launcher:not([class*="bg-"]) {
+		background: linear-gradient(135deg, #232526 0%, #414345 100%);
+		--ma-launcher-fg: #fff;
+		--ma-launcher-text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+		--ma-launcher-toolbar-bg: rgba(255, 255, 255, 0.2);
+		--ma-launcher-toolbar-bg-hover: rgba(255, 255, 255, 0.3);
+		--ma-launcher-done-bg: rgba(255, 255, 255, 0.9);
+		--ma-launcher-done-bg-hover: #fff;
+		--ma-launcher-done-fg: #764ba2;
+		--ma-launcher-soft-bg: rgba(255, 255, 255, 0.3);
+		--ma-launcher-soft-border: rgba(255, 255, 255, 0.6);
+		--ma-launcher-muted-border: rgba(255, 255, 255, 0.5);
+		--ma-launcher-input-bg: rgba(255, 255, 255, 0.2);
+		--ma-launcher-input-bg-focus: rgba(255, 255, 255, 0.3);
+		--ma-launcher-input-placeholder: rgba(255, 255, 255, 0.5);
+	}
 }
 
 /* Block themes commonly uppercase button text and tighten letter-spacing
@@ -64,9 +115,11 @@ body.my-apps-launcher ::selection {
 .bg-gradient-green, body.my-apps-launcher.bg-gradient-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
 .bg-gradient-orange, body.my-apps-launcher.bg-gradient-orange { background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); }
 .bg-gradient-pink, body.my-apps-launcher.bg-gradient-pink { background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); }
+.bg-gradient-white, body.my-apps-launcher.bg-gradient-white { background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%); }
 .bg-gradient-dark, body.my-apps-launcher.bg-gradient-dark { background: linear-gradient(135deg, #232526 0%, #414345 100%); }
 .bg-gradient-sunset, body.my-apps-launcher.bg-gradient-sunset { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
 .bg-gradient-ocean, body.my-apps-launcher.bg-gradient-ocean { background: linear-gradient(135deg, #2e3192 0%, #1bffff 100%); }
+.bg-solid-white, body.my-apps-launcher.bg-solid-white { background: #fff; }
 .bg-solid-gray, body.my-apps-launcher.bg-solid-gray { background: #6b7280; }
 .bg-solid-blue, body.my-apps-launcher.bg-solid-blue { background: #3b82f6; }
 .bg-solid-green, body.my-apps-launcher.bg-solid-green { background: #10b981; }
@@ -118,12 +171,12 @@ body:not(.edit-mode) .launcher-toolbar .edit-only {
 .launcher-toolbar .toolbar-btn {
 	appearance: none;
 	-webkit-appearance: none;
-	background: rgba(255, 255, 255, 0.2);
+	background: var(--ma-launcher-toolbar-bg);
 	border: 0;
 	border-radius: 8px;
 	padding: 8px;
 	margin: 0;
-	color: #fff;
+	color: var(--ma-launcher-fg);
 	cursor: pointer;
 	font-family: inherit;
 	font-size: 14px;
@@ -145,7 +198,7 @@ body:not(.edit-mode) .launcher-toolbar .edit-only {
 }
 
 .launcher-toolbar .toolbar-btn:hover {
-	background: rgba(255, 255, 255, 0.3);
+	background: var(--ma-launcher-toolbar-bg-hover);
 }
 
 .toolbar-btn svg {
@@ -154,13 +207,13 @@ body:not(.edit-mode) .launcher-toolbar .edit-only {
 
 .launcher-toolbar .done-btn {
 	display: none;
-	background: rgba(255, 255, 255, 0.9);
-	color: #764ba2;
+	background: var(--ma-launcher-done-bg);
+	color: var(--ma-launcher-done-fg);
 }
 
 .launcher-toolbar .done-btn:hover {
-	background: #fff;
-	color: #764ba2;
+	background: var(--ma-launcher-done-bg-hover);
+	color: var(--ma-launcher-done-fg);
 }
 
 body.edit-mode .launcher-toolbar .edit-btn {
@@ -175,10 +228,10 @@ body.edit-mode .launcher-toolbar .done-btn {
 .greeting {
 	text-align: center;
 	padding-top: 20px;
-	color: #fff;
+	color: var(--ma-launcher-fg);
 	font-size: 24px;
 	font-weight: 600;
-	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+	text-shadow: var(--ma-launcher-text-shadow);
 }
 .greeting:empty {
 	display: none;
@@ -191,11 +244,11 @@ body.edit-mode .launcher-toolbar .done-btn {
 	padding: 2px 4px;
 }
 .greeting .greeting-name {
-	border-bottom: 2px dashed rgba(255, 255, 255, 0.5);
+	border-bottom: 2px dashed var(--ma-launcher-muted-border);
 	transition: border-color 0.2s;
 }
 .greeting .greeting-line:hover .greeting-name {
-	border-bottom-color: #fff;
+	border-bottom-color: var(--ma-launcher-fg);
 }
 .greeting .greeting-edit {
 	display: inline-flex;
@@ -206,21 +259,21 @@ body.edit-mode .launcher-toolbar .done-btn {
 	font: inherit;
 	font-size: 24px;
 	font-weight: 600;
-	background: rgba(255, 255, 255, 0.2);
-	border: 2px solid rgba(255, 255, 255, 0.6);
+	background: var(--ma-launcher-input-bg);
+	border: 2px solid var(--ma-launcher-soft-border);
 	border-radius: 8px;
-	color: #fff;
+	color: var(--ma-launcher-fg);
 	padding: 2px 10px;
 	outline: none;
 	text-align: center;
 	max-width: 200px;
 }
 .greeting .greeting-edit input::placeholder {
-	color: rgba(255, 255, 255, 0.5);
+	color: var(--ma-launcher-input-placeholder);
 }
 .greeting .greeting-edit input:focus {
-	border-color: #fff;
-	background: rgba(255, 255, 255, 0.3);
+	border-color: var(--ma-launcher-fg);
+	background: var(--ma-launcher-input-bg-focus);
 }
 .greeting .greeting-nudge {
 	display: block;
@@ -354,8 +407,8 @@ svg.app-letter-icon.app-letter-icon-small {
 
 .app-title {
 	font-size: 12px;
-	color: #fff;
-	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+	color: var(--ma-launcher-fg);
+	text-shadow: var(--ma-launcher-text-shadow);
 	margin: 6px 0 0 0;
 	line-height: 1.3;
 	overflow: hidden;
@@ -454,11 +507,11 @@ body.edit-mode .app-icon.sortable-chosen {
 	width: var(--app-size, 60px);
 	height: var(--app-size, 60px);
 	border-radius: 14px;
-	background: rgba(255, 255, 255, 0.3);
-	border: 2px dashed rgba(255, 255, 255, 0.6);
+	background: var(--ma-launcher-soft-bg);
+	border: 2px dashed var(--ma-launcher-soft-border);
 	box-sizing: border-box;
 	margin: 0 auto;
-	color: #fff;
+	color: var(--ma-launcher-fg);
 	font-size: 0;
 	position: relative;
 }
@@ -1503,6 +1556,11 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	border: 2px solid transparent;
 	cursor: pointer;
 	transition: transform 0.15s, border-color 0.15s;
+}
+
+.bg-option.bg-gradient-white,
+.bg-option.bg-solid-white {
+	border-color: #d0d7de;
 }
 
 .bg-option:hover {

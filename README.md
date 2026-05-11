@@ -77,6 +77,8 @@ When the WordPress Abilities API is available, My Apps registers a `my-apps` cat
 - `my-apps/get-customization` returns the server-stored launcher customization state, including the selected background, accepted background slugs, custom image metadata, sort order, hidden apps, and app customization metadata.
 - `my-apps/set-background` updates the launcher background using a preset slug, an image attachment ID, or a remote image URL to sideload.
 
+When the AI Assistant plugin is available, My Apps also registers domain hints so questions about the launcher, app icons, hidden apps, app order, and launcher backgrounds are routed to these abilities.
+
 ## Screenshots
 
 1. The Launcher

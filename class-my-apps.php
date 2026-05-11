@@ -75,6 +75,7 @@ class My_Apps {
 		add_action( 'admin_enqueue_styles', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_ability_categories' ) );
 		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+		add_filter( 'ai_assistant_ability_domains', array( $this, 'ai_assistant_ability_domains' ) );
 
 		// AJAX handlers for launcher
 		add_action( 'wp_ajax_my_apps_save_display_name', array( $this, 'ajax_save_display_name' ) );
@@ -96,6 +97,22 @@ class My_Apps {
 
 	public function admin_enqueue_scripts() {
 		$this->enqueue_styles();
+	}
+
+	/**
+	 * Register My Apps terms with AI Assistant ability routing.
+	 *
+	 * @param array $domains Ability domain hints keyed by plugin slug.
+	 * @return array
+	 */
+	public function ai_assistant_ability_domains( $domains ) {
+		if ( ! is_array( $domains ) ) {
+			$domains = array();
+		}
+
+		$domains['my-apps'] = 'my apps, apps launcher, app launcher, launcher apps, WordPress apps, dashboard apps, app icons, app links, hidden apps, app order, app sorting, launcher customization, launcher background, My Apps background';
+
+		return $domains;
 	}
 
 	/**
@@ -134,9 +151,10 @@ class My_Apps {
 				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
 				'meta'                => array(
 					'annotations'  => array(
-						'readonly'    => true,
-						'destructive' => false,
-						'idempotent'  => true,
+						'instructions' => __( 'Use this before answering questions about the user\'s My Apps launcher, launcher apps, app order, hidden apps, app icons, app links, or background. The result is the current launcher state; do not guess from defaults or query raw options when this ability is available.', 'my-apps' ),
+						'readonly'     => true,
+						'destructive'  => false,
+						'idempotent'   => true,
 					),
 					'show_in_rest' => true,
 				),
@@ -195,9 +213,10 @@ class My_Apps {
 				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
 				'meta'                => array(
 					'annotations'  => array(
-						'readonly'    => false,
-						'destructive' => false,
-						'idempotent'  => true,
+						'instructions' => __( 'Use this when the user asks to change the My Apps launcher background. Pass one accepted background slug, an image attachment ID, or a remote image URL. For a new image background, ask the user to choose an image first, then pass the selected image URL.', 'my-apps' ),
+						'readonly'     => false,
+						'destructive'  => false,
+						'idempotent'   => false,
 					),
 					'show_in_rest' => true,
 				),

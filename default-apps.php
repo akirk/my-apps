@@ -8,18 +8,10 @@ function seed_default_apps() {
 	$sort            = get_option( 'my_apps_sort', array() );
 
 	$defaults = array(
-		'write_post' => array(
-			'name'     => 'New Post',
-			'url'      => admin_url( 'post-new.php' ),
-			'dashicon' => 'dashicons-welcome-write-blog',
-			'icon_url' => false,
-			'emoji'    => false,
-			'gradient' => false,
-		),
-		'all_posts'  => array(
-			'name'     => 'All Posts',
-			'url'      => admin_url( 'edit.php' ),
-			'dashicon' => 'dashicons-admin-post',
+		'what_can_i_do' => array(
+			'name'     => 'What can I do?',
+			'url'      => home_url( '/my-apps/?recipes' ),
+			'dashicon' => 'dashicons-lightbulb',
 			'icon_url' => false,
 			'emoji'    => false,
 			'gradient' => false,

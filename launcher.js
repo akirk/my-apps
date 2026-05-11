@@ -2622,6 +2622,44 @@
 		return cat;
 	}
 
+	function routeRequestsRecipes(url) {
+		var appStore = (url.searchParams.get('app-store') || '').toLowerCase();
+		var add = (url.searchParams.get('add') || '').toLowerCase();
+		var category = (url.searchParams.get('category') || '').toLowerCase();
+
+		return url.searchParams.has('recipes') ||
+			appStore === 'recipes' ||
+			add === 'recipes' ||
+			category === 'recipes' ||
+			category === '__recipes__';
+	}
+
+	function openRecipesRoute(cleanUrl) {
+		activeCategory = '__recipes__';
+		activeRecipe = null;
+		openInstallSoftwareModal();
+
+		if (!cleanUrl) {
+			return;
+		}
+
+		var url = new URL(window.location);
+		var changed = false;
+		['recipes', 'category'].forEach(function(name) {
+			if (url.searchParams.has(name)) {
+				url.searchParams.delete(name);
+				changed = true;
+			}
+		});
+		if ((url.searchParams.get('add') || '').toLowerCase() === 'recipes') {
+			url.searchParams.delete('add');
+			changed = true;
+		}
+		if (changed) {
+			history.replaceState({}, '', url.toString());
+		}
+	}
+
 	function openInstallSoftwareModal() {
 		installSoftwareModal.classList.add('active');
 		document.body.style.overflow = 'hidden';
@@ -3300,7 +3338,7 @@
 				// the detail at the second pass below.
 				if (!tryRenderPendingDeepLink()) {
 					if (!(pendingDeepLink && pendingDeepLink.type === 'plugin')) {
-						renderAppStore(appStoreData);
+						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 					}
 				}
 				bindAppStoreEvents();
@@ -5178,15 +5216,27 @@
 	function checkDeepLink() {
 		var url = new URL(window.location);
 		if (url.searchParams.has('app-store')) {
+			if (routeRequestsRecipes(url)) {
+				activeCategory = '__recipes__';
+				activeRecipe = null;
+			}
 			openInstallSoftwareModal();
 			return;
 		}
 		var addParam = url.searchParams.get('add');
+		if (addParam === 'recipes') {
+			openRecipesRoute(true);
+			return;
+		}
 		if (addParam === 'web-link' || addParam === 'admin-link' || addParam === 'apps') {
 			openInstallSoftwareModal();
 			showAppStoreView(addParam);
 			url.searchParams.delete('add');
 			history.replaceState({}, '', url.toString());
+			return;
+		}
+		if (routeRequestsRecipes(url)) {
+			openRecipesRoute(true);
 			return;
 		}
 		var recipeParam = url.searchParams.get('recipe');

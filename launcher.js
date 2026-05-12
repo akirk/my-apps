@@ -40,10 +40,8 @@
 	let deepLinkRendered = false;
 	const LONG_PRESS_DURATION = 500;
 	// Single base for the blueprints repo we read apps, recipes and the
-	// curated plugin list from. Currently points at akirk/blueprints
-	// branch add-recipes; after the upstream PR merges, change this one
-	// line to WordPress/blueprints/trunk/.
-	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/add-recipes/';
+	// curated plugin list from.
+	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
 	const WORDPRESS_BLUEPRINTS_PR_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/refs/pull/%s/head/';
 	const BLUEPRINTS_SOURCE_STORAGE_KEY = 'my_apps_blueprints_source';
 	let BLUEPRINTS_BASE_URL = '';

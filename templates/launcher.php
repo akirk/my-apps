@@ -53,12 +53,6 @@ $is_app_store = isset( $_GET['app-store'] );
 		<button type="button" class="toolbar-btn done-btn" title="<?php esc_attr_e( 'Done', 'my-apps' ); ?>">
 			<?php esc_html_e( 'Done', 'my-apps' ); ?>
 		</button>
-		<button type="button" class="toolbar-btn hidden-btn edit-only" title="<?php esc_attr_e( 'Hidden Apps', 'my-apps' ); ?>" data-count="<?php echo count( $hidden_apps ); ?>">
-			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
-			<?php if ( count( $hidden_apps ) > 0 ) : ?>
-			<span class="hidden-count"><?php echo count( $hidden_apps ); ?></span>
-			<?php endif; ?>
-		</button>
 		<button type="button" class="toolbar-btn bg-btn edit-only" title="<?php esc_attr_e( 'Change Background', 'my-apps' ); ?>">
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
 		</button>
@@ -113,6 +107,12 @@ $is_app_store = isset( $_GET['app-store'] );
 			</div>
 		</div>
 		<?php endif; ?>
+		<button type="button" class="toolbar-btn hidden-btn edit-only" title="<?php esc_attr_e( 'Hidden Apps', 'my-apps' ); ?>" data-count="<?php echo count( $hidden_apps ); ?>">
+			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+			<?php if ( count( $hidden_apps ) > 0 ) : ?>
+			<span class="hidden-count"><?php echo count( $hidden_apps ); ?></span>
+			<?php endif; ?>
+		</button>
 	</div>
 
 	<div class="greeting" id="greeting"></div>

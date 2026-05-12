@@ -43,13 +43,18 @@
 	// curated plugin list from. Currently points at akirk/blueprints
 	// branch add-recipes; after the upstream PR merges, change this one
 	// line to WordPress/blueprints/trunk/.
-	const BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/add-recipes/';
-	const APPS_INDEX_URL = BLUEPRINTS_BASE_URL + 'apps.json';
-	const RECIPES_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/recipes.json';
-	const PLUGINS_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/plugins.json';
+	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/akirk/blueprints/add-recipes/';
+	const WORDPRESS_BLUEPRINTS_PR_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/refs/pull/%s/head/';
+	const BLUEPRINTS_SOURCE_STORAGE_KEY = 'my_apps_blueprints_source';
+	let BLUEPRINTS_BASE_URL = '';
+	let APPS_INDEX_URL = '';
+	let RECIPES_URL = '';
+	let PLUGINS_URL = '';
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
+
+	refreshBlueprintsSourceUrls();
 
 	// Walk up the parent chain until we reach a cross-origin frame.
 	// In the normal case window.parent is already cross-origin (Playground).
@@ -86,6 +91,154 @@
 
 	function isDesktopModeEmbedded() {
 		return !!getDesktopModeShell();
+	}
+
+	function getBlueprintsBaseUrl() {
+		var source = getStoredBlueprintsSource();
+		if (source) {
+			return source.baseUrl;
+		}
+		return DEFAULT_BLUEPRINTS_BASE_URL;
+	}
+
+	function refreshBlueprintsSourceUrls() {
+		BLUEPRINTS_BASE_URL = getBlueprintsBaseUrl();
+		APPS_INDEX_URL = BLUEPRINTS_BASE_URL + 'apps.json';
+		RECIPES_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/recipes.json';
+		PLUGINS_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/plugins.json';
+	}
+
+	function rawGithubBaseUrl(owner, repo, ref) {
+		return 'https://raw.githubusercontent.com/' + owner + '/' + repo + '/' + ref.replace(/^\/+|\/+$/g, '') + '/';
+	}
+
+	function blueprintsPullRequestSource(input, pr) {
+		return {
+			input: input,
+			baseUrl: WORDPRESS_BLUEPRINTS_PR_BASE_URL.replace('%s', pr),
+			label: 'PR #' + pr
+		};
+	}
+
+	function githubBranchSource(input, owner, repo, refPath) {
+		var ref = stripKnownBlueprintsPath(refPath);
+		return {
+			input: input,
+			baseUrl: rawGithubBaseUrl(owner, repo, ref),
+			label: owner + '/' + repo + ' @ ' + ref
+		};
+	}
+
+	function stripKnownBlueprintsPath(refPath) {
+		var path = refPath.replace(/^\/+|\/+$/g, '');
+		var suffixes = [
+			'/apps.json',
+			'/blueprints/my-wordpress/recipes.json',
+			'/blueprints/my-wordpress/plugins.json',
+			'/blueprints/my-wordpress'
+		];
+
+		for (var i = 0; i < suffixes.length; i++) {
+			if (path.slice(-suffixes[i].length) === suffixes[i]) {
+				return path.slice(0, -suffixes[i].length);
+			}
+		}
+		return path;
+	}
+
+	function normalizeBlueprintsSourceInput(value) {
+		value = (value || '').trim();
+		if (!value) return '';
+		if (/^\d+$/.test(value)) {
+			return blueprintsPullRequestSource(value, value);
+		}
+
+		var match = value.match(/^https:\/\/github\.com\/WordPress\/blueprints\/pull\/(\d+)(?:[\/?#].*)?$/i);
+		if (match) {
+			return blueprintsPullRequestSource(value, match[1]);
+		}
+
+		match = value.match(/^https:\/\/github\.com\/([^\/?#]+)\/([^\/?#]+)\/tree\/([^?#]+)(?:[?#].*)?$/i);
+		if (match) {
+			return githubBranchSource(value, match[1], match[2], match[3]);
+		}
+
+		match = value.match(/^https:\/\/github\.com\/([^\/?#]+)\/([^\/?#]+)\/blob\/([^?#]+)(?:[?#].*)?$/i);
+		if (match) {
+			return githubBranchSource(value, match[1], match[2], match[3]);
+		}
+
+		match = value.match(/^https:\/\/raw\.githubusercontent\.com\/([^\/?#]+)\/([^\/?#]+)\/([^?#]+)(?:[?#].*)?$/i);
+		if (match) {
+			return githubBranchSource(value, match[1], match[2], match[3]);
+		}
+
+		return null;
+	}
+
+	function getStoredBlueprintsSourceInput() {
+		try {
+			return localStorage.getItem(BLUEPRINTS_SOURCE_STORAGE_KEY) || '';
+		} catch (e) {
+			return '';
+		}
+	}
+
+	function getStoredBlueprintsSource() {
+		var value = getStoredBlueprintsSourceInput();
+		var source = normalizeBlueprintsSourceInput(value);
+		return source && source.baseUrl ? source : null;
+	}
+
+	function setStoredBlueprintsSource(source) {
+		try {
+			if (source && source.input) {
+				localStorage.setItem(BLUEPRINTS_SOURCE_STORAGE_KEY, source.input);
+			} else {
+				localStorage.removeItem(BLUEPRINTS_SOURCE_STORAGE_KEY);
+			}
+			return true;
+		} catch (e) {
+			showToast('Unable to save catalog source in this browser');
+			return false;
+		}
+	}
+
+	function promptForBlueprintsSource() {
+		var current = getStoredBlueprintsSourceInput();
+		var input = window.prompt('WordPress/blueprints PR number, PR URL, or GitHub fork branch URL. Leave empty to use the default catalog.', current);
+		if (input === null) return;
+
+		var source = normalizeBlueprintsSourceInput(input);
+		if (source === null) {
+			showToast('Enter a PR number, PR URL, or GitHub branch URL');
+			return;
+		}
+		if (!setStoredBlueprintsSource(source)) {
+			return;
+		}
+		refreshBlueprintsSourceUrls();
+		appStoreData = null;
+		recipes = {};
+		hasRecipes = false;
+		activeRecipe = null;
+		pendingRecipe = null;
+		pendingDeepLink = null;
+		deepLinkRendered = false;
+		updateBlueprintsSourceBadge();
+		if (installSoftwareModal.classList.contains('active')) {
+			loadAppStore();
+		}
+		showToast(source ? 'Using custom blueprints source' : 'Using default catalog');
+	}
+
+	function bindBlueprintsSourceShortcut() {
+		document.addEventListener('keydown', function(e) {
+			if (e.defaultPrevented) return;
+			if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.key.toLowerCase() !== 'p') return;
+			e.preventDefault();
+			promptForBlueprintsSource();
+		});
 	}
 
 	function isAppStoreEmbeddedView() {
@@ -1007,6 +1160,8 @@
 	];
 
 	function init() {
+		bindBlueprintsSourceShortcut();
+		updateBlueprintsSourceBadge();
 		if (new URL(window.location).searchParams.has('app-store')) {
 			checkDeepLink();
 			return;
@@ -2668,10 +2823,27 @@
 	var appStoreNav = document.getElementById('app-store-nav');
 	var appStoreSearchInput = document.getElementById('app-store-search');
 	var appStoreHeading = document.getElementById('app-store-heading');
+	var appStoreSourceBadge = document.getElementById('app-store-source-badge');
 	var DEFAULT_APP_STORE_CATEGORY = 'Apps';
 	var activeCategory = DEFAULT_APP_STORE_CATEGORY;
 	var activeView = 'apps';
 	var activeRecipe = null;
+
+	function updateBlueprintsSourceBadge() {
+		if (!appStoreSourceBadge) return;
+
+		var source = getStoredBlueprintsSource();
+		if (!source) {
+			appStoreSourceBadge.hidden = true;
+			appStoreSourceBadge.textContent = '';
+			appStoreSourceBadge.removeAttribute('title');
+			return;
+		}
+
+		appStoreSourceBadge.hidden = false;
+		appStoreSourceBadge.textContent = source.label || 'Custom source';
+		appStoreSourceBadge.title = source.input || source.baseUrl;
+	}
 
 	function showAppStoreView(view) {
 		activeView = view;

@@ -266,7 +266,10 @@ $is_app_store = isset( $_GET['app-store'] );
 				</nav>
 				<div class="app-store-main">
 					<div class="app-store-main-header">
-						<h2 id="app-store-heading"><?php esc_html_e( 'Apps', 'my-apps' ); ?></h2>
+						<div class="app-store-title">
+							<h2 id="app-store-heading"><?php esc_html_e( 'Apps', 'my-apps' ); ?></h2>
+							<span class="app-store-source-badge" id="app-store-source-badge" hidden></span>
+						</div>
 						<button type="button" class="modal-close">&times;</button>
 					</div>
 					<div class="app-store-content" id="app-store-content">

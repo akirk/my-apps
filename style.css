@@ -663,8 +663,16 @@ body.edit-mode .add-app-btn {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	gap: 16px;
 	padding: 18px 24px 14px;
 	flex-shrink: 0;
+}
+
+.app-store-title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
 }
 
 .app-store-main-header h2 {
@@ -672,6 +680,25 @@ body.edit-mode .add-app-btn {
 	font-size: 24px;
 	font-weight: 700;
 	color: var(--ma-fg);
+	min-width: 0;
+}
+
+.app-store-source-badge {
+	display: inline-flex;
+	align-items: center;
+	max-width: min(320px, 45vw);
+	min-height: 22px;
+	padding: 3px 8px;
+	border: 1px solid var(--ma-border);
+	border-radius: 999px;
+	background: var(--ma-bg-tinted);
+	color: var(--ma-fg-secondary);
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .app-store-main-header .modal-close {

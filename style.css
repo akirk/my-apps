@@ -701,6 +701,10 @@ body.edit-mode .add-app-btn {
 	text-overflow: ellipsis;
 }
 
+.app-store-source-badge[hidden] {
+	display: none;
+}
+
 .app-store-main-header .modal-close {
 	background: none;
 	border: none;

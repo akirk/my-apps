@@ -2157,18 +2157,18 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .hidden-count {
 	position: absolute;
-	top: -4px;
-	right: -4px;
-	background: #e74c3c;
-	color: #fff;
-	font-size: 11px;
-	font-weight: 600;
-	min-width: 18px;
-	height: 18px;
-	line-height: 18px;
-	border-radius: 9px;
+	top: -2px;
+	right: -2px;
+	background: rgba(255, 255, 255, 0.48);
+	color: rgba(40, 40, 40, 0.82);
+	font-size: 10px;
+	font-weight: 500;
+	min-width: 16px;
+	height: 16px;
+	line-height: 16px;
+	border-radius: 8px;
 	text-align: center;
-	padding: 0 4px;
+	padding: 0 3px;
 	display: none;
 }
 

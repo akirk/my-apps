@@ -174,7 +174,7 @@ class My_Apps {
 					'properties'           => array(
 						'background' => array(
 							'type'        => 'string',
-							'description' => __( 'A preset background slug, image attachment ID, or remote image URL to sideload.', 'my-apps' ),
+							'description' => __( 'A preset background slug, image attachment ID, or remote image URL to sideload or use directly.', 'my-apps' ),
 						),
 					),
 					'additionalProperties' => false,
@@ -312,31 +312,33 @@ class My_Apps {
 	}
 
 	/**
-	 * Sideload a remote image URL and save it as the custom background.
+	 * Sideload a remote image URL when possible and save it as the custom background.
 	 *
 	 * @param string $url Remote image URL.
 	 * @return array|\WP_Error
 	 */
 	private static function save_sideloaded_background( $url ) {
-		if ( ! current_user_can( 'upload_files' ) ) {
-			return new \WP_Error( 'my_apps_cannot_upload_background', __( 'Sorry, you are not allowed to upload images.', 'my-apps' ) );
-		}
-
 		$url = esc_url_raw( $url );
 		if ( ! $url || ! wp_http_validate_url( $url ) ) {
 			return new \WP_Error( 'my_apps_invalid_background_url', __( 'Invalid background image URL.', 'my-apps' ) );
 		}
 
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/media.php';
-		require_once ABSPATH . 'wp-admin/includes/image.php';
+		if ( current_user_can( 'upload_files' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			require_once ABSPATH . 'wp-admin/includes/media.php';
+			require_once ABSPATH . 'wp-admin/includes/image.php';
 
-		$attachment_id = media_sideload_image( $url, 0, null, 'id' );
-		if ( is_wp_error( $attachment_id ) ) {
-			return $attachment_id;
+			$attachment_id = media_sideload_image( $url, 0, null, 'id' );
+			if ( ! is_wp_error( $attachment_id ) ) {
+				$result = self::save_attachment_background( $attachment_id );
+				if ( ! is_wp_error( $result ) ) {
+					return $result;
+				}
+			}
 		}
 
-		return self::save_attachment_background( $attachment_id );
+		self::store_custom_background_image( $url );
+		return self::current_background_payload();
 	}
 
 	/**

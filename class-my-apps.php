@@ -83,6 +83,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_hide', array( $this, 'ajax_hide_app' ) );
 		add_action( 'wp_ajax_my_apps_add', array( $this, 'ajax_add_app' ) );
 		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
+		add_action( 'wp_ajax_my_apps_get_background', array( $this, 'ajax_get_background' ) );
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
 		add_action( 'wp_ajax_my_apps_delete', array( $this, 'ajax_delete_app' ) );
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
@@ -1186,6 +1187,19 @@ class My_Apps {
 		}
 
 		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX: Get background preference.
+	 */
+	public function ajax_get_background() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		wp_send_json_success( self::current_background_payload() );
 	}
 
 	/**

@@ -1,21 +1,23 @@
 (function() {
 	'use strict';
 
+	function reloadBackgroundFromToolCall(context) {
+		if (window.MyApps && typeof window.MyApps.reloadBackground === 'function') {
+			window.MyApps.reloadBackground(context);
+		}
+	}
+
 	var subscriptions = [
 		{
 			criteria: { ability: 'my-apps/set-background', success: true },
 			callback: function(context) {
-				if (window.MyApps && typeof window.MyApps.reloadBackground === 'function') {
-					window.MyApps.reloadBackground(context && context.result);
-				}
+				reloadBackgroundFromToolCall(context);
 			}
 		},
 		{
 			criteria: { ability: 'my-apps/set-background-color', success: true },
 			callback: function(context) {
-				if (window.MyApps && typeof window.MyApps.reloadBackground === 'function') {
-					window.MyApps.reloadBackground(context && context.result);
-				}
+				reloadBackgroundFromToolCall(context);
 			}
 		}
 	];

@@ -753,6 +753,14 @@ class My_Apps {
 			true
 		);
 
+		wp_enqueue_script(
+			'my-apps-ai-assistant-hooks',
+			plugins_url( 'assets/ai-assistant-hooks.js', __FILE__ ),
+			array( 'my-apps-launcher', 'ai-assistant-chat-core' ),
+			MY_APPS_VERSION,
+			true
+		);
+
 		wp_localize_script(
 			'my-apps-launcher',
 			'myAppsConfig',

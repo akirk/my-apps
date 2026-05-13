@@ -2035,6 +2035,17 @@
 		}
 	}
 
+	function reloadBackground(data) {
+		applyBackgroundPayload(data);
+	}
+
+	function exposePublicApi() {
+		if (!window.MyApps || (typeof window.MyApps !== 'object' && typeof window.MyApps !== 'function')) {
+			window.MyApps = {};
+		}
+		window.MyApps.reloadBackground = reloadBackground;
+	}
+
 	function applyBackgroundPayload(data) {
 		if (!data || !data.background) return;
 
@@ -5515,6 +5526,8 @@
 			openInstallSoftwareModal();
 		}
 	}
+
+	exposePublicApi();
 
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', init);

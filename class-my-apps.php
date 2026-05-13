@@ -110,7 +110,7 @@ class My_Apps {
 			$domains = array();
 		}
 
-		$domains['my-apps'] = 'my apps, apps launcher, app launcher, launcher apps, WordPress apps, dashboard apps, app icons, app links, hidden apps, app order, app sorting, launcher customization, launcher background, My Apps background';
+		$domains['my-apps'] = 'My Apps launcher/home screen customization, shortcut names/icons/links/visibility/order, background state/changes';
 
 		return $domains;
 	}

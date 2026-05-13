@@ -2035,8 +2035,86 @@
 		}
 	}
 
+	function reloadBackground(data) {
+		var fallbackPayload = normalizeBackgroundPayload(data, 4);
+
+		return fetchBackgroundPayload()
+			.then(function(payload) {
+				applyBackgroundPayload(payload);
+				return payload;
+			})
+			.catch(function() {
+				if (fallbackPayload) {
+					applyBackgroundPayload(fallbackPayload);
+				}
+				return fallbackPayload;
+			});
+	}
+
+	function exposePublicApi() {
+		if (!window.MyApps || (typeof window.MyApps !== 'object' && typeof window.MyApps !== 'function')) {
+			window.MyApps = {};
+		}
+		window.MyApps.reloadBackground = reloadBackground;
+	}
+
+	function fetchBackgroundPayload() {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_get_background');
+		formData.append('nonce', myAppsConfig.nonce);
+
+		return fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (data && data.success) {
+				return data.data;
+			}
+			throw new Error((data && data.data) || 'Error loading background');
+		});
+	}
+
+	function normalizeBackgroundPayload(value, depth) {
+		var keys = ['result', 'output', 'data', 'response', 'body', 'payload'];
+		var parsed;
+		var i;
+		var found;
+
+		if (!value || depth < 0) return null;
+
+		if (typeof value === 'string') {
+			try {
+				parsed = JSON.parse(value);
+			} catch (e) {
+				return null;
+			}
+			return normalizeBackgroundPayload(parsed, depth - 1);
+		}
+
+		if (typeof value !== 'object') return null;
+
+		if (typeof value.background === 'string' && value.background) {
+			return value;
+		}
+
+		for (i = 0; i < keys.length; i++) {
+			if (Object.prototype.hasOwnProperty.call(value, keys[i])) {
+				found = normalizeBackgroundPayload(value[keys[i]], depth - 1);
+				if (found) return found;
+			}
+		}
+
+		return null;
+	}
+
 	function applyBackgroundPayload(data) {
-		if (!data || !data.background) return;
+		data = normalizeBackgroundPayload(data, 4);
+
+		if (!data || !data.background) {
+			return;
+		}
 
 		body.className = body.className.replace(/bg-[\w-]+/g, '').trim();
 		body.style.background = '';
@@ -5515,6 +5593,8 @@
 			openInstallSoftwareModal();
 		}
 	}
+
+	exposePublicApi();
 
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', init);

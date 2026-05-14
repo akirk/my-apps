@@ -142,7 +142,7 @@ body.my-apps-launcher.bg-custom {
 
 /* Toolbar */
 .launcher-toolbar {
-	position: fixed;
+	position: absolute;
 	top: 44px;
 	left: 0;
 	right: 0;

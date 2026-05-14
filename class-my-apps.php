@@ -58,6 +58,146 @@ class My_Apps {
 		return 'data:image/svg+xml;base64,' . base64_encode( self::icon_svg() );
 	}
 
+	/**
+	 * Get the current user's admin colour scheme as CSS tokens.
+	 *
+	 * @return array
+	 */
+	private static function admin_color_tokens() {
+		$fallback = array(
+			'background' => '#1d2327',
+			'subtle'     => '#2c3338',
+			'primary'    => '#2271b1',
+			'accent'     => '#72aee6',
+			'icon'       => '#a7aaad',
+			'text'       => '#f0f0f1',
+		);
+
+		$slug = get_user_option( 'admin_color' );
+		if ( ! $slug ) {
+			$slug = 'fresh';
+		}
+
+		global $_wp_admin_css_colors;
+
+		if ( empty( $_wp_admin_css_colors ) ) {
+			require_once ABSPATH . 'wp-admin/includes/misc.php';
+			if ( function_exists( 'register_admin_color_schemes' ) ) {
+				register_admin_color_schemes();
+			}
+		}
+
+		if ( empty( $_wp_admin_css_colors[ $slug ] ) ) {
+			return $fallback;
+		}
+
+		$scheme      = $_wp_admin_css_colors[ $slug ];
+		$colors      = isset( $scheme->colors ) && is_array( $scheme->colors ) ? array_values( $scheme->colors ) : array();
+		$icon_colors = isset( $scheme->icon_colors ) && is_array( $scheme->icon_colors ) ? $scheme->icon_colors : array();
+
+		if ( empty( $colors ) ) {
+			$colors = array( $fallback['background'], $fallback['primary'], $fallback['accent'] );
+		}
+
+		$last_color = end( $colors );
+		$colors     = array_pad( $colors, 4, $last_color );
+		$background = self::sanitize_css_hex_color( $colors[0], $fallback['background'] );
+		$subtle     = self::shift_hex_color( $background, self::is_light_hex_color( $background ) ? 18 : 12 );
+
+		return array(
+			'background' => $background,
+			'subtle'     => $subtle,
+			'primary'    => self::sanitize_css_hex_color( $colors[2], $fallback['primary'] ),
+			'accent'     => self::sanitize_css_hex_color( $colors[3], $fallback['accent'] ),
+			'icon'       => self::sanitize_css_hex_color( isset( $icon_colors['base'] ) ? $icon_colors['base'] : '', $fallback['icon'] ),
+			'text'       => self::is_light_hex_color( $background ) ? '#1d2327' : '#f0f0f1',
+		);
+	}
+
+	/**
+	 * Sanitize and normalize a hex colour for inline CSS.
+	 *
+	 * @param string $color    The colour to sanitize.
+	 * @param string $fallback Fallback colour.
+	 * @return string
+	 */
+	private static function sanitize_css_hex_color( $color, $fallback ) {
+		$color = is_string( $color ) ? trim( $color ) : '';
+		if ( function_exists( 'sanitize_hex_color' ) ) {
+			$sanitized = sanitize_hex_color( $color );
+			if ( $sanitized ) {
+				$color = $sanitized;
+			}
+		}
+
+		if ( preg_match( '/^#[0-9a-fA-F]{3}$/', $color ) ) {
+			return strtolower(
+				sprintf(
+					'#%s%s%s%s%s%s',
+					$color[1],
+					$color[1],
+					$color[2],
+					$color[2],
+					$color[3],
+					$color[3]
+				)
+			);
+		}
+
+		if ( preg_match( '/^#[0-9a-fA-F]{6}$/', $color ) ) {
+			return strtolower( $color );
+		}
+
+		return $fallback;
+	}
+
+	/**
+	 * Shift a hex colour toward white.
+	 *
+	 * @param string $color   Hex colour.
+	 * @param int    $amount  Percent to mix with white.
+	 * @return string
+	 */
+	private static function shift_hex_color( $color, $amount ) {
+		$rgb    = self::hex_to_rgb( $color );
+		$amount = max( 0, min( 100, (int) $amount ) ) / 100;
+
+		return sprintf(
+			'#%02x%02x%02x',
+			(int) round( $rgb[0] + ( 255 - $rgb[0] ) * $amount ),
+			(int) round( $rgb[1] + ( 255 - $rgb[1] ) * $amount ),
+			(int) round( $rgb[2] + ( 255 - $rgb[2] ) * $amount )
+		);
+	}
+
+	/**
+	 * Convert a normalized hex colour to RGB components.
+	 *
+	 * @param string $color Hex colour.
+	 * @return int[]
+	 */
+	private static function hex_to_rgb( $color ) {
+		$color = ltrim( self::sanitize_css_hex_color( $color, '#000000' ), '#' );
+
+		return array(
+			hexdec( substr( $color, 0, 2 ) ),
+			hexdec( substr( $color, 2, 2 ) ),
+			hexdec( substr( $color, 4, 2 ) ),
+		);
+	}
+
+	/**
+	 * Determine whether a hex colour is light.
+	 *
+	 * @param string $color Hex colour.
+	 * @return bool
+	 */
+	private static function is_light_hex_color( $color ) {
+		$rgb = self::hex_to_rgb( $color );
+
+		return ( ( 299 * $rgb[0] + 587 * $rgb[1] + 114 * $rgb[2] ) / 1000 ) >= 160;
+	}
+
 	public function __construct() {
 		add_action( 'init', array( $this, 'my_apps_endpoint' ) );
 		add_filter( 'query_vars', array( $this, 'my_apps_query_vars' ) );
@@ -518,8 +658,89 @@ class My_Apps {
 		if ( ! is_admin_bar_showing() ) {
 			return;
 		}
+		$is_launcher = ! is_admin() && get_query_var( 'my_apps' );
+		$tokens      = $is_launcher ? self::admin_color_tokens() : array();
 		?>
 		<style>
+			<?php if ( $is_launcher ) : ?>
+			body.my-apps-launcher {
+				--wp-app-admin-color-background: <?php echo esc_html( $tokens['background'] ); ?>;
+				--wp-app-admin-color-subtle: <?php echo esc_html( $tokens['subtle'] ); ?>;
+				--wp-app-admin-color-primary: <?php echo esc_html( $tokens['primary'] ); ?>;
+				--wp-app-admin-color-accent: <?php echo esc_html( $tokens['accent'] ); ?>;
+				--wp-app-admin-icon-color-base: <?php echo esc_html( $tokens['icon'] ); ?>;
+				--wp-app-masterbar-background: var(--wp-app-admin-color-background);
+				--wp-app-masterbar-highlight: var(--wp-app-admin-color-accent);
+				--wp-app-masterbar-text: <?php echo esc_html( $tokens['text'] ); ?>;
+			}
+			body.my-apps-launcher #wpadminbar {
+				background: var(--wp-app-masterbar-background, #1d2327);
+				color: var(--wp-app-masterbar-text, #f0f0f1);
+			}
+			body.my-apps-launcher #wpadminbar .ab-item,
+			body.my-apps-launcher #wpadminbar a.ab-item,
+			body.my-apps-launcher #wpadminbar > #wp-toolbar span.ab-label,
+			body.my-apps-launcher #wpadminbar > #wp-toolbar span.noticon {
+				color: var(--wp-app-masterbar-text, #f0f0f1);
+			}
+			body.my-apps-launcher #wpadminbar .ab-icon,
+			body.my-apps-launcher #wpadminbar .ab-icon:before,
+			body.my-apps-launcher #wpadminbar .ab-item:before,
+			body.my-apps-launcher #wpadminbar .ab-item:after,
+			body.my-apps-launcher #wpadminbar #adminbarsearch:before {
+				color: var(--wp-app-admin-icon-color-base, #a7aaad);
+			}
+			body.my-apps-launcher #wpadminbar .ab-top-menu > li.hover > .ab-item,
+			body.my-apps-launcher #wpadminbar.nojq .quicklinks .ab-top-menu > li > .ab-item:focus,
+			body.my-apps-launcher #wpadminbar.nojs .ab-top-menu > li.menupop:hover > .ab-item,
+			body.my-apps-launcher #wpadminbar:not(.mobile) .ab-top-menu > li:hover > .ab-item,
+			body.my-apps-launcher #wpadminbar:not(.mobile) .ab-top-menu > li > .ab-item:focus {
+				background: var(--wp-app-admin-color-subtle, #2c3338);
+				color: var(--wp-app-masterbar-highlight, #72aee6);
+			}
+			body.my-apps-launcher #wpadminbar:not(.mobile) > #wp-toolbar li:hover span.ab-label,
+			body.my-apps-launcher #wpadminbar:not(.mobile) > #wp-toolbar li.hover span.ab-label,
+			body.my-apps-launcher #wpadminbar:not(.mobile) > #wp-toolbar a:focus span.ab-label,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop ul li a:hover,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop ul li a:focus,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop ul li a:hover strong,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop ul li a:focus strong,
+			body.my-apps-launcher #wpadminbar .quicklinks .ab-sub-wrapper .menupop.hover > a,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop.hover ul li a:hover,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop.hover ul li a:focus,
+			body.my-apps-launcher #wpadminbar.nojs .quicklinks .menupop:hover ul li a:hover,
+			body.my-apps-launcher #wpadminbar.nojs .quicklinks .menupop:hover ul li a:focus,
+			body.my-apps-launcher #wpadminbar li:hover .ab-icon:before,
+			body.my-apps-launcher #wpadminbar li:hover .ab-item:before,
+			body.my-apps-launcher #wpadminbar li a:focus .ab-icon:before,
+			body.my-apps-launcher #wpadminbar li .ab-item:focus:before,
+			body.my-apps-launcher #wpadminbar li .ab-item:focus .ab-icon:before,
+			body.my-apps-launcher #wpadminbar li.hover .ab-icon:before,
+			body.my-apps-launcher #wpadminbar li.hover .ab-item:before,
+			body.my-apps-launcher #wpadminbar li:hover #adminbarsearch:before,
+			body.my-apps-launcher #wpadminbar li #adminbarsearch.adminbar-focused:before {
+				color: var(--wp-app-masterbar-highlight, #72aee6);
+			}
+			body.my-apps-launcher #wpadminbar .menupop .ab-sub-wrapper,
+			body.my-apps-launcher #wpadminbar .shortlink-input {
+				background: var(--wp-app-admin-color-subtle, #2c3338);
+			}
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop ul.ab-sub-secondary,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop ul.ab-sub-secondary .ab-submenu {
+				background: var(--wp-app-masterbar-background, #1d2327);
+			}
+			body.my-apps-launcher #wpadminbar .ab-submenu .ab-item,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop ul li a,
+			body.my-apps-launcher #wpadminbar .quicklinks .menupop.hover ul li a,
+			body.my-apps-launcher #wpadminbar.nojs .quicklinks .menupop:hover ul li a,
+			body.my-apps-launcher #wpadminbar .shortlink-input {
+				color: var(--wp-app-masterbar-text, #f0f0f1);
+			}
+			body.my-apps-launcher #wpadminbar > #wp-toolbar > #wp-admin-bar-top-secondary > #wp-admin-bar-search #adminbarsearch input.adminbar-input:focus {
+				background: var(--wp-app-admin-color-subtle, #2c3338);
+				color: var(--wp-app-masterbar-text, #f0f0f1);
+			}
+			<?php endif; ?>
 			#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
 				content: "";
 				display: inline-block;

@@ -223,6 +223,13 @@ $is_app_store = isset( $_GET['app-store'] );
 				<button type="button" class="bg-option bg-solid-dark" data-bg="solid-dark" title="Dark"></button>
 			</div>
 		</div>
+		<div class="bg-picker-section" id="bg-custom-css-section" hidden>
+			<div class="bg-picker-label"><?php esc_html_e( 'Custom', 'my-apps' ); ?></div>
+			<div class="bg-image-option bg-custom-css-option" id="bg-custom-css-option">
+				<span class="bg-image-thumb" id="bg-custom-css-preview"></span>
+				<span><?php esc_html_e( 'Custom Background', 'my-apps' ); ?></span>
+			</div>
+		</div>
 		<?php if ( $can_upload_media ) : ?>
 		<div class="bg-picker-section">
 			<div class="bg-picker-label"><?php esc_html_e( 'Image', 'my-apps' ); ?></div>

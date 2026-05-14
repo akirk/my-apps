@@ -13,6 +13,9 @@
 	const bgUrlForm = document.getElementById('bg-url-form');
 	const bgUrlInput = document.getElementById('bg-url-input');
 	const bgImagePreview = document.getElementById('bg-image-preview');
+	const bgCustomCssSection = document.getElementById('bg-custom-css-section');
+	const bgCustomCssOption = document.getElementById('bg-custom-css-option');
+	const bgCustomCssPreview = document.getElementById('bg-custom-css-preview');
 	const settingsBtn = document.querySelector('.settings-btn');
 	const settingsDropdown = document.getElementById('settings-dropdown');
 	const hiddenPopup = document.getElementById('hidden-popup');
@@ -1984,9 +1987,12 @@
 		bgPicker.querySelectorAll('.bg-option, .bg-image-option').forEach(function(opt) {
 			opt.classList.remove('selected');
 		});
+		updateCustomCssBackgroundOption();
 
 		if (background === 'custom') {
-			if (bgMediaBtn) {
+			if (isCustomCssBackground() && bgCustomCssOption) {
+				bgCustomCssOption.classList.add('selected');
+			} else if (bgMediaBtn) {
 				bgMediaBtn.classList.add('selected');
 			}
 			return;
@@ -2010,6 +2016,21 @@
 			bgImagePreview.style.backgroundImage = 'url("' + String(url).replace(/"/g, '\\"') + '")';
 		} else {
 			bgImagePreview.style.backgroundImage = '';
+		}
+	}
+
+	function isCustomCssBackground() {
+		return myAppsConfig.background === 'custom' && !!myAppsConfig.customBackground && !myAppsConfig.backgroundImageUrl;
+	}
+
+	function updateCustomCssBackgroundOption() {
+		var css = isCustomCssBackground() ? myAppsConfig.customBackground : '';
+
+		if (bgCustomCssSection) {
+			bgCustomCssSection.hidden = !css;
+		}
+		if (bgCustomCssPreview) {
+			bgCustomCssPreview.style.background = css || '';
 		}
 	}
 

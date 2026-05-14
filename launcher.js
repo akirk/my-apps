@@ -35,13 +35,11 @@
 	let appStoreData = null;
 	let sortable = null;
 	let bgMediaFrame = null;
-	let longPressTimer = null;
 	let contextTarget = null;
 	// Tracks a deep-link target picked up by checkDeepLink so loadAppStore
 	// can render the detail page directly instead of flashing the grid first.
 	let pendingDeepLink = null;
 	let deepLinkRendered = false;
-	const LONG_PRESS_DURATION = 500;
 	// Single base for the blueprints repo we read apps, recipes and the
 	// curated plugin list from.
 	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
@@ -1687,10 +1685,6 @@
 		editBtn.addEventListener('click', enterEditMode);
 		doneBtn.addEventListener('click', exitEditMode);
 
-		container.addEventListener('touchstart', handleTouchStart, { passive: true });
-		container.addEventListener('touchend', handleTouchEnd);
-		container.addEventListener('touchmove', handleTouchMove, { passive: true });
-
 		container.addEventListener('contextmenu', handleContextMenu);
 		document.addEventListener('click', hideContextMenu);
 		contextMenu.addEventListener('click', handleContextAction);
@@ -2426,26 +2420,6 @@
 		body.classList.remove('edit-mode');
 		sortable.option('disabled', true);
 		saveOrder();
-	}
-
-	function handleTouchStart(e) {
-		var appIcon = e.target.closest('.app-icon:not(.add-app-btn)');
-		if (!appIcon || isEditMode) return;
-
-		longPressTimer = setTimeout(function() {
-			enterEditMode();
-			if (navigator.vibrate) {
-				navigator.vibrate(50);
-			}
-		}, LONG_PRESS_DURATION);
-	}
-
-	function handleTouchEnd() {
-		clearTimeout(longPressTimer);
-	}
-
-	function handleTouchMove() {
-		clearTimeout(longPressTimer);
 	}
 
 	function handleContextMenu(e) {

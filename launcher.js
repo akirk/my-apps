@@ -2154,7 +2154,9 @@
 		updateBackgroundImagePreview(myAppsConfig.backgroundImageUrl);
 	}
 
-	function saveBackground(value) {
+	function saveBackground(value, options) {
+		options = options || {};
+
 		var formData = new FormData();
 		formData.append('action', 'my_apps_save_background');
 		formData.append('nonce', myAppsConfig.nonce);
@@ -2170,7 +2172,9 @@
 		.then(function(data) {
 			if (data.success) {
 				applyBackgroundPayload(data.data);
-				closeBgPicker();
+				if (options.closePicker !== false) {
+					closeBgPicker();
+				}
 				return true;
 			}
 
@@ -2190,7 +2194,7 @@
 		var option = e.target.closest('.bg-option');
 		if (!option) return;
 
-		saveBackground(option.dataset.bg);
+		saveBackground(option.dataset.bg, { closePicker: false });
 	}
 
 	function handleBgMediaSelect(e) {

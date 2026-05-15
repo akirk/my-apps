@@ -253,8 +253,55 @@ $is_app_store = isset( $_GET['app-store'] );
 		<button type="button" data-action="open"><?php esc_html_e( 'Open', 'my-apps' ); ?></button>
 		<button type="button" data-action="open-new"><?php esc_html_e( 'Open in New Tab', 'my-apps' ); ?></button>
 		<hr>
+		<button type="button" data-action="change-icon"><?php esc_html_e( 'Change Icon', 'my-apps' ); ?></button>
 		<button type="button" data-action="hide"><?php esc_html_e( 'Hide', 'my-apps' ); ?></button>
 		<button type="button" data-action="move-front"><?php esc_html_e( 'Move to Front', 'my-apps' ); ?></button>
+	</div>
+
+	<div class="modal-overlay" id="icon-edit-modal">
+		<div class="modal">
+			<div class="modal-header">
+				<h2 id="icon-edit-heading"><?php esc_html_e( 'Change Icon', 'my-apps' ); ?></h2>
+				<button type="button" class="modal-close" aria-label="<?php esc_attr_e( 'Close', 'my-apps' ); ?>">&times;</button>
+			</div>
+			<form id="icon-edit-form">
+				<input type="hidden" id="icon-edit-slug" name="slug">
+				<div class="form-group">
+					<label><?php esc_html_e( 'Icon', 'my-apps' ); ?></label>
+					<div class="icon-type-tabs icon-edit-tabs">
+						<button type="button" class="icon-tab active" data-type="emoji"><?php esc_html_e( 'Emoji', 'my-apps' ); ?></button>
+						<button type="button" class="icon-tab" data-type="url"><?php esc_html_e( 'Image', 'my-apps' ); ?></button>
+						<button type="button" class="icon-tab" data-type="dashicon"><?php esc_html_e( 'Dashicon', 'my-apps' ); ?></button>
+						<button type="button" class="icon-tab" data-type="favicon"><?php esc_html_e( 'Favicon', 'my-apps' ); ?></button>
+						<button type="button" class="icon-tab" data-type="letter"><?php esc_html_e( 'Letter', 'my-apps' ); ?></button>
+					</div>
+					<div class="icon-input-group">
+						<input type="hidden" id="icon-edit-emoji" name="emoji">
+						<div class="icon-input emoji-picker-container active">
+							<div class="emoji-search">
+								<input type="text" id="icon-edit-emoji-search" placeholder="<?php esc_attr_e( 'Search emoji...', 'my-apps' ); ?>">
+							</div>
+							<div class="emoji-picker" id="icon-edit-emoji-picker"></div>
+						</div>
+						<input type="url" id="icon-edit-url" name="icon_url" class="icon-input" placeholder="https://example.com/icon.png">
+						<input type="hidden" id="icon-edit-dashicon" name="dashicon">
+						<div class="icon-input dashicon-picker-container">
+							<div class="dashicon-search">
+								<input type="text" id="icon-edit-dashicon-search" placeholder="<?php esc_attr_e( 'Search icons...', 'my-apps' ); ?>">
+							</div>
+							<div class="dashicon-picker" id="icon-edit-dashicon-picker"></div>
+						</div>
+					</div>
+					<div class="icon-preview">
+						<div class="preview-box" id="icon-edit-preview"></div>
+					</div>
+				</div>
+				<div class="form-actions icon-edit-actions">
+					<button type="button" class="btn-secondary" id="icon-edit-revert"><?php esc_html_e( 'Revert', 'my-apps' ); ?></button>
+					<button type="submit" class="btn-add"><?php esc_html_e( 'Save Icon', 'my-apps' ); ?></button>
+				</div>
+			</form>
+		</div>
 	</div>
 
 	<div class="modal-overlay" id="install-software-modal">

@@ -1826,6 +1826,10 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	padding: 0;
 }
 
+#icon-edit-form {
+	padding: 20px;
+}
+
 .form-group {
 	margin-bottom: 16px;
 }
@@ -1863,6 +1867,14 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	display: flex;
 	gap: 8px;
 	margin-bottom: 10px;
+}
+
+.icon-edit-tabs {
+	flex-wrap: wrap;
+}
+
+.icon-edit-tabs .icon-tab {
+	flex: 1 1 62px;
 }
 
 .icon-tab {
@@ -2099,6 +2111,23 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .btn-add:hover {
 	background: #5a6fd6;
+}
+
+.btn-secondary {
+	flex: 1;
+	padding: 12px;
+	border: 1px solid var(--ma-border);
+	border-radius: 6px;
+	background: var(--ma-bg-secondary);
+	color: var(--ma-fg);
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+	background: var(--ma-hover-bg);
 }
 
 /* Sortable Styles */

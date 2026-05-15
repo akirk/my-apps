@@ -7,6 +7,12 @@
 		}
 	}
 
+	function reloadAppsFromToolCall(context) {
+		if (window.MyApps && typeof window.MyApps.reloadApps === 'function') {
+			window.MyApps.reloadApps(context);
+		}
+	}
+
 	var subscriptions = [
 		{
 			criteria: { ability: 'my-apps/set-background', success: true },
@@ -18,6 +24,18 @@
 			criteria: { ability: 'my-apps/set-background-color', success: true },
 			callback: function(context) {
 				reloadBackgroundFromToolCall(context);
+			}
+		},
+		{
+			criteria: { ability: 'my-apps/add-app', success: true },
+			callback: function(context) {
+				reloadAppsFromToolCall(context);
+			}
+		},
+		{
+			criteria: { ability: 'my-apps/set-app-icon', success: true },
+			callback: function(context) {
+				reloadAppsFromToolCall(context);
 			}
 		}
 	];

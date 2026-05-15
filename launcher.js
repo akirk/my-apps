@@ -6,6 +6,8 @@
 	const doneBtn = document.querySelector('.done-btn');
 	const contextMenu = document.getElementById('context-menu');
 	const addAppForm = document.getElementById('add-app-form');
+	const iconEditModal = document.getElementById('icon-edit-modal');
+	const iconEditForm = document.getElementById('icon-edit-form');
 	const bgPicker = document.getElementById('bg-picker');
 	const bgBtn = document.querySelector('.bg-btn');
 	const bgMediaBtn = document.getElementById('bg-media-btn');
@@ -36,6 +38,7 @@
 	let sortable = null;
 	let bgMediaFrame = null;
 	let contextTarget = null;
+	let iconEditTarget = null;
 	// Tracks a deep-link target picked up by checkDeepLink so loadAppStore
 	// can render the detail page directly instead of flashing the grid first.
 	let pendingDeepLink = null;
@@ -1168,6 +1171,7 @@
 		initSortable();
 		initEmojiPicker();
 		initDashiconPicker();
+		initIconEditPickers();
 		bindEvents();
 		bindAdminMenuSearch();
 		checkDeepLink();
@@ -1681,6 +1685,373 @@
 		});
 	}
 
+	function initIconEditPickers() {
+		if (!iconEditForm) return;
+		initIconEditEmojiPicker();
+		initIconEditDashiconPicker();
+	}
+
+	function initIconEditEmojiPicker() {
+		var picker = document.getElementById('icon-edit-emoji-picker');
+		var searchInput = document.getElementById('icon-edit-emoji-search');
+		var emojiInput = document.getElementById('icon-edit-emoji');
+		if (!picker || !searchInput || !emojiInput) return;
+
+		function renderEmojis(filter) {
+			while (picker.firstChild) {
+				picker.removeChild(picker.firstChild);
+			}
+
+			var filterLower = (filter || '').toLowerCase();
+			var currentValue = emojiInput.value;
+
+			emojis.forEach(function(item) {
+				if (filterLower && item.keywords.toLowerCase().indexOf(filterLower) === -1 && item.emoji.indexOf(filterLower) === -1) {
+					return;
+				}
+
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'emoji-option';
+				btn.textContent = item.emoji;
+				btn.title = item.keywords.split(' ').slice(0, 3).join(', ');
+
+				if (currentValue === item.emoji) {
+					btn.classList.add('selected');
+				}
+
+				btn.addEventListener('click', function() {
+					picker.querySelectorAll('.emoji-option').forEach(function(b) {
+						b.classList.remove('selected');
+					});
+					btn.classList.add('selected');
+					emojiInput.value = item.emoji;
+					updateIconEditPreview();
+				});
+
+				picker.appendChild(btn);
+			});
+		}
+
+		picker.renderEmojis = renderEmojis;
+		renderEmojis('');
+
+		searchInput.addEventListener('input', function() {
+			renderEmojis(searchInput.value);
+		});
+	}
+
+	function initIconEditDashiconPicker() {
+		var picker = document.getElementById('icon-edit-dashicon-picker');
+		var searchInput = document.getElementById('icon-edit-dashicon-search');
+		var dashiconInput = document.getElementById('icon-edit-dashicon');
+		if (!picker || !searchInput || !dashiconInput) return;
+
+		function renderIcons(filter) {
+			while (picker.firstChild) {
+				picker.removeChild(picker.firstChild);
+			}
+
+			var filterLower = (filter || '').toLowerCase();
+			var currentValue = dashiconInput.value;
+
+			dashicons.forEach(function(icon) {
+				if (filterLower && icon.toLowerCase().indexOf(filterLower) === -1) {
+					return;
+				}
+
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'dashicon-option';
+				btn.dataset.icon = 'dashicons-' + icon;
+				btn.title = icon;
+
+				if (currentValue === 'dashicons-' + icon) {
+					btn.classList.add('selected');
+				}
+
+				var span = document.createElement('span');
+				span.className = 'dashicons dashicons-' + icon;
+				btn.appendChild(span);
+
+				btn.addEventListener('click', function() {
+					picker.querySelectorAll('.dashicon-option').forEach(function(b) {
+						b.classList.remove('selected');
+					});
+					btn.classList.add('selected');
+					dashiconInput.value = 'dashicons-' + icon;
+					updateIconEditPreview();
+				});
+
+				picker.appendChild(btn);
+			});
+		}
+
+		picker.renderIcons = renderIcons;
+		renderIcons('');
+
+		searchInput.addEventListener('input', function() {
+			renderIcons(searchInput.value);
+		});
+	}
+
+	function currentIconEditType() {
+		var activeTab = iconEditForm ? iconEditForm.querySelector('.icon-tab.active') : null;
+		return activeTab ? activeTab.dataset.type : 'emoji';
+	}
+
+	function setIconEditType(type) {
+		if (!iconEditForm) return;
+
+		iconEditForm.querySelectorAll('.icon-tab').forEach(function(tab) {
+			tab.classList.toggle('active', tab.dataset.type === type);
+		});
+		iconEditForm.querySelectorAll('.icon-input').forEach(function(input) {
+			input.classList.remove('active');
+		});
+		iconEditForm.querySelector('.emoji-picker-container').classList.remove('active');
+		iconEditForm.querySelector('.dashicon-picker-container').classList.remove('active');
+
+		if (type === 'emoji') {
+			iconEditForm.querySelector('.emoji-picker-container').classList.add('active');
+		} else if (type === 'url') {
+			document.getElementById('icon-edit-url').classList.add('active');
+		} else if (type === 'dashicon') {
+			iconEditForm.querySelector('.dashicon-picker-container').classList.add('active');
+		}
+
+		updateIconEditPreview();
+	}
+
+	function handleIconEditTabSwitch(e) {
+		var tab = e.target.closest('.icon-tab');
+		if (!tab) return;
+		setIconEditType(tab.dataset.type);
+	}
+
+	function selectedDashiconClass(el) {
+		if (!el || !el.classList) return '';
+		for (var i = 0; i < el.classList.length; i++) {
+			if (el.classList[i].indexOf('dashicons-') === 0) {
+				return el.classList[i];
+			}
+		}
+		return '';
+	}
+
+	function faviconUrlForAppUrl(url) {
+		var parsed;
+		try {
+			parsed = new URL(url, window.location.origin);
+		} catch (e) {
+			return '';
+		}
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+			return '';
+		}
+		return parsed.origin + '/favicon.ico';
+	}
+
+	function letterIconDataForName(name) {
+		var words = String(name || '').trim().split(/\s+/).filter(Boolean);
+		var letters = '?';
+		var key = String(name || '').toLowerCase();
+		var hash = 5381;
+		var i;
+
+		if (words.length === 1) {
+			letters = words[0].charAt(0).toUpperCase();
+		} else if (words.length > 1) {
+			letters = (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+		}
+		for (i = 0; i < key.length; i++) {
+			hash = ((hash * 33) + key.charCodeAt(i)) >>> 0;
+		}
+		return {
+			letters: letters,
+			background: 'hsl(' + (hash % 360) + ', 55%, 45%)'
+		};
+	}
+
+	function updateIconEditPreview() {
+		var preview = document.getElementById('icon-edit-preview');
+		if (!preview) return;
+
+		var type = currentIconEditType();
+		while (preview.firstChild) {
+			preview.removeChild(preview.firstChild);
+		}
+		preview.className = 'preview-box';
+
+		if (type === 'emoji') {
+			var emoji = document.getElementById('icon-edit-emoji').value;
+			if (emoji) {
+				preview.textContent = emoji;
+				preview.classList.add('preview-emoji');
+			}
+		} else if (type === 'url') {
+			var iconUrl = document.getElementById('icon-edit-url').value;
+			if (iconUrl) {
+				var img = document.createElement('img');
+				img.src = iconUrl;
+				img.onerror = function() { preview.textContent = '?'; };
+				preview.appendChild(img);
+			}
+		} else if (type === 'dashicon') {
+			var dashicon = document.getElementById('icon-edit-dashicon').value;
+			if (dashicon) {
+				var icon = document.createElement('span');
+				icon.className = 'dashicons ' + (dashicon.indexOf('dashicons-') === 0 ? dashicon : 'dashicons-' + dashicon);
+				preview.appendChild(icon);
+				preview.classList.add('preview-dashicon');
+			}
+		} else if (type === 'favicon') {
+			var favicon = faviconUrlForAppUrl(iconEditTarget ? iconEditTarget.dataset.url : '');
+			if (favicon) {
+				var faviconImg = document.createElement('img');
+				faviconImg.src = favicon;
+				faviconImg.onerror = function() { preview.textContent = '?'; };
+				preview.appendChild(faviconImg);
+			}
+		} else if (type === 'letter') {
+			var title = iconEditTarget ? iconEditTarget.querySelector('.app-title') : null;
+			preview.appendChild(buildLetterIconSvg(letterIconDataForName(title ? title.textContent : '')));
+		}
+	}
+
+	function resetIconEditForm() {
+		if (!iconEditForm) return;
+
+		iconEditForm.reset();
+		document.getElementById('icon-edit-emoji').value = '';
+		document.getElementById('icon-edit-url').value = '';
+		document.getElementById('icon-edit-dashicon').value = '';
+		document.getElementById('icon-edit-emoji-search').value = '';
+		document.getElementById('icon-edit-dashicon-search').value = '';
+		iconEditForm.querySelectorAll('.emoji-option.selected, .dashicon-option.selected').forEach(function(btn) {
+			btn.classList.remove('selected');
+		});
+		var emojiPicker = document.getElementById('icon-edit-emoji-picker');
+		var dashiconPicker = document.getElementById('icon-edit-dashicon-picker');
+		if (emojiPicker && typeof emojiPicker.renderEmojis === 'function') {
+			emojiPicker.renderEmojis('');
+		}
+		if (dashiconPicker && typeof dashiconPicker.renderIcons === 'function') {
+			dashiconPicker.renderIcons('');
+		}
+		setIconEditType('emoji');
+	}
+
+	function prefillIconEditFromTarget(appIcon) {
+		var link = appIcon ? appIcon.querySelector('.app-link') : null;
+		if (!link) return;
+
+		var img = link.querySelector('img');
+		var dashicon = link.querySelector('.dashicons');
+		var emoji = link.querySelector('.emoji');
+		var letter = link.querySelector('.app-letter-icon');
+		var gradient = link.querySelector('.app-gradient-icon');
+
+		if (img) {
+			document.getElementById('icon-edit-url').value = img.getAttribute('src') || img.src;
+			setIconEditType('url');
+		} else if (dashicon) {
+			document.getElementById('icon-edit-dashicon').value = selectedDashiconClass(dashicon);
+			var picker = document.getElementById('icon-edit-dashicon-picker');
+			if (picker && typeof picker.renderIcons === 'function') {
+				picker.renderIcons(document.getElementById('icon-edit-dashicon-search').value);
+			}
+			setIconEditType('dashicon');
+		} else if (emoji) {
+			document.getElementById('icon-edit-emoji').value = emoji.textContent;
+			var emojiPicker = document.getElementById('icon-edit-emoji-picker');
+			if (emojiPicker && typeof emojiPicker.renderEmojis === 'function') {
+				emojiPicker.renderEmojis(document.getElementById('icon-edit-emoji-search').value);
+			}
+			setIconEditType('emoji');
+		} else if (letter || gradient) {
+			setIconEditType('letter');
+		}
+	}
+
+	function openIconEditModal(appIcon) {
+		if (!iconEditModal || !iconEditForm || !appIcon) return;
+
+		iconEditTarget = appIcon;
+		resetIconEditForm();
+
+		var slugInput = document.getElementById('icon-edit-slug');
+		var heading = document.getElementById('icon-edit-heading');
+		var title = appIcon.querySelector('.app-title');
+		slugInput.value = appIcon.dataset.slug || '';
+		if (heading) {
+			heading.textContent = title && title.textContent ? 'Change Icon: ' + title.textContent : 'Change Icon';
+		}
+		prefillIconEditFromTarget(appIcon);
+		iconEditModal.classList.add('active');
+	}
+
+	function closeIconEditModal() {
+		if (!iconEditModal) return;
+		iconEditModal.classList.remove('active');
+		iconEditTarget = null;
+	}
+
+	function saveIconEdit(options) {
+		options = options || {};
+		if (!iconEditForm) return Promise.resolve(false);
+
+		var slug = document.getElementById('icon-edit-slug').value;
+		var type = currentIconEditType();
+		var formData = new FormData();
+		formData.append('action', 'my_apps_save_app_icon');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('slug', slug);
+
+		if (options.revert) {
+			formData.append('revert', '1');
+		} else if (type === 'emoji') {
+			formData.append('emoji', document.getElementById('icon-edit-emoji').value.trim());
+		} else if (type === 'url') {
+			formData.append('icon_url', document.getElementById('icon-edit-url').value.trim());
+		} else if (type === 'dashicon') {
+			formData.append('dashicon', document.getElementById('icon-edit-dashicon').value.trim());
+		} else if (type === 'favicon') {
+			formData.append('use_favicon', '1');
+		} else if (type === 'letter') {
+			formData.append('icon[type]', 'letter');
+		}
+
+		return fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (data.success) {
+				applyCustomizationPayload(data.data);
+				closeIconEditModal();
+				return true;
+			}
+			alert((data && data.data) || 'Error saving icon');
+			return false;
+		})
+		.catch(function() {
+			alert('Network error');
+			return false;
+		});
+	}
+
+	function handleSaveAppIcon(e) {
+		e.preventDefault();
+		saveIconEdit();
+	}
+
+	function handleRevertAppIcon(e) {
+		e.preventDefault();
+		saveIconEdit({ revert: true });
+	}
+
 	function bindEvents() {
 		editBtn.addEventListener('click', enterEditMode);
 		doneBtn.addEventListener('click', exitEditMode);
@@ -1704,17 +2075,34 @@
 			if (e.target === installSoftwareModal) closeInstallSoftwareModal();
 		});
 
-		document.querySelectorAll('.icon-tab').forEach(function(tab) {
+		addAppForm.querySelectorAll('.icon-tab').forEach(function(tab) {
 			tab.addEventListener('click', handleIconTabSwitch);
 		});
 
-		document.querySelectorAll('.icon-input').forEach(function(input) {
+		addAppForm.querySelectorAll('.icon-input').forEach(function(input) {
 			input.addEventListener('input', updateIconPreview);
 		});
 
+		if (iconEditModal && iconEditForm) {
+			iconEditModal.querySelector('.modal-close').addEventListener('click', closeIconEditModal);
+			iconEditModal.addEventListener('click', function(e) {
+				if (e.target === iconEditModal) closeIconEditModal();
+			});
+			iconEditForm.addEventListener('submit', handleSaveAppIcon);
+			iconEditForm.querySelectorAll('.icon-tab').forEach(function(tab) {
+				tab.addEventListener('click', handleIconEditTabSwitch);
+			});
+			iconEditForm.querySelectorAll('.icon-input').forEach(function(input) {
+				input.addEventListener('input', updateIconEditPreview);
+			});
+			document.getElementById('icon-edit-revert').addEventListener('click', handleRevertAppIcon);
+		}
+
 		document.addEventListener('keydown', function(e) {
 			if (e.key === 'Escape') {
-				if (installSoftwareModal.classList.contains('active')) {
+				if (iconEditModal && iconEditModal.classList.contains('active')) {
+					closeIconEditModal();
+				} else if (installSoftwareModal.classList.contains('active')) {
 					// If on a detail page (app, plugin, or recipe), go back
 					// to the list one level first instead of closing the modal.
 					var url = new URL(window.location);
@@ -1958,6 +2346,8 @@
 	}
 
 	function updateHiddenCount() {
+		if (!hiddenBtn || !hiddenAppsList) return;
+
 		var count = hiddenAppsList.querySelectorAll('.hidden-app-item').length;
 		var badge = hiddenBtn.querySelector('.hidden-count');
 
@@ -2071,6 +2461,8 @@
 			window.MyApps = {};
 		}
 		window.MyApps.reloadBackground = reloadBackground;
+		window.MyApps.reloadApps = reloadApps;
+		window.MyApps.reloadCustomization = reloadApps;
 	}
 
 	function fetchBackgroundPayload() {
@@ -2182,6 +2574,197 @@
 		.finally(function() {
 			setBackgroundLoading(false);
 		});
+	}
+
+	function fetchCustomizationPayload() {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_get_customization');
+		formData.append('nonce', myAppsConfig.nonce);
+
+		return fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (data && data.success) {
+				return data.data;
+			}
+			throw new Error((data && data.data) || 'Error loading launcher customization');
+		});
+	}
+
+	function normalizeCustomizationPayload(value, depth) {
+		var keys = ['result', 'output', 'data', 'response', 'body', 'payload'];
+		var parsed;
+		var found;
+		var i;
+
+		if (!value || depth < 0) return null;
+
+		if (typeof value === 'string') {
+			try {
+				parsed = JSON.parse(value);
+			} catch (e) {
+				return null;
+			}
+			return normalizeCustomizationPayload(parsed, depth - 1);
+		}
+
+		if (typeof value !== 'object') return null;
+
+		if (Array.isArray(value.apps)) {
+			return value;
+		}
+
+		for (i = 0; i < keys.length; i++) {
+			if (Object.prototype.hasOwnProperty.call(value, keys[i])) {
+				found = normalizeCustomizationPayload(value[keys[i]], depth - 1);
+				if (found) return found;
+			}
+		}
+
+		return null;
+	}
+
+	function appFromCustomizationItem(item) {
+		var app = {
+			slug: item.slug || '',
+			name: item.name || item.slug || '',
+			url: item.url || '',
+			hidden: !!item.hidden,
+			deletable: !!item.deletable,
+			icon_customized: !!item.icon_customized
+		};
+		var icon = item.icon || {};
+
+		if (icon.type === 'icon_url') {
+			app.icon_url = icon.value || '';
+		} else if (icon.type === 'dashicon') {
+			app.dashicon = icon.value || '';
+		} else if (icon.type === 'emoji') {
+			app.emoji = icon.value || '';
+		} else if (icon.type === 'gradient') {
+			app.gradient = icon.value || '';
+		} else if (icon.type === 'letter') {
+			app.letter_icon = {
+				letters: icon.value || '?',
+				background: icon.background || '#888'
+			};
+		}
+
+		return app;
+	}
+
+	function createHiddenAppRow(app) {
+		var row = document.createElement('div');
+		row.className = 'hidden-app-row';
+
+		var item = document.createElement('button');
+		item.type = 'button';
+		item.className = 'hidden-app-item';
+		item.dataset.slug = app.slug;
+
+		var icon = document.createElement('span');
+		icon.className = 'hidden-app-icon';
+		appendAppIconGraphic(icon, app, { inline: true, small: true, alt: '' });
+		item.appendChild(icon);
+
+		var name = document.createElement('span');
+		name.className = 'hidden-app-name';
+		name.textContent = app.name;
+		item.appendChild(name);
+
+		var restore = document.createElement('span');
+		restore.className = 'restore-icon';
+		restore.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>';
+		item.appendChild(restore);
+		row.appendChild(item);
+
+		if (app.deletable) {
+			var deleteBtn = document.createElement('button');
+			deleteBtn.type = 'button';
+			deleteBtn.className = 'hidden-app-delete';
+			deleteBtn.dataset.slug = app.slug;
+			deleteBtn.title = 'Delete';
+			deleteBtn.setAttribute('aria-label', 'Delete');
+			deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+			row.appendChild(deleteBtn);
+		}
+
+		return row;
+	}
+
+	function applyCustomizationPayload(data) {
+		data = normalizeCustomizationPayload(data, 4);
+		if (!data || !Array.isArray(data.apps)) {
+			return;
+		}
+
+		var apps = data.apps.map(appFromCustomizationItem);
+		myAppsConfig.appUrls = apps.map(function(app) {
+			return normalizeAppUrl(app.url);
+		}).filter(Boolean);
+		myAppsConfig.deletableSlugs = apps.filter(function(app) {
+			return app.deletable;
+		}).map(function(app) {
+			return app.slug;
+		});
+
+		if (data.background) {
+			applyBackgroundPayload(data);
+		}
+
+		if (container) {
+			container.querySelectorAll('.app-icon:not(.add-app-btn)').forEach(function(el) {
+				el.remove();
+			});
+
+			var addBtn = container.querySelector('.add-app-btn');
+			apps.forEach(function(app) {
+				if (app.hidden) return;
+				var appEl = createAppElement(app);
+				if (addBtn) {
+					container.insertBefore(appEl, addBtn);
+				} else {
+					container.appendChild(appEl);
+				}
+			});
+		}
+
+		if (hiddenAppsList) {
+			hiddenAppsList.innerHTML = '';
+			var hidden = apps.filter(function(app) {
+				return app.hidden;
+			});
+			if (hidden.length) {
+				hidden.forEach(function(app) {
+					hiddenAppsList.appendChild(createHiddenAppRow(app));
+				});
+			} else {
+				var noApps = document.createElement('div');
+				noApps.className = 'no-hidden-apps';
+				noApps.textContent = 'No hidden apps';
+				hiddenAppsList.appendChild(noApps);
+			}
+			updateHiddenCount();
+		}
+	}
+
+	function reloadApps(data) {
+		var fallbackPayload = normalizeCustomizationPayload(data, 4);
+
+		return fetchCustomizationPayload()
+			.then(function(payload) {
+				applyCustomizationPayload(payload);
+				return payload;
+			})
+			.catch(function() {
+				if (fallbackPayload) {
+					applyCustomizationPayload(fallbackPayload);
+				}
+				return fallbackPayload;
+			});
 	}
 
 	function handleBgSelect(e) {
@@ -2429,8 +3012,8 @@
 		e.preventDefault();
 		contextTarget = appIcon;
 
-		var x = Math.min(e.clientX, window.innerWidth - 160);
-		var y = Math.min(e.clientY, window.innerHeight - 150);
+		var x = Math.max(8, Math.min(e.clientX, window.innerWidth - 160));
+		var y = Math.max(8, Math.min(e.clientY, window.innerHeight - 210));
 
 		contextMenu.style.left = x + 'px';
 		contextMenu.style.top = y + 'px';
@@ -2455,6 +3038,9 @@
 				break;
 			case 'open-new':
 				window.open(url, '_blank');
+				break;
+			case 'change-icon':
+				openIconEditModal(contextTarget);
 				break;
 			case 'hide':
 				hideApp(slug, contextTarget);
@@ -2485,6 +3071,7 @@
 		var dashicon = element.querySelector('.app-link .dashicons');
 		var emoji = element.querySelector('.app-link .emoji');
 		var letter = element.querySelector('.app-link .app-letter-icon');
+		var gradient = element.querySelector('.app-link .app-gradient-icon');
 
 		if (img) {
 			iconHtml = '<img src="' + img.src + '" alt="">';
@@ -2496,6 +3083,10 @@
 			var letterClone = letter.cloneNode(true);
 			letterClone.classList.add('app-letter-icon-small');
 			iconHtml = letterClone.outerHTML;
+		} else if (gradient) {
+			var gradientClone = gradient.cloneNode(true);
+			gradientClone.classList.add('app-gradient-icon-small');
+			iconHtml = gradientClone.outerHTML;
 		}
 
 		element.classList.add('hiding');
@@ -2794,6 +3385,35 @@
 		return svg;
 	}
 
+	function appendAppIconGraphic(parent, app, options) {
+		options = options || {};
+		var tagName = options.inline ? 'span' : 'div';
+
+		if (app.icon_url) {
+			var img = document.createElement('img');
+			img.src = app.icon_url;
+			img.alt = options.alt !== undefined ? options.alt : (app.name || '');
+			parent.appendChild(img);
+		} else if (app.dashicon) {
+			var dash = document.createElement(tagName);
+			dash.className = 'dashicons ' + app.dashicon;
+			parent.appendChild(dash);
+		} else if (app.emoji) {
+			var emoji = document.createElement(tagName);
+			emoji.className = 'emoji';
+			emoji.textContent = app.emoji;
+			parent.appendChild(emoji);
+		} else if (app.letter_icon) {
+			parent.appendChild(buildLetterIconSvg(app.letter_icon, options.small ? 'app-letter-icon-small' : ''));
+		} else if (app.gradient) {
+			var gradient = document.createElement(tagName);
+			gradient.className = 'app-gradient-icon' + (options.small ? ' app-gradient-icon-small' : '');
+			gradient.style.background = app.gradient;
+			gradient.innerHTML = WP_ICON_SVG || '';
+			parent.appendChild(gradient);
+		}
+	}
+
 	function createAppElement(app) {
 		var div = document.createElement('div');
 		div.className = 'app-icon';
@@ -2826,30 +3446,7 @@
 		var link = document.createElement('a');
 		link.href = app.url;
 		link.className = 'app-link';
-
-		if (app.icon_url) {
-			var img = document.createElement('img');
-			img.src = app.icon_url;
-			img.alt = app.name;
-			link.appendChild(img);
-		} else if (app.dashicon) {
-			var dashDiv = document.createElement('div');
-			dashDiv.className = 'dashicons ' + app.dashicon;
-			link.appendChild(dashDiv);
-		} else if (app.emoji) {
-			var emojiDiv = document.createElement('div');
-			emojiDiv.className = 'emoji';
-			emojiDiv.textContent = app.emoji;
-			link.appendChild(emojiDiv);
-		} else if (app.letter_icon) {
-			link.appendChild(buildLetterIconSvg(app.letter_icon));
-		} else if (app.gradient) {
-			var gradientDiv = document.createElement('div');
-			gradientDiv.className = 'app-gradient-icon';
-			gradientDiv.style.background = app.gradient;
-			gradientDiv.innerHTML = WP_ICON_SVG || '';
-			link.appendChild(gradientDiv);
-		}
+		appendAppIconGraphic(link, app);
 
 		var title = document.createElement('p');
 		title.className = 'app-title';

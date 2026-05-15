@@ -21,12 +21,6 @@
 			}
 		},
 		{
-			criteria: { ability: 'my-apps/set-background-color', success: true },
-			callback: function(context) {
-				reloadBackgroundFromToolCall(context);
-			}
-		},
-		{
 			criteria: { ability: 'my-apps/add-app', success: true },
 			callback: function(context) {
 				reloadAppsFromToolCall(context);
@@ -34,6 +28,24 @@
 		},
 		{
 			criteria: { ability: 'my-apps/set-app-icon', success: true },
+			callback: function(context) {
+				reloadAppsFromToolCall(context);
+			}
+		},
+		{
+			criteria: { ability: 'my-apps/set-app-details', success: true },
+			callback: function(context) {
+				reloadAppsFromToolCall(context);
+			}
+		},
+		{
+			criteria: { ability: 'my-apps/set-app-hidden', success: true },
+			callback: function(context) {
+				reloadAppsFromToolCall(context);
+			}
+		},
+		{
+			criteria: { ability: 'my-apps/set-visible-ordered', success: true },
 			callback: function(context) {
 				reloadAppsFromToolCall(context);
 			}

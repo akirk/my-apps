@@ -39,6 +39,16 @@
 				"$ref": "#/$defs/appIcon"
 			}
 		},
+		"app_overrides": {
+			"type": "object",
+			"propertyNames": {
+				"type": "string",
+				"minLength": 1
+			},
+			"additionalProperties": {
+				"$ref": "#/$defs/appOverride"
+			}
+		},
 		"background": {
 			"type": "string"
 		},
@@ -188,6 +198,32 @@
 				}
 			},
 			"additionalProperties": true
+		},
+		"appOverride": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string",
+					"minLength": 1
+				},
+				"url": {
+					"type": "string",
+					"minLength": 1
+				}
+			},
+			"additionalProperties": false,
+			"anyOf": [
+				{
+					"required": [
+						"name"
+					]
+				},
+				{
+					"required": [
+						"url"
+					]
+				}
+			]
 		}
 	}
 }

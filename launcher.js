@@ -2502,7 +2502,11 @@
 
 		if (typeof value !== 'object') return null;
 
-		if (typeof value.background === 'string' && value.background) {
+		if (value.background && typeof value.background === 'object' && !Array.isArray(value.background)) {
+			return normalizeBackgroundPayload(value.background, depth - 1);
+		}
+
+		if (typeof value.slug === 'string') {
 			return value;
 		}
 
@@ -2519,24 +2523,26 @@
 	function applyBackgroundPayload(data) {
 		data = normalizeBackgroundPayload(data, 4);
 
-		if (!data || !data.background) {
+		if (!data || typeof data.slug !== 'string') {
 			return;
 		}
 
 		body.className = body.className.replace(/bg-[\w-]+/g, '').trim();
 		body.style.background = '';
-		body.classList.add('bg-' + data.background);
-
-		if (data.background === 'custom' && data.custom_background) {
-			body.style.background = data.custom_background;
+		if (data.slug) {
+			body.classList.add('bg-' + data.slug);
 		}
 
-		myAppsConfig.background = data.background;
-		myAppsConfig.customBackground = data.custom_background || '';
+		if (data.slug === 'custom' && data.custom) {
+			body.style.background = data.custom;
+		}
+
+		myAppsConfig.background = data.slug;
+		myAppsConfig.customBackground = data.custom || '';
 		myAppsConfig.backgroundImageUrl = data.image_url || '';
 		myAppsConfig.backgroundAttachmentId = data.attachment_id || 0;
 
-		updateBackgroundSelection(data.background);
+		updateBackgroundSelection(data.slug);
 		updateBackgroundImagePreview(myAppsConfig.backgroundImageUrl);
 	}
 
@@ -2613,7 +2619,7 @@
 
 		if (typeof value !== 'object') return null;
 
-		if (Array.isArray(value.apps)) {
+		if (value.apps && typeof value.apps === 'object' && !Array.isArray(value.apps) && Array.isArray(value.visible_ordered)) {
 			return value;
 		}
 
@@ -2627,10 +2633,12 @@
 		return null;
 	}
 
-	function appFromCustomizationItem(item) {
+	function appFromCustomizationItem(slug, item) {
+		item = item || {};
+
 		var app = {
-			slug: item.slug || '',
-			name: item.name || item.slug || '',
+			slug: slug || '',
+			name: item.name || slug || '',
 			url: item.url || '',
 			hidden: !!item.hidden,
 			deletable: !!item.deletable,
@@ -2654,6 +2662,27 @@
 		}
 
 		return app;
+	}
+
+	function appsFromCustomizationPayload(data) {
+		var appMap = data.apps || {};
+		var visibleOrdered = Array.isArray(data.visible_ordered) ? data.visible_ordered : [];
+		var seen = {};
+		var apps = [];
+
+		function addApp(slug) {
+			slug = slug === null || typeof slug === 'undefined' ? '' : String(slug);
+			if (!slug || seen[slug] || !Object.prototype.hasOwnProperty.call(appMap, slug)) {
+				return;
+			}
+			seen[slug] = true;
+			apps.push(appFromCustomizationItem(slug, appMap[slug]));
+		}
+
+		visibleOrdered.forEach(addApp);
+		Object.keys(appMap).forEach(addApp);
+
+		return apps;
 	}
 
 	function createHiddenAppRow(app) {
@@ -2697,11 +2726,11 @@
 
 	function applyCustomizationPayload(data) {
 		data = normalizeCustomizationPayload(data, 4);
-		if (!data || !Array.isArray(data.apps)) {
+		if (!data || !data.apps || typeof data.apps !== 'object' || Array.isArray(data.apps) || !Array.isArray(data.visible_ordered)) {
 			return;
 		}
 
-		var apps = data.apps.map(appFromCustomizationItem);
+		var apps = appsFromCustomizationPayload(data);
 		myAppsConfig.appUrls = apps.map(function(app) {
 			return normalizeAppUrl(app.url);
 		}).filter(Boolean);

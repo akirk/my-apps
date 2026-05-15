@@ -9,6 +9,7 @@ defined( 'ABSPATH' ) || exit;
 class My_Apps {
 	const ICON_PATH = 'M6 5.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM4 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm11-.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM13 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V6zm5 8.5h-3a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5zM15 13a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2h-3zm-9 1.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM4 15a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3z';
 	const CUSTOM_BACKGROUND = 'custom';
+	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const PRESET_BACKGROUNDS = array(
 		'gradient-purple',
@@ -285,17 +286,17 @@ class My_Apps {
 		}
 
 		wp_register_ability(
-			'my-apps/get-customization',
+			'my-apps/get-all',
 			array(
-				'label'               => __( 'Get My Apps Customization', 'my-apps' ),
-				'description'         => __( 'Returns the server-stored customization state for the My Apps launcher.', 'my-apps' ),
+				'label'               => __( 'Get All My Apps State', 'my-apps' ),
+				'description'         => __( 'Returns the full My Apps launcher state, including background, visible app order, and app metadata.', 'my-apps' ),
 				'category'            => 'my-apps',
 				'output_schema'       => self::customization_output_schema(),
-				'execute_callback'    => array( $this, 'ability_get_customization' ),
+				'execute_callback'    => array( $this, 'ability_get_all' ),
 				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
 				'meta'                => array(
 					'annotations'  => array(
-						'instructions' => __( 'Use this before answering questions about the user\'s My Apps launcher, launcher apps, app order, hidden apps, app icons, app links, or background. The result is the current launcher state; do not guess from defaults or query raw options when this ability is available.', 'my-apps' ),
+						'instructions' => __( 'Use this before answering questions about the user\'s My Apps launcher, launcher apps, visible app order, hidden apps, app icons, app links, or background. The result is the full current launcher state; use visible_ordered for display order and each app\'s hidden field for visibility.', 'my-apps' ),
 						'readonly'     => true,
 						'destructive'  => false,
 						'idempotent'   => true,
@@ -322,37 +323,7 @@ class My_Apps {
 					),
 					'additionalProperties' => false,
 				),
-				'output_schema'       => array(
-					'type'                 => 'object',
-					'required'             => array( 'background', 'valid_backgrounds' ),
-					'properties'           => array(
-						'background'        => array(
-							'type'        => 'string',
-							'description' => __( 'The selected launcher background slug.', 'my-apps' ),
-						),
-						'valid_backgrounds' => array(
-							'type'        => 'array',
-							'description' => __( 'Background slugs accepted by the launcher.', 'my-apps' ),
-							'items'       => array(
-								'type' => 'string',
-								'enum' => self::PRESET_BACKGROUNDS,
-							),
-						),
-						'custom_background' => array(
-							'type'        => 'string',
-							'description' => __( 'Custom CSS background value, when the selected background is custom.', 'my-apps' ),
-						),
-						'image_url'         => array(
-							'type'        => 'string',
-							'description' => __( 'The selected custom background image URL.', 'my-apps' ),
-						),
-						'attachment_id'     => array(
-							'type'        => 'integer',
-							'description' => __( 'The selected custom background image attachment ID, when available.', 'my-apps' ),
-						),
-					),
-					'additionalProperties' => false,
-				),
+				'output_schema'       => self::background_output_schema(),
 				'execute_callback'    => array( $this, 'ability_set_background' ),
 				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
 				'meta'                => array(
@@ -407,6 +378,50 @@ class My_Apps {
 		);
 
 		wp_register_ability(
+			'my-apps/set-app-details',
+			array(
+				'label'               => __( 'Set My Apps App Details', 'my-apps' ),
+				'description'         => __( 'Renames an app or changes its link in the My Apps launcher.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'required'             => array( 'slug' ),
+					'properties'           => array(
+						'slug'   => array(
+							'type'        => 'string',
+							'description' => __( 'The launcher app slug from my-apps/get-all.', 'my-apps' ),
+						),
+						'name'   => array(
+							'type'        => 'string',
+							'description' => __( 'The app label shown in the launcher.', 'my-apps' ),
+						),
+						'url'    => array(
+							'type'        => 'string',
+							'description' => __( 'The URL opened by the app icon.', 'my-apps' ),
+						),
+						'revert' => array(
+							'type'        => 'boolean',
+							'description' => __( 'When true, remove the custom name and URL override.', 'my-apps' ),
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => self::customization_output_schema(),
+				'execute_callback'    => array( $this, 'ability_set_app_details' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'instructions' => __( 'Use this when the user asks to rename an app, change an app shortcut link, or revert a custom app name/link. First call my-apps/get-all to find the slug. Provide name and/or url, or set revert to true.', 'my-apps' ),
+						'readonly'     => false,
+						'destructive'  => false,
+						'idempotent'   => true,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+
+		wp_register_ability(
 			'my-apps/set-app-icon',
 			array(
 				'label'               => __( 'Set My Apps App Icon', 'my-apps' ),
@@ -419,7 +434,7 @@ class My_Apps {
 						array(
 							'slug'   => array(
 								'type'        => 'string',
-								'description' => __( 'The launcher app slug from my-apps/get-customization.', 'my-apps' ),
+								'description' => __( 'The launcher app slug from my-apps/get-all.', 'my-apps' ),
 							),
 							'revert' => array(
 								'type'        => 'boolean',
@@ -435,10 +450,81 @@ class My_Apps {
 				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
 				'meta'                => array(
 					'annotations'  => array(
-						'instructions' => __( 'Use this when the user asks to change the icon for an existing My Apps launcher app. First call my-apps/get-customization to find the slug. Provide exactly one icon value unless reverting.', 'my-apps' ),
+						'instructions' => __( 'Use this when the user asks to change the icon for an existing My Apps launcher app. First call my-apps/get-all to find the slug. Provide exactly one icon value unless reverting.', 'my-apps' ),
 						'readonly'     => false,
 						'destructive'  => false,
 						'idempotent'   => false,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+
+		wp_register_ability(
+			'my-apps/set-app-hidden',
+			array(
+				'label'               => __( 'Set My Apps App Hidden State', 'my-apps' ),
+				'description'         => __( 'Hides or restores an app in the My Apps launcher.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'required'             => array( 'slug', 'hidden' ),
+					'properties'           => array(
+						'slug'   => array(
+							'type'        => 'string',
+							'description' => __( 'The launcher app slug from my-apps/get-all.', 'my-apps' ),
+						),
+						'hidden' => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether the app should be hidden from the launcher.', 'my-apps' ),
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => self::customization_output_schema(),
+				'execute_callback'    => array( $this, 'ability_set_app_hidden' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'instructions' => __( 'Use this when the user asks to hide, show, restore, or unhide one app in the My Apps launcher. First call my-apps/get-all to find the slug. Set hidden to true to hide the app, or false to restore it. For multiple visibility or order changes, prefer my-apps/set-visible-ordered.', 'my-apps' ),
+						'readonly'     => false,
+						'destructive'  => false,
+						'idempotent'   => true,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+
+		wp_register_ability(
+			'my-apps/set-visible-ordered',
+			array(
+				'label'               => __( 'Set My Apps Visible Ordered Apps', 'my-apps' ),
+				'description'         => __( 'Sets the visible My Apps launcher icons and their order.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'required'             => array( 'visible_ordered' ),
+					'properties'           => array(
+						'visible_ordered' => array(
+							'type'        => 'array',
+							'description' => __( 'Launcher app slugs that should be visible, in display order. Apps not listed are hidden.', 'my-apps' ),
+							'items'       => array(
+								'type' => 'string',
+							),
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => self::customization_output_schema(),
+				'execute_callback'    => array( $this, 'ability_set_visible_ordered' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'instructions' => __( 'Use this when the user asks to reorder visible apps, hide multiple apps, or show only specific apps. First call my-apps/get-all to find app slugs and the current visible_ordered array. Pass visible_ordered as the complete desired visible slug list in display order; every app omitted from visible_ordered is hidden. Verify the response using visible_ordered and each app\'s hidden field.', 'my-apps' ),
+						'readonly'     => false,
+						'destructive'  => false,
+						'idempotent'   => true,
 					),
 					'show_in_rest' => true,
 				),
@@ -503,11 +589,11 @@ class My_Apps {
 	}
 
 	/**
-	 * Ability: get launcher customization.
+	 * Ability: get all launcher state.
 	 *
 	 * @return array
 	 */
-	public function ability_get_customization() {
+	public function ability_get_all() {
 		return self::customization_payload();
 	}
 
@@ -540,6 +626,16 @@ class My_Apps {
 	}
 
 	/**
+	 * Ability: set an app's label or URL.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function ability_set_app_details( $input = array() ) {
+		return self::save_app_details_from_input( $input );
+	}
+
+	/**
 	 * Ability: set a launcher's app icon.
 	 *
 	 * @param array $input Ability input.
@@ -547,6 +643,277 @@ class My_Apps {
 	 */
 	public function ability_set_app_icon( $input = array() ) {
 		return self::save_app_icon_from_input( $input );
+	}
+
+	/**
+	 * Ability: hide or restore a launcher app.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function ability_set_app_hidden( $input = array() ) {
+		return self::save_app_hidden_from_input( $input );
+	}
+
+	/**
+	 * Ability: set visible launcher apps and their order.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function ability_set_visible_ordered( $input = array() ) {
+		return self::save_visible_ordered_from_input( $input );
+	}
+
+	/**
+	 * Determine whether a slug points to a real launcher app.
+	 *
+	 * @param string $slug App slug.
+	 * @param array  $apps Apps keyed by slug.
+	 * @return bool
+	 */
+	private static function launcher_app_exists( $slug, $apps ) {
+		$slug = self::normalize_app_slug( $slug );
+		return '' !== $slug && isset( $apps[ $slug ] ) && ! empty( $apps[ $slug ]['url'] );
+	}
+
+	/**
+	 * Normalize a launcher app slug to the string shape required by ability
+	 * schemas. Older stored custom apps may have numeric array keys.
+	 *
+	 * @param mixed $slug App slug.
+	 * @return string
+	 */
+	private static function normalize_app_slug( $slug ) {
+		return is_scalar( $slug ) ? sanitize_text_field( (string) $slug ) : '';
+	}
+
+	/**
+	 * Normalize a list of launcher app slugs.
+	 *
+	 * @param array $slugs App slugs.
+	 * @return string[]
+	 */
+	private static function normalize_app_slug_list( $slugs ) {
+		$normalized = array();
+
+		if ( ! is_array( $slugs ) ) {
+			return $normalized;
+		}
+
+		foreach ( $slugs as $slug ) {
+			$slug = self::normalize_app_slug( $slug );
+			if ( '' !== $slug ) {
+				$normalized[] = $slug;
+			}
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Normalize and validate a user-provided list of known app slugs.
+	 *
+	 * @param array|string $slugs App slugs, or a JSON-encoded slug list.
+	 * @param array        $apps Apps keyed by slug.
+	 * @return string[]|\WP_Error
+	 */
+	private static function normalize_known_app_slug_list( $slugs, $apps ) {
+		if ( is_string( $slugs ) ) {
+			$decoded = json_decode( $slugs, true );
+			if ( ! is_array( $decoded ) ) {
+				return new \WP_Error( 'my_apps_invalid_app_slug_list', __( 'Invalid app slug list.', 'my-apps' ) );
+			}
+			$slugs = $decoded;
+		}
+
+		if ( ! is_array( $slugs ) ) {
+			return new \WP_Error( 'my_apps_invalid_app_slug_list', __( 'Invalid app slug list.', 'my-apps' ) );
+		}
+
+		$normalized = array();
+		foreach ( array_values( $slugs ) as $slug ) {
+			$slug = self::normalize_app_slug( $slug );
+
+			if ( '' === $slug ) {
+				return new \WP_Error( 'my_apps_invalid_app_slug', __( 'Invalid app slug.', 'my-apps' ) );
+			}
+
+			if ( in_array( $slug, $normalized, true ) ) {
+				return new \WP_Error( 'my_apps_duplicate_app_slug', __( 'Duplicate app slug.', 'my-apps' ) );
+			}
+
+			if ( ! self::launcher_app_exists( $slug, $apps ) ) {
+				return new \WP_Error( 'my_apps_unknown_app', __( 'App not found.', 'my-apps' ) );
+			}
+
+			$normalized[] = $slug;
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Return all current launcher app slugs in their current relative order.
+	 *
+	 * @param array $apps Apps keyed by slug.
+	 * @return string[]
+	 */
+	private static function current_app_slugs( $apps ) {
+		$slugs = array();
+
+		foreach ( array_keys( $apps ) as $slug ) {
+			$slug = self::normalize_app_slug( $slug );
+			if ( '' !== $slug && self::launcher_app_exists( $slug, $apps ) ) {
+				$slugs[] = $slug;
+			}
+		}
+
+		return $slugs;
+	}
+
+	/**
+	 * Save the visible launcher apps, in display order, from request-like input.
+	 *
+	 * @param array $input Request-like input.
+	 * @return array|\WP_Error
+	 */
+	private static function save_visible_ordered_from_input( $input = array() ) {
+		$input = is_array( $input ) ? wp_unslash( $input ) : array();
+
+		if ( ! array_key_exists( 'visible_ordered', $input ) ) {
+			return new \WP_Error( 'my_apps_missing_visible_apps', __( 'No visible apps provided.', 'my-apps' ) );
+		}
+
+		$apps    = self::get_apps();
+		$visible = self::normalize_known_app_slug_list( $input['visible_ordered'], $apps );
+
+		if ( is_wp_error( $visible ) ) {
+			return $visible;
+		}
+
+		$hidden = array_values( array_diff( self::current_app_slugs( $apps ), $visible ) );
+		$sort   = array_merge( $visible, $hidden );
+
+		update_option( 'my_apps_sort', $sort );
+		update_option( 'my_apps_hide_plugins', $hidden );
+
+		return self::customization_payload();
+	}
+
+	/**
+	 * Save an app label or URL override from request-like input.
+	 *
+	 * @param array $input Request-like input.
+	 * @return array|\WP_Error
+	 */
+	private static function save_app_details_from_input( $input = array() ) {
+		$input = is_array( $input ) ? wp_unslash( $input ) : array();
+		$slug  = isset( $input['slug'] ) ? self::normalize_app_slug( $input['slug'] ) : '';
+
+		if ( '' === $slug ) {
+			return new \WP_Error( 'my_apps_empty_app_slug', __( 'No app slug provided.', 'my-apps' ) );
+		}
+
+		$apps = self::get_apps();
+		if ( ! self::launcher_app_exists( $slug, $apps ) ) {
+			return new \WP_Error( 'my_apps_unknown_app', __( 'App not found.', 'my-apps' ) );
+		}
+
+		$overrides = self::get_app_overrides();
+		if ( ! empty( $input['revert'] ) ) {
+			unset( $overrides[ $slug ] );
+			update_option( self::APP_OVERRIDES_OPTION, $overrides );
+			return self::customization_payload();
+		}
+
+		$has_name = isset( $input['name'] ) && is_scalar( $input['name'] ) && '' !== trim( (string) $input['name'] );
+		$has_url  = isset( $input['url'] ) && is_scalar( $input['url'] ) && '' !== trim( (string) $input['url'] );
+
+		if ( ! $has_name && ! $has_url ) {
+			return new \WP_Error( 'my_apps_empty_app_details', __( 'No app details provided.', 'my-apps' ) );
+		}
+
+		$app_override = isset( $overrides[ $slug ] ) && is_array( $overrides[ $slug ] ) ? $overrides[ $slug ] : array();
+
+		if ( $has_name ) {
+			$name = sanitize_text_field( (string) $input['name'] );
+			if ( '' === $name ) {
+				return new \WP_Error( 'my_apps_empty_app_name', __( 'No app name provided.', 'my-apps' ) );
+			}
+			$app_override['name'] = $name;
+		}
+
+		if ( $has_url ) {
+			$url = esc_url_raw( (string) $input['url'] );
+			if ( '' === $url ) {
+				return new \WP_Error( 'my_apps_invalid_app_url', __( 'Invalid app URL.', 'my-apps' ) );
+			}
+
+			$normalized_url = self::normalize_app_url( $url );
+			foreach ( $apps as $existing_slug => $existing ) {
+				if (
+					$existing_slug !== $slug
+					&& isset( $existing['url'] )
+					&& self::normalize_app_url( $existing['url'] ) === $normalized_url
+				) {
+					return new \WP_Error( 'my_apps_duplicate_app_url', __( 'An app with that URL already exists.', 'my-apps' ) );
+				}
+			}
+
+			$app_override['url'] = $url;
+		}
+
+		$overrides[ $slug ] = $app_override;
+		update_option( self::APP_OVERRIDES_OPTION, $overrides );
+
+		return self::customization_payload();
+	}
+
+	/**
+	 * Save the hidden state for a launcher app from request-like input.
+	 *
+	 * @param array $input Request-like input.
+	 * @return array|\WP_Error
+	 */
+	private static function save_app_hidden_from_input( $input = array() ) {
+		$input = is_array( $input ) ? wp_unslash( $input ) : array();
+		$slug  = isset( $input['slug'] ) ? self::normalize_app_slug( $input['slug'] ) : '';
+
+		if ( '' === $slug ) {
+			return new \WP_Error( 'my_apps_empty_app_slug', __( 'No app slug provided.', 'my-apps' ) );
+		}
+
+		$apps = self::get_apps();
+		if ( ! self::launcher_app_exists( $slug, $apps ) ) {
+			return new \WP_Error( 'my_apps_unknown_app', __( 'App not found.', 'my-apps' ) );
+		}
+
+		if ( ! array_key_exists( 'hidden', $input ) ) {
+			return new \WP_Error( 'my_apps_missing_hidden_state', __( 'No hidden state provided.', 'my-apps' ) );
+		}
+
+		$hidden = wp_validate_boolean( $input['hidden'] );
+		$hidden_apps = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
+
+		if ( $hidden ) {
+			if ( ! in_array( $slug, $hidden_apps, true ) ) {
+				$hidden_apps[] = $slug;
+			}
+		} else {
+			$hidden_apps = array_values(
+				array_filter(
+					$hidden_apps,
+					function ( $hidden_slug ) use ( $slug ) {
+						return $hidden_slug !== $slug;
+					}
+				)
+			);
+		}
+
+		update_option( 'my_apps_hide_plugins', $hidden_apps );
+
+		return self::customization_payload();
 	}
 
 	/**
@@ -826,12 +1193,23 @@ class My_Apps {
 	 * @return array
 	 */
 	private static function current_background_payload() {
+		return array(
+			'background' => self::current_background_state_payload(),
+		);
+	}
+
+	/**
+	 * Get the currently stored background state.
+	 *
+	 * @return array
+	 */
+	private static function current_background_state_payload() {
 		$background = get_option( 'my_apps_background', '' );
 		$background = is_string( $background ) && in_array( $background, self::VALID_BACKGROUNDS, true ) ? $background : '';
 
-		$payload = array(
-			'background'        => $background,
-			'valid_backgrounds' => self::PRESET_BACKGROUNDS,
+		$state = array(
+			'slug'        => $background,
+			'valid_slugs' => self::PRESET_BACKGROUNDS,
 		);
 
 		if ( self::CUSTOM_BACKGROUND === $background ) {
@@ -840,17 +1218,17 @@ class My_Apps {
 			$attachment_id = absint( get_option( 'my_apps_background_attachment_id', 0 ) );
 
 			if ( is_string( $custom_bg ) && '' !== $custom_bg ) {
-				$payload['custom_background'] = $custom_bg;
+				$state['custom'] = $custom_bg;
 			}
 			if ( is_string( $image_url ) && '' !== $image_url ) {
-				$payload['image_url'] = $image_url;
+				$state['image_url'] = $image_url;
 			}
 			if ( $attachment_id ) {
-				$payload['attachment_id'] = $attachment_id;
+				$state['attachment_id'] = $attachment_id;
 			}
 		}
 
-		return $payload;
+		return $state;
 	}
 
 	/**
@@ -1267,7 +1645,7 @@ class My_Apps {
 			}
 		}
 
-		$background_payload = self::current_background_payload();
+		$background_state = self::current_background_state_payload();
 
 		wp_enqueue_script(
 			'sortablejs',
@@ -1305,13 +1683,13 @@ class My_Apps {
 				'canUploadMedia'         => $can_upload_media,
 				'pluginInstallUrl'       => self_admin_url( 'plugin-install.php' ),
 				'displayName'            => wp_get_current_user()->display_name,
-				'deletableSlugs'         => array_keys( get_option( 'my_apps_additional_apps', array() ) ),
+				'deletableSlugs'         => self::normalize_app_slug_list( array_keys( get_option( 'my_apps_additional_apps', array() ) ) ),
 				'appUrls'                => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'       => self::get_installed_plugin_statuses(),
-				'background'             => $background_payload['background'],
-				'customBackground'       => isset( $background_payload['custom_background'] ) ? $background_payload['custom_background'] : '',
-				'backgroundImageUrl'     => isset( $background_payload['image_url'] ) ? $background_payload['image_url'] : '',
-				'backgroundAttachmentId' => isset( $background_payload['attachment_id'] ) ? $background_payload['attachment_id'] : 0,
+				'background'             => $background_state['slug'],
+				'customBackground'       => isset( $background_state['custom'] ) ? $background_state['custom'] : '',
+				'backgroundImageUrl'     => isset( $background_state['image_url'] ) ? $background_state['image_url'] : '',
+				'backgroundAttachmentId' => isset( $background_state['attachment_id'] ) ? $background_state['attachment_id'] : 0,
 				'i18n'                   => array(
 					'fillAllFields'         => __( 'Please fill in all fields', 'my-apps' ),
 					'confirmDelete'         => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
@@ -1669,7 +2047,7 @@ class My_Apps {
 			wp_send_json_error( 'Invalid order' );
 		}
 
-		$sort = array_map( 'sanitize_text_field', array_values( $order ) );
+		$sort = self::normalize_app_slug_list( array_values( $order ) );
 		update_option( 'my_apps_sort', $sort );
 		wp_send_json_success();
 	}
@@ -1684,13 +2062,13 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$slug = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
 
-		if ( empty( $slug ) ) {
+		if ( '' === $slug ) {
 			wp_send_json_error( 'Invalid slug' );
 		}
 
-		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
+		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
 		if ( ! in_array( $slug, $hide_plugins, true ) ) {
 			$hide_plugins[] = $slug;
 			update_option( 'my_apps_hide_plugins', $hide_plugins );
@@ -1960,13 +2338,13 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$slug = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
 
-		if ( empty( $slug ) ) {
+		if ( '' === $slug ) {
 			wp_send_json_error( 'Invalid slug' );
 		}
 
-		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
+		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
 		$hide_plugins = array_filter( $hide_plugins, function( $s ) use ( $slug ) {
 			return $s !== $slug;
 		} );
@@ -2009,9 +2387,9 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$slug = isset( $_POST['slug'] ) ? sanitize_text_field( wp_unslash( $_POST['slug'] ) ) : '';
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
 
-		if ( empty( $slug ) ) {
+		if ( '' === $slug ) {
 			wp_send_json_error( 'Invalid slug' );
 		}
 
@@ -2023,13 +2401,13 @@ class My_Apps {
 		unset( $additional_apps[ $slug ] );
 		update_option( 'my_apps_additional_apps', $additional_apps );
 
-		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
+		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
 		$hide_plugins = array_values( array_filter( $hide_plugins, function( $s ) use ( $slug ) {
 			return $s !== $slug;
 		} ) );
 		update_option( 'my_apps_hide_plugins', $hide_plugins );
 
-		$sort = get_option( 'my_apps_sort', array() );
+		$sort = self::normalize_app_slug_list( get_option( 'my_apps_sort', array() ) );
 		$sort = array_values( array_filter( $sort, function( $s ) use ( $slug ) {
 			return $s !== $slug;
 		} ) );
@@ -2039,6 +2417,12 @@ class My_Apps {
 		if ( isset( $icon_overrides[ $slug ] ) ) {
 			unset( $icon_overrides[ $slug ] );
 			update_option( self::APP_ICON_OVERRIDES_OPTION, $icon_overrides );
+		}
+
+		$app_overrides = self::get_app_overrides();
+		if ( isset( $app_overrides[ $slug ] ) ) {
+			unset( $app_overrides[ $slug ] );
+			update_option( self::APP_OVERRIDES_OPTION, $app_overrides );
 		}
 
 		wp_send_json_success();
@@ -2054,8 +2438,20 @@ class My_Apps {
 			wp_send_json_error( 'Not allowed' );
 		}
 
-		$background_payload = self::current_background_payload();
-		unset( $background_payload['valid_backgrounds'] );
+		$background_state  = self::current_background_state_payload();
+		$background_export = array(
+			'background' => isset( $background_state['slug'] ) ? $background_state['slug'] : '',
+		);
+
+		if ( isset( $background_state['custom'] ) ) {
+			$background_export['custom_background'] = $background_state['custom'];
+		}
+		if ( isset( $background_state['image_url'] ) ) {
+			$background_export['image_url'] = $background_state['image_url'];
+		}
+		if ( isset( $background_state['attachment_id'] ) ) {
+			$background_export['attachment_id'] = $background_state['attachment_id'];
+		}
 
 		wp_send_json_success(
 			array_merge(
@@ -2063,9 +2459,10 @@ class My_Apps {
 					'sort'               => get_option( 'my_apps_sort', array() ),
 					'hide_plugins'       => get_option( 'my_apps_hide_plugins', array() ),
 					'additional_apps'    => get_option( 'my_apps_additional_apps', array() ),
+					'app_overrides'      => self::get_app_overrides(),
 					'app_icon_overrides' => self::get_app_icon_overrides(),
 				),
-				$background_payload
+				$background_export
 			)
 		);
 	}
@@ -2095,6 +2492,9 @@ class My_Apps {
 		}
 		if ( isset( $data['additional_apps'] ) && is_array( $data['additional_apps'] ) ) {
 			update_option( 'my_apps_additional_apps', $data['additional_apps'] );
+		}
+		if ( isset( $data['app_overrides'] ) && is_array( $data['app_overrides'] ) ) {
+			update_option( self::APP_OVERRIDES_OPTION, $data['app_overrides'] );
 		}
 		if ( isset( $data['app_icon_overrides'] ) && is_array( $data['app_icon_overrides'] ) ) {
 			update_option( self::APP_ICON_OVERRIDES_OPTION, $data['app_icon_overrides'] );
@@ -2135,32 +2535,49 @@ class My_Apps {
 	}
 
 	/**
-	 * Build the output schema for launcher customization.
+	 * Build the output schema for background state responses.
 	 *
 	 * @return array
 	 */
-	private static function customization_output_schema() {
+	private static function background_output_schema() {
 		return array(
 			'type'                 => 'object',
-			'required'             => array( 'background', 'valid_backgrounds', 'sort', 'hidden', 'apps' ),
+			'required'             => array( 'background' ),
 			'properties'           => array(
-				'background'        => array(
+				'background' => self::background_state_schema(),
+			),
+			'additionalProperties' => false,
+		);
+	}
+
+	/**
+	 * Build the output schema for a grouped background state object.
+	 *
+	 * @return array
+	 */
+	private static function background_state_schema() {
+		return array(
+			'type'                 => 'object',
+			'description'          => __( 'Current launcher background state.', 'my-apps' ),
+			'required'             => array( 'slug', 'valid_slugs' ),
+			'properties'           => array(
+				'slug'          => array(
 					'type'        => 'string',
 					'description' => __( 'The selected launcher background slug.', 'my-apps' ),
 				),
-				'custom_background' => array(
+				'custom'        => array(
 					'type'        => 'string',
 					'description' => __( 'Custom CSS background value, when the selected background is custom.', 'my-apps' ),
 				),
-				'image_url'         => array(
+				'image_url'     => array(
 					'type'        => 'string',
 					'description' => __( 'The selected custom background image URL.', 'my-apps' ),
 				),
-				'attachment_id'     => array(
+				'attachment_id' => array(
 					'type'        => 'integer',
 					'description' => __( 'The selected custom background image attachment ID, when available.', 'my-apps' ),
 				),
-				'valid_backgrounds' => array(
+				'valid_slugs'   => array(
 					'type'        => 'array',
 					'description' => __( 'Preset background slugs accepted by the launcher background setter.', 'my-apps' ),
 					'items'       => array(
@@ -2168,31 +2585,36 @@ class My_Apps {
 						'enum' => self::PRESET_BACKGROUNDS,
 					),
 				),
-				'sort'              => array(
+			),
+			'additionalProperties' => false,
+		);
+	}
+
+	/**
+	 * Build the output schema for launcher customization.
+	 *
+	 * @return array
+	 */
+	private static function customization_output_schema() {
+		return array(
+			'type'                 => 'object',
+			'required'             => array( 'background', 'visible_ordered', 'apps' ),
+			'properties'           => array(
+				'background'        => self::background_state_schema(),
+				'visible_ordered'   => array(
 					'type'        => 'array',
-					'description' => __( 'Stored launcher app order as app slugs.', 'my-apps' ),
-					'items'       => array(
-						'type' => 'string',
-					),
-				),
-				'hidden'            => array(
-					'type'        => 'array',
-					'description' => __( 'Stored hidden launcher app slugs.', 'my-apps' ),
+					'description' => __( 'Visible launcher app slugs in display order.', 'my-apps' ),
 					'items'       => array(
 						'type' => 'string',
 					),
 				),
 				'apps'              => array(
-					'type'        => 'array',
-					'description' => __( 'Apps available to the launcher with customization metadata.', 'my-apps' ),
-					'items'       => array(
+					'type'                 => 'object',
+					'description'          => __( 'Apps available to the launcher, keyed by launcher app slug.', 'my-apps' ),
+					'additionalProperties' => array(
 						'type'                 => 'object',
-						'required'             => array( 'slug', 'name', 'url', 'source', 'hidden', 'deletable' ),
+						'required'             => array( 'name', 'url', 'source', 'hidden', 'deletable' ),
 						'properties'           => array(
-							'slug'      => array(
-								'type'        => 'string',
-								'description' => __( 'The launcher app slug.', 'my-apps' ),
-							),
 							'name'      => array(
 								'type'        => 'string',
 								'description' => __( 'The launcher app display name.', 'my-apps' ),
@@ -2253,36 +2675,39 @@ class My_Apps {
 	 * @return array
 	 */
 	private static function customization_payload() {
-		$hidden          = (array) get_option( 'my_apps_hide_plugins', array() );
+		$hidden          = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
 		$additional_apps = get_option( 'my_apps_additional_apps', array() );
 		$launcher_apps   = self::get_apps();
-		$sort            = get_option( 'my_apps_sort', array() );
 		$icon_overrides  = self::get_app_icon_overrides();
 		$apps            = array();
+		$visible_ordered = array();
 
 		$additional_apps = is_array( $additional_apps ) ? $additional_apps : array();
 
-		if ( ! is_array( $sort ) ) {
-			$sort = array();
-		}
-
 		foreach ( $launcher_apps as $slug => $app ) {
-			$apps[] = self::customization_app_payload(
+			$slug = self::normalize_app_slug( $slug );
+
+			if ( '' === $slug ) {
+				continue;
+			}
+
+			$apps[ $slug ] = self::customization_app_payload(
 				$slug,
 				$app,
-				isset( $additional_apps[ $slug ] ),
+				array_key_exists( $slug, $additional_apps ),
 				in_array( $slug, $hidden, true ),
 				isset( $icon_overrides[ $slug ] )
 			);
+
+			if ( ! in_array( $slug, $hidden, true ) ) {
+				$visible_ordered[] = $slug;
+			}
 		}
 
-		return array_merge(
-			self::current_background_payload(),
-			array(
-				'sort'   => array_values( array_map( 'sanitize_text_field', $sort ) ),
-				'hidden' => array_values( array_map( 'sanitize_text_field', $hidden ) ),
-				'apps'   => $apps,
-			)
+		return array(
+			'background'      => self::current_background_state_payload(),
+			'visible_ordered' => $visible_ordered,
+			'apps'            => (object) $apps,
 		);
 	}
 
@@ -2297,8 +2722,9 @@ class My_Apps {
 	 * @return array
 	 */
 	private static function customization_app_payload( $slug, $app, $is_custom, $is_hidden, $icon_customized = false ) {
+		$slug = self::normalize_app_slug( $slug );
+
 		return array(
-			'slug'            => $slug,
 			'name'            => isset( $app['name'] ) ? (string) $app['name'] : $slug,
 			'url'             => isset( $app['url'] ) ? (string) $app['url'] : '',
 			'source'          => $is_custom ? 'custom' : 'registered',
@@ -2409,6 +2835,68 @@ class My_Apps {
 			$font_size,
 			esc_html( $data['letters'] )
 		);
+	}
+
+	/**
+	 * Get sanitized app label/URL overrides.
+	 *
+	 * @return array
+	 */
+	private static function get_app_overrides() {
+		$overrides = get_option( self::APP_OVERRIDES_OPTION, array() );
+		$overrides = is_array( $overrides ) ? $overrides : array();
+		$sanitized = array();
+
+		foreach ( $overrides as $slug => $app_override ) {
+			if ( ! is_array( $app_override ) ) {
+				continue;
+			}
+
+			$slug   = sanitize_text_field( $slug );
+			$record = array();
+
+			if ( isset( $app_override['name'] ) && is_scalar( $app_override['name'] ) ) {
+				$name = sanitize_text_field( (string) $app_override['name'] );
+				if ( '' !== $name ) {
+					$record['name'] = $name;
+				}
+			}
+
+			if ( isset( $app_override['url'] ) && is_scalar( $app_override['url'] ) ) {
+				$url = esc_url_raw( (string) $app_override['url'] );
+				if ( '' !== $url ) {
+					$record['url'] = $url;
+				}
+			}
+
+			if ( '' !== $slug && ! empty( $record ) ) {
+				$sanitized[ $slug ] = $record;
+			}
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Apply stored label/URL overrides to registered and custom apps.
+	 *
+	 * @param array $apps Apps keyed by slug.
+	 * @return array
+	 */
+	private static function apply_app_overrides( $apps ) {
+		foreach ( self::get_app_overrides() as $slug => $app_override ) {
+			if ( ! isset( $apps[ $slug ] ) || ! is_array( $apps[ $slug ] ) ) {
+				continue;
+			}
+
+			foreach ( array( 'name', 'url' ) as $key ) {
+				if ( isset( $app_override[ $key ] ) ) {
+					$apps[ $slug ][ $key ] = $app_override[ $key ];
+				}
+			}
+		}
+
+		return $apps;
 	}
 
 	/**
@@ -2874,9 +3362,10 @@ class My_Apps {
 			$plugins[ $slug ] = $data;
 		}
 
+		$plugins = self::apply_app_overrides( $plugins );
 		$plugins = self::apply_app_icon_overrides( $plugins );
 
-		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
+		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
 		foreach ( $hide_plugins as $plugin ) {
 			$plugins[ $plugin ]['hide'] = true;
 		}
@@ -2889,6 +3378,7 @@ class My_Apps {
 			$sort = array_keys( $sort );
 			update_option( 'my_apps_sort', $sort );
 		}
+		$sort = self::normalize_app_slug_list( $sort );
 		$sort_index = array_flip( $sort );
 		$max = count( $sort );
 		uksort(

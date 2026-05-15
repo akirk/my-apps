@@ -136,7 +136,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				$icon_html = My_Apps::letter_icon_html( $_plugin['name'] );
 			}
 			?>
-			<div class="app-icon" data-slug="<?php echo esc_attr( $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>">
+			<div class="app-icon" data-slug="<?php echo esc_attr( (string) $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>">
 				<button type="button" class="hide-btn" title="<?php esc_attr_e( 'Hide', 'my-apps' ); ?>"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#000" stroke="#fff" stroke-width="2"/><path d="M8 8l8 8M16 8l-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
 				<a href="<?php echo esc_url( $_plugin['url'] ); ?>" class="app-link">
 					<?php
@@ -176,7 +176,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				$is_deletable = isset( $additional_apps[ $slug ] );
 			?>
 			<div class="hidden-app-row">
-				<button type="button" class="hidden-app-item" data-slug="<?php echo esc_attr( $slug ); ?>">
+				<button type="button" class="hidden-app-item" data-slug="<?php echo esc_attr( (string) $slug ); ?>">
 					<span class="hidden-app-icon"><?php
 						echo $icon_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built above from esc_attr/esc_html pieces and letter_icon_html() (also pre-escaped).
 					?></span>
@@ -186,7 +186,7 @@ $is_app_store = isset( $_GET['app-store'] );
 					</span>
 				</button>
 				<?php if ( $is_deletable ) : ?>
-				<button type="button" class="hidden-app-delete" data-slug="<?php echo esc_attr( $slug ); ?>" title="<?php esc_attr_e( 'Delete', 'my-apps' ); ?>" aria-label="<?php esc_attr_e( 'Delete', 'my-apps' ); ?>">
+				<button type="button" class="hidden-app-delete" data-slug="<?php echo esc_attr( (string) $slug ); ?>" title="<?php esc_attr_e( 'Delete', 'my-apps' ); ?>" aria-label="<?php esc_attr_e( 'Delete', 'my-apps' ); ?>">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
 				</button>
 				<?php endif; ?>

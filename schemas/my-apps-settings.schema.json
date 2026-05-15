@@ -29,6 +29,16 @@
 				"$ref": "#/$defs/launcherApp"
 			}
 		},
+		"app_icon_overrides": {
+			"type": "object",
+			"propertyNames": {
+				"type": "string",
+				"minLength": 1
+			},
+			"additionalProperties": {
+				"$ref": "#/$defs/appIcon"
+			}
+		},
 		"background": {
 			"type": "string"
 		},
@@ -141,6 +151,40 @@
 						"null"
 					],
 					"minimum": 0
+				}
+			},
+			"additionalProperties": true
+		},
+		"appIcon": {
+			"type": "object",
+			"properties": {
+				"icon_url": {
+					"type": [
+						"string",
+						"boolean",
+						"null"
+					]
+				},
+				"dashicon": {
+					"type": [
+						"string",
+						"boolean",
+						"null"
+					]
+				},
+				"emoji": {
+					"type": [
+						"string",
+						"boolean",
+						"null"
+					]
+				},
+				"gradient": {
+					"type": [
+						"string",
+						"boolean",
+						"null"
+					]
 				}
 			},
 			"additionalProperties": true

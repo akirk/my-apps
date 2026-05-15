@@ -9,6 +9,7 @@ defined( 'ABSPATH' ) || exit;
 class My_Apps {
 	const ICON_PATH = 'M6 5.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM4 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm11-.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM13 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V6zm5 8.5h-3a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5zM15 13a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2h-3zm-9 1.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM4 15a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3z';
 	const CUSTOM_BACKGROUND = 'custom';
+	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const PRESET_BACKGROUNDS = array(
 		'gradient-purple',
 		'gradient-blue',
@@ -224,6 +225,8 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_add', array( $this, 'ajax_add_app' ) );
 		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
 		add_action( 'wp_ajax_my_apps_get_background', array( $this, 'ajax_get_background' ) );
+		add_action( 'wp_ajax_my_apps_get_customization', array( $this, 'ajax_get_customization' ) );
+		add_action( 'wp_ajax_my_apps_save_app_icon', array( $this, 'ajax_save_app_icon' ) );
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
 		add_action( 'wp_ajax_my_apps_delete', array( $this, 'ajax_delete_app' ) );
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
@@ -363,6 +366,131 @@ class My_Apps {
 				),
 			)
 		);
+
+		wp_register_ability(
+			'my-apps/add-app',
+			array(
+				'label'               => __( 'Add My Apps Icon', 'my-apps' ),
+				'description'         => __( 'Adds a custom app icon to the My Apps launcher.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'required'             => array( 'name', 'url' ),
+					'properties'           => array_merge(
+						array(
+							'name' => array(
+								'type'        => 'string',
+								'description' => __( 'The app icon label shown in the launcher.', 'my-apps' ),
+							),
+							'url'  => array(
+								'type'        => 'string',
+								'description' => __( 'The URL opened by the app icon.', 'my-apps' ),
+							),
+						),
+						self::app_icon_input_schema_properties( __( 'Optional icon. Omit all icon fields to use a generated letter icon.', 'my-apps' ) )
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => self::customization_output_schema(),
+				'execute_callback'    => array( $this, 'ability_add_app' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'instructions' => __( 'Use this when the user asks to add or pin an app icon to the My Apps launcher. Provide a name and URL. Provide at most one icon value: icon_url, dashicon, emoji, gradient, icon { type, value }, or use_favicon.', 'my-apps' ),
+						'readonly'     => false,
+						'destructive'  => false,
+						'idempotent'   => false,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+
+		wp_register_ability(
+			'my-apps/set-app-icon',
+			array(
+				'label'               => __( 'Set My Apps App Icon', 'my-apps' ),
+				'description'         => __( 'Updates the icon graphic for an existing My Apps launcher app.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'required'             => array( 'slug' ),
+					'properties'           => array_merge(
+						array(
+							'slug'   => array(
+								'type'        => 'string',
+								'description' => __( 'The launcher app slug from my-apps/get-customization.', 'my-apps' ),
+							),
+							'revert' => array(
+								'type'        => 'boolean',
+								'description' => __( 'When true, remove the custom icon override and return to the app-provided icon.', 'my-apps' ),
+							),
+						),
+						self::app_icon_input_schema_properties( __( 'New icon value. Use icon type letter to force a generated letter icon.', 'my-apps' ) )
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => self::customization_output_schema(),
+				'execute_callback'    => array( $this, 'ability_set_app_icon' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'instructions' => __( 'Use this when the user asks to change the icon for an existing My Apps launcher app. First call my-apps/get-customization to find the slug. Provide exactly one icon value unless reverting.', 'my-apps' ),
+						'readonly'     => false,
+						'destructive'  => false,
+						'idempotent'   => false,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+	}
+
+	/**
+	 * Shared input schema properties for app icon values.
+	 *
+	 * @param string $icon_description Description for the structured icon object.
+	 * @return array
+	 */
+	private static function app_icon_input_schema_properties( $icon_description = '' ) {
+		return array(
+			'icon'     => array(
+				'type'                 => 'object',
+				'description'          => $icon_description,
+				'properties'           => array(
+					'type'  => array(
+						'type'        => 'string',
+						'enum'        => array( 'icon_url', 'dashicon', 'emoji', 'gradient', 'letter' ),
+						'description' => __( 'The icon representation type.', 'my-apps' ),
+					),
+					'value' => array(
+						'type'        => 'string',
+						'description' => __( 'The icon value for icon_url, dashicon, emoji, or gradient.', 'my-apps' ),
+					),
+				),
+				'additionalProperties' => false,
+			),
+			'icon_url' => array(
+				'type'        => 'string',
+				'description' => __( 'An image URL to use as the app icon.', 'my-apps' ),
+			),
+			'dashicon' => array(
+				'type'        => 'string',
+				'description' => __( 'A WordPress Dashicon class, such as dashicons-admin-site.', 'my-apps' ),
+			),
+			'emoji'    => array(
+				'type'        => 'string',
+				'description' => __( 'An emoji to use as the app icon.', 'my-apps' ),
+			),
+			'gradient' => array(
+				'type'        => 'string',
+				'description' => __( 'A safe CSS color or gradient used behind the default app glyph.', 'my-apps' ),
+			),
+			'use_favicon' => array(
+				'type'        => 'boolean',
+				'description' => __( 'Use the app URL origin favicon when no other icon value is supplied.', 'my-apps' ),
+			),
+		);
 	}
 
 	/**
@@ -393,6 +521,80 @@ class My_Apps {
 		$background = is_array( $input ) && isset( $input['background'] ) ? (string) wp_unslash( $input['background'] ) : '';
 
 		return self::save_background_value( $background );
+	}
+
+	/**
+	 * Ability: add a custom launcher app.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function ability_add_app( $input = array() ) {
+		$result = self::save_custom_app_from_input( $input, false );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return self::customization_payload();
+	}
+
+	/**
+	 * Ability: set a launcher's app icon.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function ability_set_app_icon( $input = array() ) {
+		return self::save_app_icon_from_input( $input );
+	}
+
+	/**
+	 * Save an icon override for an existing launcher app.
+	 *
+	 * @param array $input Request-like input.
+	 * @return array|\WP_Error
+	 */
+	private static function save_app_icon_from_input( $input = array() ) {
+		$input = is_array( $input ) ? wp_unslash( $input ) : array();
+		$slug  = isset( $input['slug'] ) ? sanitize_text_field( $input['slug'] ) : '';
+
+		if ( '' === $slug ) {
+			return new \WP_Error( 'my_apps_empty_app_slug', __( 'No app slug provided.', 'my-apps' ) );
+		}
+
+		$apps = self::get_apps();
+		if ( ! isset( $apps[ $slug ] ) ) {
+			return new \WP_Error( 'my_apps_unknown_app', __( 'App not found.', 'my-apps' ) );
+		}
+
+		$overrides = self::get_app_icon_overrides();
+		if ( ! empty( $input['revert'] ) ) {
+			unset( $overrides[ $slug ] );
+			update_option( self::APP_ICON_OVERRIDES_OPTION, $overrides );
+			return self::customization_payload();
+		}
+
+		$use_favicon = ! empty( $input['use_favicon'] );
+		$icon_data   = self::sanitize_app_icon_input( $input, ! $use_favicon, true );
+		if ( is_wp_error( $icon_data ) ) {
+			return $icon_data;
+		}
+		if ( $use_favicon ) {
+			if ( self::app_icon_data_has_value( $icon_data ) ) {
+				return new \WP_Error( 'my_apps_multiple_icons', __( 'Choose only one icon type.', 'my-apps' ) );
+			}
+			$favicon_url = self::favicon_url_for_app_url( isset( $apps[ $slug ]['url'] ) ? $apps[ $slug ]['url'] : '' );
+			if ( '' === $favicon_url ) {
+				return new \WP_Error( 'my_apps_invalid_icon_url', __( 'Invalid icon URL.', 'my-apps' ) );
+			}
+			$icon_data['icon_url'] = $favicon_url;
+		}
+
+		$overrides[ $slug ] = $icon_data;
+		update_option( self::APP_ICON_OVERRIDES_OPTION, $overrides );
+
+		return self::customization_payload();
 	}
 
 	/**
@@ -1532,6 +1734,38 @@ class My_Apps {
 	}
 
 	/**
+	 * AJAX: Get launcher customization.
+	 */
+	public function ajax_get_customization() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		wp_send_json_success( self::customization_payload() );
+	}
+
+	/**
+	 * AJAX: Save an app icon override.
+	 */
+	public function ajax_save_app_icon() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$result = self::save_app_icon_from_input( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce checked above; values are sanitized in helper.
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		}
+
+		wp_send_json_success( $result );
+	}
+
+	/**
 	 * AJAX: Add a new app.
 	 */
 	public function ajax_add_app() {
@@ -1541,78 +1775,19 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
-		$url = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
-		$icon_url = isset( $_POST['icon_url'] ) ? esc_url_raw( wp_unslash( $_POST['icon_url'] ) ) : '';
-		$dashicon = isset( $_POST['dashicon'] ) ? sanitize_text_field( wp_unslash( $_POST['dashicon'] ) ) : '';
-		$emoji = isset( $_POST['emoji'] ) ? sanitize_text_field( wp_unslash( $_POST['emoji'] ) ) : '';
-		$gradient = isset( $_POST['gradient'] ) ? sanitize_text_field( wp_unslash( $_POST['gradient'] ) ) : '';
+		$result = self::save_custom_app_from_input( $_POST, true ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce checked above; values are sanitized in helper.
 
-		if ( empty( $name ) || empty( $url ) ) {
-			wp_send_json_error( 'Name and URL are required' );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
 		}
-
-		if ( empty( $icon_url ) && empty( $dashicon ) && empty( $emoji ) && empty( $gradient ) ) {
-			wp_send_json_error( 'An icon is required' );
-		}
-
-		$additional_apps = get_option( 'my_apps_additional_apps', array() );
-		$user_id         = get_current_user_id();
-		$normalized_url  = self::normalize_app_url( $url );
-
-		// De-dup: the launcher fires this AJAX optimistically the moment a
-		// user clicks "Install", before knowing whether the blueprint
-		// install succeeded. Repeated clicks (or retries after a failed
-		// install) would otherwise leave duplicate icons. Match registered
-		// apps globally, and user-added apps for the current user.
-		foreach ( apply_filters( 'my_apps_plugins', array() ) as $existing_slug => $existing ) {
-			if (
-				isset( $existing['url'] )
-				&& self::normalize_app_url( $existing['url'] ) === $normalized_url
-			) {
-				wp_send_json_success( self::app_response_payload( $existing_slug, $existing, $name, $url, true ) );
-			}
-		}
-
-		foreach ( $additional_apps as $existing_slug => $existing ) {
-			if (
-				isset( $existing['url'] )
-				&& self::normalize_app_url( $existing['url'] ) === $normalized_url
-				&& ( ! isset( $existing['user'] ) || (int) $existing['user'] === (int) $user_id )
-			) {
-				wp_send_json_success( self::app_response_payload( $existing_slug, $existing, $name, $url, true ) );
-			}
-		}
-
-		$slug = 'custom-' . sanitize_title( $name ) . '-' . count( $additional_apps );
-
-		$new_app = array(
-			'name'     => $name,
-			'url'      => $url,
-			'icon_url' => $icon_url ?: false,
-			'dashicon' => $dashicon ?: false,
-			'emoji'    => $emoji ?: false,
-			'gradient' => $gradient ?: false,
-			'user'     => $user_id,
-		);
-
-		$additional_apps[ $slug ] = $new_app;
-		update_option( 'my_apps_additional_apps', $additional_apps );
-
-		// Give the new app a sort position at the end.
-		$sort = get_option( 'my_apps_sort', array() );
-		$sort[] = $slug;
-		update_option( 'my_apps_sort', $sort );
 
 		wp_send_json_success(
-			array(
-				'slug'     => $slug,
-				'name'     => $name,
-				'url'      => $url,
-				'icon_url' => $icon_url ?: null,
-				'dashicon' => $dashicon ?: null,
-				'emoji'    => $emoji ?: null,
-				'gradient' => $gradient ?: null,
+			self::app_response_payload(
+				$result['slug'],
+				$result['app'],
+				isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '',
+				isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '',
+				! empty( $result['duplicate'] )
 			)
 		);
 	}
@@ -1860,6 +2035,12 @@ class My_Apps {
 		} ) );
 		update_option( 'my_apps_sort', $sort );
 
+		$icon_overrides = self::get_app_icon_overrides();
+		if ( isset( $icon_overrides[ $slug ] ) ) {
+			unset( $icon_overrides[ $slug ] );
+			update_option( self::APP_ICON_OVERRIDES_OPTION, $icon_overrides );
+		}
+
 		wp_send_json_success();
 	}
 
@@ -1879,9 +2060,10 @@ class My_Apps {
 		wp_send_json_success(
 			array_merge(
 				array(
-					'sort'            => get_option( 'my_apps_sort', array() ),
-					'hide_plugins'    => get_option( 'my_apps_hide_plugins', array() ),
-					'additional_apps' => get_option( 'my_apps_additional_apps', array() ),
+					'sort'               => get_option( 'my_apps_sort', array() ),
+					'hide_plugins'       => get_option( 'my_apps_hide_plugins', array() ),
+					'additional_apps'    => get_option( 'my_apps_additional_apps', array() ),
+					'app_icon_overrides' => self::get_app_icon_overrides(),
 				),
 				$background_payload
 			)
@@ -1913,6 +2095,9 @@ class My_Apps {
 		}
 		if ( isset( $data['additional_apps'] ) && is_array( $data['additional_apps'] ) ) {
 			update_option( 'my_apps_additional_apps', $data['additional_apps'] );
+		}
+		if ( isset( $data['app_icon_overrides'] ) && is_array( $data['app_icon_overrides'] ) ) {
+			update_option( self::APP_ICON_OVERRIDES_OPTION, $data['app_icon_overrides'] );
 		}
 		if ( isset( $data['background'] ) && is_scalar( $data['background'] ) ) {
 			$background = trim( (string) $data['background'] );
@@ -2029,6 +2214,10 @@ class My_Apps {
 								'type'        => 'boolean',
 								'description' => __( 'Whether the app can be deleted from launcher customization.', 'my-apps' ),
 							),
+							'icon_customized' => array(
+								'type'        => 'boolean',
+								'description' => __( 'Whether the icon is customized by a launcher override.', 'my-apps' ),
+							),
 							'icon'      => array(
 								'type'                 => 'object',
 								'required'             => array( 'type', 'value' ),
@@ -2068,6 +2257,7 @@ class My_Apps {
 		$additional_apps = get_option( 'my_apps_additional_apps', array() );
 		$launcher_apps   = self::get_apps();
 		$sort            = get_option( 'my_apps_sort', array() );
+		$icon_overrides  = self::get_app_icon_overrides();
 		$apps            = array();
 
 		$additional_apps = is_array( $additional_apps ) ? $additional_apps : array();
@@ -2081,7 +2271,8 @@ class My_Apps {
 				$slug,
 				$app,
 				isset( $additional_apps[ $slug ] ),
-				in_array( $slug, $hidden, true )
+				in_array( $slug, $hidden, true ),
+				isset( $icon_overrides[ $slug ] )
 			);
 		}
 
@@ -2102,17 +2293,19 @@ class My_Apps {
 	 * @param array  $app App data.
 	 * @param bool   $is_custom Whether the app is stored as an additional app.
 	 * @param bool   $is_hidden Whether the app is hidden.
+	 * @param bool   $icon_customized Whether the app icon has a stored override.
 	 * @return array
 	 */
-	private static function customization_app_payload( $slug, $app, $is_custom, $is_hidden ) {
+	private static function customization_app_payload( $slug, $app, $is_custom, $is_hidden, $icon_customized = false ) {
 		return array(
-			'slug'      => $slug,
-			'name'      => isset( $app['name'] ) ? (string) $app['name'] : $slug,
-			'url'       => isset( $app['url'] ) ? (string) $app['url'] : '',
-			'source'    => $is_custom ? 'custom' : 'registered',
-			'hidden'    => (bool) $is_hidden,
-			'deletable' => (bool) $is_custom,
-			'icon'      => self::customization_app_icon_payload( $app ),
+			'slug'            => $slug,
+			'name'            => isset( $app['name'] ) ? (string) $app['name'] : $slug,
+			'url'             => isset( $app['url'] ) ? (string) $app['url'] : '',
+			'source'          => $is_custom ? 'custom' : 'registered',
+			'hidden'          => (bool) $is_hidden,
+			'deletable'       => (bool) $is_custom,
+			'icon_customized' => (bool) $icon_customized,
+			'icon'            => self::customization_app_icon_payload( $app ),
 		);
 	}
 
@@ -2215,6 +2408,302 @@ class My_Apps {
 			esc_attr( $data['background'] ),
 			$font_size,
 			esc_html( $data['letters'] )
+		);
+	}
+
+	/**
+	 * App icon fields supported by launcher storage.
+	 *
+	 * @return string[]
+	 */
+	private static function app_icon_keys() {
+		return array( 'icon_url', 'dashicon', 'emoji', 'gradient' );
+	}
+
+	/**
+	 * Build an empty icon record that forces the letter fallback when saved
+	 * as an override.
+	 *
+	 * @return array
+	 */
+	private static function empty_app_icon_data() {
+		return array(
+			'icon_url' => false,
+			'dashicon' => false,
+			'emoji'    => false,
+			'gradient' => false,
+		);
+	}
+
+	/**
+	 * Determine whether an icon data record has a concrete visual value.
+	 *
+	 * @param array $icon_data Icon data.
+	 * @return bool
+	 */
+	private static function app_icon_data_has_value( $icon_data ) {
+		if ( ! is_array( $icon_data ) ) {
+			return false;
+		}
+
+		foreach ( self::app_icon_keys() as $key ) {
+			if ( ! empty( $icon_data[ $key ] ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Build a conventional favicon URL from an app URL.
+	 *
+	 * @param string $url App URL.
+	 * @return string
+	 */
+	private static function favicon_url_for_app_url( $url ) {
+		$url = is_string( $url ) && 0 === strpos( $url, '/' ) ? home_url( $url ) : $url;
+		$parts = wp_parse_url( esc_url_raw( $url ) );
+		if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) || ! in_array( strtolower( $parts['scheme'] ), array( 'http', 'https' ), true ) ) {
+			return '';
+		}
+
+		$port = ! empty( $parts['port'] ) ? ':' . absint( $parts['port'] ) : '';
+		return esc_url_raw( strtolower( $parts['scheme'] ) . '://' . $parts['host'] . $port . '/favicon.ico' );
+	}
+
+	/**
+	 * Sanitize app icon input from AJAX, import data, or abilities.
+	 *
+	 * @param array $input        Icon input.
+	 * @param bool  $require_icon Whether an explicit icon value is required.
+	 * @param bool  $allow_letter Whether the structured "letter" type is allowed.
+	 * @return array|\WP_Error
+	 */
+	private static function sanitize_app_icon_input( $input, $require_icon = false, $allow_letter = false ) {
+		$input        = is_array( $input ) ? $input : array();
+		$icon_data    = self::empty_app_icon_data();
+		$provided     = array();
+		$force_letter = false;
+
+		if ( isset( $input['icon'] ) && is_array( $input['icon'] ) && ! empty( $input['icon']['type'] ) ) {
+			$type = sanitize_key( $input['icon']['type'] );
+			if ( 'letter' === $type ) {
+				$force_letter = true;
+			} elseif ( in_array( $type, self::app_icon_keys(), true ) ) {
+				if ( ! isset( $input['icon']['value'] ) || ! is_scalar( $input['icon']['value'] ) || '' === trim( (string) $input['icon']['value'] ) ) {
+					return new \WP_Error( 'my_apps_empty_icon_value', __( 'No icon value provided.', 'my-apps' ) );
+				}
+				$provided[ $type ] = (string) $input['icon']['value'];
+			} else {
+				return new \WP_Error( 'my_apps_invalid_icon_type', __( 'Invalid icon type.', 'my-apps' ) );
+			}
+		}
+
+		foreach ( self::app_icon_keys() as $key ) {
+			if ( isset( $input[ $key ] ) && is_scalar( $input[ $key ] ) && '' !== trim( (string) $input[ $key ] ) ) {
+				$provided[ $key ] = (string) $input[ $key ];
+			}
+		}
+
+		if ( $force_letter ) {
+			if ( ! $allow_letter ) {
+				return new \WP_Error( 'my_apps_invalid_icon_type', __( 'Invalid icon type.', 'my-apps' ) );
+			}
+			if ( ! empty( $provided ) ) {
+				return new \WP_Error( 'my_apps_multiple_icons', __( 'Choose only one icon type.', 'my-apps' ) );
+			}
+			return $icon_data;
+		}
+
+		if ( count( $provided ) > 1 ) {
+			return new \WP_Error( 'my_apps_multiple_icons', __( 'Choose only one icon type.', 'my-apps' ) );
+		}
+
+		if ( empty( $provided ) ) {
+			if ( $require_icon ) {
+				return new \WP_Error( 'my_apps_icon_required', __( 'An icon is required.', 'my-apps' ) );
+			}
+			return $icon_data;
+		}
+
+		$type  = key( $provided );
+		$value = trim( current( $provided ) );
+
+		if ( 'icon_url' === $type ) {
+			$url = esc_url_raw( $value );
+			if ( '' === $url || ! preg_match( '#^https?://#i', $url ) ) {
+				return new \WP_Error( 'my_apps_invalid_icon_url', __( 'Invalid icon URL.', 'my-apps' ) );
+			}
+			$icon_data['icon_url'] = $url;
+		} elseif ( 'dashicon' === $type ) {
+			$dashicon = strtolower( sanitize_text_field( $value ) );
+			$dashicon = preg_replace( '/[^a-z0-9-]/', '', $dashicon );
+			if ( 0 !== strpos( $dashicon, 'dashicons-' ) ) {
+				$dashicon = 'dashicons-' . $dashicon;
+			}
+			if ( ! preg_match( '/^dashicons-[a-z0-9-]+$/', $dashicon ) || 'dashicons-' === $dashicon ) {
+				return new \WP_Error( 'my_apps_invalid_dashicon', __( 'Invalid Dashicon.', 'my-apps' ) );
+			}
+			$icon_data['dashicon'] = $dashicon;
+		} elseif ( 'emoji' === $type ) {
+			$emoji = sanitize_text_field( $value );
+			if ( '' === $emoji ) {
+				return new \WP_Error( 'my_apps_invalid_emoji', __( 'Invalid emoji.', 'my-apps' ) );
+			}
+			$icon_data['emoji'] = $emoji;
+		} elseif ( 'gradient' === $type ) {
+			$gradient = self::sanitize_custom_background_css( $value );
+			if ( '' === $gradient ) {
+				return new \WP_Error( 'my_apps_invalid_icon_gradient', __( 'Invalid icon gradient.', 'my-apps' ) );
+			}
+			$icon_data['gradient'] = $gradient;
+		}
+
+		return $icon_data;
+	}
+
+	/**
+	 * Get sanitized app icon overrides.
+	 *
+	 * @return array
+	 */
+	private static function get_app_icon_overrides() {
+		$overrides = get_option( self::APP_ICON_OVERRIDES_OPTION, array() );
+		$overrides = is_array( $overrides ) ? $overrides : array();
+		$sanitized = array();
+
+		foreach ( $overrides as $slug => $icon_data ) {
+			if ( ! is_array( $icon_data ) ) {
+				continue;
+			}
+			$slug      = sanitize_text_field( $slug );
+			$icon_data = self::sanitize_app_icon_input( $icon_data, false, true );
+			if ( '' !== $slug && ! is_wp_error( $icon_data ) ) {
+				$sanitized[ $slug ] = $icon_data;
+			}
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Apply stored icon overrides to registered and custom apps.
+	 *
+	 * @param array $apps Apps keyed by slug.
+	 * @return array
+	 */
+	private static function apply_app_icon_overrides( $apps ) {
+		foreach ( self::get_app_icon_overrides() as $slug => $icon_data ) {
+			if ( ! isset( $apps[ $slug ] ) || ! is_array( $apps[ $slug ] ) ) {
+				continue;
+			}
+			foreach ( self::app_icon_keys() as $key ) {
+				$apps[ $slug ][ $key ] = ! empty( $icon_data[ $key ] ) ? $icon_data[ $key ] : false;
+			}
+		}
+
+		return $apps;
+	}
+
+	/**
+	 * Save a custom launcher app from request-like input.
+	 *
+	 * @param array $input        Input fields.
+	 * @param bool  $require_icon Whether an explicit icon is required.
+	 * @return array|\WP_Error
+	 */
+	private static function save_custom_app_from_input( $input, $require_icon = true ) {
+		$input = is_array( $input ) ? wp_unslash( $input ) : array();
+		$name  = isset( $input['name'] ) ? sanitize_text_field( $input['name'] ) : '';
+		$url   = isset( $input['url'] ) ? esc_url_raw( $input['url'] ) : '';
+
+		if ( empty( $name ) || empty( $url ) ) {
+			return new \WP_Error( 'my_apps_missing_app_fields', __( 'Name and URL are required.', 'my-apps' ) );
+		}
+
+		$use_favicon = ! empty( $input['use_favicon'] );
+		$icon_data   = self::sanitize_app_icon_input( $input, $require_icon && ! $use_favicon, true );
+		if ( is_wp_error( $icon_data ) ) {
+			return $icon_data;
+		}
+		if ( $use_favicon ) {
+			if ( self::app_icon_data_has_value( $icon_data ) ) {
+				return new \WP_Error( 'my_apps_multiple_icons', __( 'Choose only one icon type.', 'my-apps' ) );
+			}
+			$favicon_url = self::favicon_url_for_app_url( $url );
+			if ( '' === $favicon_url ) {
+				return new \WP_Error( 'my_apps_invalid_icon_url', __( 'Invalid icon URL.', 'my-apps' ) );
+			}
+			$icon_data['icon_url'] = $favicon_url;
+		}
+
+		$additional_apps = get_option( 'my_apps_additional_apps', array() );
+		$additional_apps = is_array( $additional_apps ) ? $additional_apps : array();
+		$user_id         = get_current_user_id();
+		$normalized_url  = self::normalize_app_url( $url );
+
+		foreach ( apply_filters( 'my_apps_plugins', array() ) as $existing_slug => $existing ) {
+			if (
+				isset( $existing['url'] )
+				&& self::normalize_app_url( $existing['url'] ) === $normalized_url
+			) {
+				return array(
+					'slug'      => $existing_slug,
+					'app'       => $existing,
+					'duplicate' => true,
+				);
+			}
+		}
+
+		foreach ( $additional_apps as $existing_slug => $existing ) {
+			if (
+				isset( $existing['url'] )
+				&& self::normalize_app_url( $existing['url'] ) === $normalized_url
+				&& ( ! isset( $existing['user'] ) || (int) $existing['user'] === (int) $user_id )
+			) {
+				return array(
+					'slug'      => $existing_slug,
+					'app'       => $existing,
+					'duplicate' => true,
+				);
+			}
+		}
+
+		$base_slug = 'custom-' . sanitize_title( $name );
+		if ( 'custom-' === $base_slug ) {
+			$base_slug = 'custom-app';
+		}
+
+		$index = count( $additional_apps );
+		do {
+			$slug = $base_slug . '-' . $index;
+			$index++;
+		} while ( isset( $additional_apps[ $slug ] ) );
+
+		$new_app = array_merge(
+			array(
+				'name' => $name,
+				'url'  => $url,
+			),
+			$icon_data,
+			array(
+				'user' => $user_id,
+			)
+		);
+
+		$additional_apps[ $slug ] = $new_app;
+		update_option( 'my_apps_additional_apps', $additional_apps );
+
+		$sort   = get_option( 'my_apps_sort', array() );
+		$sort   = is_array( $sort ) ? $sort : array();
+		$sort[] = $slug;
+		update_option( 'my_apps_sort', $sort );
+
+		return array(
+			'slug'      => $slug,
+			'app'       => $new_app,
+			'duplicate' => false,
 		);
 	}
 
@@ -2384,6 +2873,8 @@ class My_Apps {
 			}
 			$plugins[ $slug ] = $data;
 		}
+
+		$plugins = self::apply_app_icon_overrides( $plugins );
 
 		$hide_plugins = get_option( 'my_apps_hide_plugins', array() );
 		foreach ( $hide_plugins as $plugin ) {

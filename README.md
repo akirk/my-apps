@@ -74,10 +74,12 @@ Example:
 
 ### Abilities API
 
-When the WordPress Abilities API is available, My Apps registers a `my-apps` category with two customization abilities:
+When the WordPress Abilities API is available, My Apps registers a `my-apps` category with launcher customization abilities:
 
 - `my-apps/get-customization` returns the server-stored launcher customization state, including the selected background, accepted background slugs, custom image metadata, sort order, hidden apps, and app customization metadata.
 - `my-apps/set-background` updates the launcher background using a preset slug, an image attachment ID, a remote image URL to sideload or use directly if sideloading fails, or a safe CSS color/gradient value.
+- `my-apps/add-app` creates a custom app icon with a name, URL, and optional icon. Icons can be an image URL, Dashicon, emoji, gradient, generated letter tile, or the app URL's conventional `/favicon.ico`.
+- `my-apps/set-app-icon` updates or reverts the icon for an existing launcher app by slug.
 
 When the AI Assistant plugin is available, My Apps also registers domain hints so questions about the launcher, app icons, hidden apps, app order, and launcher backgrounds are routed to these abilities.
 

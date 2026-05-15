@@ -461,10 +461,10 @@ class My_Apps {
 		);
 
 		wp_register_ability(
-			'my-apps/set-app-hidden',
+			'my-apps/set-app-visibility',
 			array(
-				'label'               => __( 'Set My Apps App Hidden State', 'my-apps' ),
-				'description'         => __( 'Hides or restores an app in the My Apps launcher.', 'my-apps' ),
+				'label'               => __( 'Set My Apps App Visibility', 'my-apps' ),
+				'description'         => __( 'Shows or hides an app in the My Apps launcher.', 'my-apps' ),
 				'category'            => 'my-apps',
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -482,7 +482,7 @@ class My_Apps {
 					'additionalProperties' => false,
 				),
 				'output_schema'       => self::customization_output_schema(),
-				'execute_callback'    => array( $this, 'ability_set_app_hidden' ),
+				'execute_callback'    => array( $this, 'ability_set_app_visibility' ),
 				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
 				'meta'                => array(
 					'annotations'  => array(
@@ -651,8 +651,8 @@ class My_Apps {
 	 * @param array $input Ability input.
 	 * @return array|\WP_Error
 	 */
-	public function ability_set_app_hidden( $input = array() ) {
-		return self::save_app_hidden_from_input( $input );
+	public function ability_set_app_visibility( $input = array() ) {
+		return self::save_app_visibility_from_input( $input );
 	}
 
 	/**
@@ -876,7 +876,7 @@ class My_Apps {
 	 * @param array $input Request-like input.
 	 * @return array|\WP_Error
 	 */
-	private static function save_app_hidden_from_input( $input = array() ) {
+	private static function save_app_visibility_from_input( $input = array() ) {
 		$input = is_array( $input ) ? wp_unslash( $input ) : array();
 		$slug  = isset( $input['slug'] ) ? self::normalize_app_slug( $input['slug'] ) : '';
 

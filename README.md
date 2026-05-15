@@ -82,7 +82,7 @@ When the WordPress Abilities API is available, My Apps registers a `my-apps` cat
 - `my-apps/set-app-details` renames an existing launcher app, changes its URL, or reverts those name/URL overrides.
 - `my-apps/set-app-icon` updates or reverts the icon for an existing launcher app by slug.
 - `my-apps/set-visible-ordered` sets the complete `visible_ordered` launcher app list; apps omitted from this list are hidden.
-- `my-apps/set-app-hidden` hides or restores a launcher app by slug.
+- `my-apps/set-app-visibility` hides or restores a launcher app by slug.
 
 When the AI Assistant plugin is available, My Apps also registers domain hints so questions about the launcher, app icons, hidden apps, app order, and launcher backgrounds are routed to these abilities.
 

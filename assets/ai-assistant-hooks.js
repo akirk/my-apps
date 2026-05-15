@@ -39,7 +39,7 @@
 			}
 		},
 		{
-			criteria: { ability: 'my-apps/set-app-hidden', success: true },
+			criteria: { ability: 'my-apps/set-app-visibility', success: true },
 			callback: function(context) {
 				reloadAppsFromToolCall(context);
 			}

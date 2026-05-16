@@ -63,9 +63,6 @@
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
 	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
-	const WALLPAPER_HINT_MANUAL_KEY = 'wallpaperHintManual';
-	const WALLPAPER_HINT_SHUFFLE_COUNT_KEY = 'wallpaperHintShuffleCount';
-	const WALLPAPER_HINT_DISMISS_SHUFFLES = 3;
 
 	refreshBlueprintsSourceUrls();
 
@@ -2197,8 +2194,6 @@
 						handleImport();
 					} else if (action === 'toggle-greeting') {
 						toggleGreeting();
-					} else if (action === 'show-wallpaper-randomizer') {
-						showWallpaperHintFromSettings();
 					} else if (action === 'update-my-apps') {
 						updateMyApps();
 					}
@@ -2665,7 +2660,6 @@
 		if (!wallpaperHint) return;
 
 		markWallpaperHintDismissed();
-		localStorage.removeItem(WALLPAPER_HINT_MANUAL_KEY);
 		setWallpaperHintCloseVisible(false);
 		wallpaperHint.hidden = true;
 	}
@@ -2679,7 +2673,7 @@
 		if (!wallpaperHintButton || isWallpaperHintBound) return;
 
 		wallpaperHintButton.addEventListener('click', function() {
-			randomizeWallpaperHint({ countShuffle: true });
+			randomizeWallpaperHint();
 		});
 		isWallpaperHintBound = true;
 	}
@@ -2697,10 +2691,6 @@
 		wallpaperHintClose.hidden = !isVisible;
 	}
 
-	function isWallpaperHintManual() {
-		return localStorage.getItem(WALLPAPER_HINT_MANUAL_KEY) === '1';
-	}
-
 	function shouldShowWallpaperHint() {
 		if (!wallpaperHint || !wallpaperHintButton || !bgPicker) return false;
 		if (localStorage.getItem(WALLPAPER_HINT_DISMISSED_KEY) === '1') return false;
@@ -2710,6 +2700,27 @@
 		}
 
 		return !myAppsConfig.hasCustomizedWallpaper && !myAppsConfig.background;
+	}
+
+	function showWallpaperHint(options) {
+		options = options || {};
+		if (!wallpaperHint || !wallpaperHintButton || !bgPicker) return false;
+
+		bindWallpaperHintButton();
+		if (options.showClose) {
+			bindWallpaperHintClose();
+		}
+		setWallpaperHintCloseVisible(!!options.showClose);
+		updateWallpaperHintCopy();
+		wallpaperHint.hidden = false;
+		return true;
+	}
+
+	function hideWallpaperHint() {
+		if (!wallpaperHint) return;
+
+		setWallpaperHintCloseVisible(false);
+		wallpaperHint.hidden = true;
 	}
 
 	function randomizeWallpaperHint(options) {
@@ -2725,19 +2736,6 @@
 		return saveBackground(nextSlug, {
 			closePicker: false,
 			silent: !!options.silent
-		}).then(function(saved) {
-			var shuffleCount;
-
-			if (saved && options.countShuffle) {
-				shuffleCount = parseInt(localStorage.getItem(WALLPAPER_HINT_SHUFFLE_COUNT_KEY) || '0', 10) || 0;
-				shuffleCount += 1;
-				localStorage.setItem(WALLPAPER_HINT_SHUFFLE_COUNT_KEY, String(shuffleCount));
-				if (shuffleCount >= WALLPAPER_HINT_DISMISS_SHUFFLES) {
-					markWallpaperHintDismissed();
-				}
-			}
-
-			return saved;
 		}).finally(function() {
 			if (wallpaperHintButton) {
 				wallpaperHintButton.disabled = false;
@@ -2749,33 +2747,11 @@
 		if (!shouldShowWallpaperHint()) return;
 
 		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
-		bindWallpaperHintButton();
-		if (isWallpaperHintManual()) {
-			bindWallpaperHintClose();
-			setWallpaperHintCloseVisible(true);
-		} else {
-			setWallpaperHintCloseVisible(false);
-		}
-		updateWallpaperHintCopy();
-		wallpaperHint.hidden = false;
+		showWallpaperHint({ showClose: true });
 
 		if (!myAppsConfig.background) {
 			randomizeWallpaperHint({ silent: true });
 		}
-	}
-
-	function showWallpaperHintFromSettings() {
-		if (!wallpaperHint || !wallpaperHintButton || !bgPicker) return;
-
-		localStorage.removeItem(WALLPAPER_HINT_DISMISSED_KEY);
-		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
-		localStorage.setItem(WALLPAPER_HINT_MANUAL_KEY, '1');
-		localStorage.setItem(WALLPAPER_HINT_SHUFFLE_COUNT_KEY, '0');
-		bindWallpaperHintButton();
-		bindWallpaperHintClose();
-		setWallpaperHintCloseVisible(true);
-		updateWallpaperHintCopy();
-		wallpaperHint.hidden = false;
 	}
 
 	function fetchCustomizationPayload() {
@@ -3218,16 +3194,17 @@
 	}
 
 	function enterEditMode() {
-		dismissWallpaperHint();
 		isEditMode = true;
 		body.classList.add('edit-mode');
 		sortable.option('disabled', false);
+		showWallpaperHint({ showClose: false });
 	}
 
 	function exitEditMode() {
 		isEditMode = false;
 		body.classList.remove('edit-mode');
 		sortable.option('disabled', true);
+		hideWallpaperHint();
 		saveOrder();
 	}
 

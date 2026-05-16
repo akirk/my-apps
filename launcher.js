@@ -42,6 +42,7 @@
 	let bgMediaFrame = null;
 	let contextTarget = null;
 	let iconEditTarget = null;
+	let isWallpaperHintBound = false;
 	// Tracks a deep-link target picked up by checkDeepLink so loadAppStore
 	// can render the detail page directly instead of flashing the grid first.
 	let pendingDeepLink = null;
@@ -2193,6 +2194,8 @@
 						handleImport();
 					} else if (action === 'toggle-greeting') {
 						toggleGreeting();
+					} else if (action === 'show-wallpaper-randomizer') {
+						showWallpaperHintFromSettings();
 					} else if (action === 'update-my-apps') {
 						updateMyApps();
 					}
@@ -2663,6 +2666,15 @@
 		wallpaperHint.hidden = true;
 	}
 
+	function bindWallpaperHintButton() {
+		if (!wallpaperHintButton || isWallpaperHintBound) return;
+
+		wallpaperHintButton.addEventListener('click', function() {
+			randomizeWallpaperHint({ countShuffle: true });
+		});
+		isWallpaperHintBound = true;
+	}
+
 	function shouldShowWallpaperHint() {
 		if (!wallpaperHint || !wallpaperHintButton || !bgPicker) return false;
 		if (localStorage.getItem(WALLPAPER_HINT_DISMISSED_KEY) === '1') return false;
@@ -2711,16 +2723,24 @@
 		if (!shouldShowWallpaperHint()) return;
 
 		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
+		bindWallpaperHintButton();
 		updateWallpaperHintCopy();
 		wallpaperHint.hidden = false;
-
-		wallpaperHintButton.addEventListener('click', function() {
-			randomizeWallpaperHint({ countShuffle: true });
-		});
 
 		if (!myAppsConfig.background) {
 			randomizeWallpaperHint({ silent: true });
 		}
+	}
+
+	function showWallpaperHintFromSettings() {
+		if (!wallpaperHint || !wallpaperHintButton || !bgPicker) return;
+
+		localStorage.removeItem(WALLPAPER_HINT_DISMISSED_KEY);
+		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
+		localStorage.setItem(WALLPAPER_HINT_SHUFFLE_COUNT_KEY, '0');
+		bindWallpaperHintButton();
+		updateWallpaperHintCopy();
+		wallpaperHint.hidden = false;
 	}
 
 	function fetchCustomizationPayload() {

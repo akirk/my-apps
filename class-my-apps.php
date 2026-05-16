@@ -1701,7 +1701,7 @@ class My_Apps {
 					'mediaUnavailable'       => __( 'The media library is unavailable.', 'my-apps' ),
 					'invalidBackgroundImage' => __( 'Please choose an image file.', 'my-apps' ),
 					'wallpaperPrompt'        => __( 'Not feeling this?', 'my-apps' ),
-					'wallpaperNamedPrompt'   => __( 'Today\'s wallpaper is %s.', 'my-apps' ),
+					'wallpaperNamedPrompt'   => __( 'This wallpaper is %s.', 'my-apps' ),
 					'wallpaperTryAnother'    => __( 'Try another.', 'my-apps' ),
 				),
 			)

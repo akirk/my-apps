@@ -1645,7 +1645,9 @@ class My_Apps {
 			}
 		}
 
-		$background_state = self::current_background_state_payload();
+		$stored_background          = get_option( 'my_apps_background', '' );
+		$has_customized_wallpaper   = is_string( $stored_background ) && '' !== $stored_background;
+		$background_state           = self::current_background_state_payload();
 
 		wp_enqueue_script(
 			'sortablejs',
@@ -1687,6 +1689,7 @@ class My_Apps {
 				'appUrls'                => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'       => self::get_installed_plugin_statuses(),
 				'background'             => $background_state['slug'],
+				'hasCustomizedWallpaper' => $has_customized_wallpaper,
 				'customBackground'       => isset( $background_state['custom'] ) ? $background_state['custom'] : '',
 				'backgroundImageUrl'     => isset( $background_state['image_url'] ) ? $background_state['image_url'] : '',
 				'backgroundAttachmentId' => isset( $background_state['attachment_id'] ) ? $background_state['attachment_id'] : 0,
@@ -1697,6 +1700,9 @@ class My_Apps {
 					'useBackgroundImage'    => __( 'Use as Background', 'my-apps' ),
 					'mediaUnavailable'       => __( 'The media library is unavailable.', 'my-apps' ),
 					'invalidBackgroundImage' => __( 'Please choose an image file.', 'my-apps' ),
+					'wallpaperPrompt'        => __( 'Not feeling this?', 'my-apps' ),
+					'wallpaperNamedPrompt'   => __( 'Today\'s wallpaper is %s.', 'my-apps' ),
+					'wallpaperTryAnother'    => __( 'Try another.', 'my-apps' ),
 				),
 			)
 		);

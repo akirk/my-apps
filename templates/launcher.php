@@ -152,6 +152,12 @@ $is_app_store = isset( $_GET['app-store'] );
 			<p class="app-title"><?php esc_html_e( 'Add', 'my-apps' ); ?></p>
 		</div>
 	</div>
+	<div class="wallpaper-hint" id="wallpaper-hint" hidden>
+		<span id="wallpaper-hint-text"><?php esc_html_e( 'Not feeling this?', 'my-apps' ); ?></span>
+		<button type="button" class="wallpaper-hint-button" id="wallpaper-hint-button" aria-label="<?php esc_attr_e( 'Try another wallpaper', 'my-apps' ); ?>">
+			<?php esc_html_e( 'Try another.', 'my-apps' ); ?>
+		</button>
+	</div>
 <?php endif; ?>
 
 	<div class="hidden-popup" id="hidden-popup">

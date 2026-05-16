@@ -63,6 +63,7 @@
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
 	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
+	const WALLPAPER_SHUFFLE_BAG_KEY = 'wallpaperShuffleBag';
 
 	refreshBlueprintsSourceUrls();
 
@@ -2635,14 +2636,99 @@
 		return null;
 	}
 
-	function pickRandomWallpaperSlug(currentSlug) {
-		var choices = getWallpaperPalette().filter(function(item) {
-			return item.slug !== currentSlug;
+	function getWallpaperPaletteSlugs(palette) {
+		return palette.map(function(item) {
+			return item.slug;
+		});
+	}
+
+	function getWallpaperPaletteSignature(slugs) {
+		return slugs.join('|');
+	}
+
+	function readWallpaperShuffleBag(paletteSlugs) {
+		var stored;
+		var parsed;
+		var bag;
+		var paletteSignature = getWallpaperPaletteSignature(paletteSlugs);
+		var validSlugs = {};
+		var seenSlugs = {};
+
+		paletteSlugs.forEach(function(slug) {
+			validSlugs[slug] = true;
 		});
 
-		if (!choices.length) return '';
+		try {
+			stored = localStorage.getItem(WALLPAPER_SHUFFLE_BAG_KEY);
+			parsed = stored ? JSON.parse(stored) : null;
+		} catch (e) {
+			return [];
+		}
 
-		return choices[Math.floor(Math.random() * choices.length)].slug;
+		if (!parsed || parsed.palette !== paletteSignature || !Array.isArray(parsed.bag)) {
+			return [];
+		}
+
+		bag = parsed.bag.filter(function(slug) {
+			if (!validSlugs[slug] || seenSlugs[slug]) {
+				return false;
+			}
+			seenSlugs[slug] = true;
+			return true;
+		});
+
+		return bag;
+	}
+
+	function writeWallpaperShuffleBag(paletteSlugs, bag) {
+		try {
+			localStorage.setItem(WALLPAPER_SHUFFLE_BAG_KEY, JSON.stringify({
+				palette: getWallpaperPaletteSignature(paletteSlugs),
+				bag: bag
+			}));
+		} catch (e) {}
+	}
+
+	function shuffleWallpaperSlugs(slugs) {
+		var shuffled = slugs.slice();
+		var i;
+		var j;
+		var tmp;
+
+		for (i = shuffled.length - 1; i > 0; i--) {
+			j = Math.floor(Math.random() * (i + 1));
+			tmp = shuffled[i];
+			shuffled[i] = shuffled[j];
+			shuffled[j] = tmp;
+		}
+
+		return shuffled;
+	}
+
+	function pickWallpaperShuffleEntry(currentSlug) {
+		var paletteSlugs = getWallpaperPaletteSlugs(getWallpaperPalette());
+		var bag = readWallpaperShuffleBag(paletteSlugs).filter(function(slug) {
+			return slug !== currentSlug;
+		});
+		var choices;
+		var nextSlug;
+
+		if (!bag.length) {
+			choices = paletteSlugs.filter(function(slug) {
+				return slug !== currentSlug;
+			});
+			if (!choices.length) return null;
+			bag = shuffleWallpaperSlugs(choices);
+		}
+
+		nextSlug = bag.shift();
+		if (!nextSlug) return null;
+
+		return {
+			slug: nextSlug,
+			paletteSlugs: paletteSlugs,
+			bag: bag
+		};
 	}
 
 	function updateWallpaperHintCopy() {
@@ -2726,16 +2812,21 @@
 	function randomizeWallpaperHint(options) {
 		options = options || {};
 
-		var nextSlug = pickRandomWallpaperSlug(getCurrentWallpaperSlug());
-		if (!nextSlug) return Promise.resolve(false);
+		var selection = pickWallpaperShuffleEntry(getCurrentWallpaperSlug());
+		if (!selection) return Promise.resolve(false);
 
 		if (wallpaperHintButton) {
 			wallpaperHintButton.disabled = true;
 		}
 
-		return saveBackground(nextSlug, {
+		return saveBackground(selection.slug, {
 			closePicker: false,
 			silent: !!options.silent
+		}).then(function(saved) {
+			if (saved) {
+				writeWallpaperShuffleBag(selection.paletteSlugs, selection.bag);
+			}
+			return saved;
 		}).finally(function() {
 			if (wallpaperHintButton) {
 				wallpaperHintButton.disabled = false;

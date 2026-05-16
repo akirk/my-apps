@@ -110,23 +110,7 @@ body.my-apps-launcher ::selection {
 	color: #fff;
 }
 
-/* Background Options */
-.bg-gradient-purple, body.my-apps-launcher.bg-gradient-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.bg-gradient-blue, body.my-apps-launcher.bg-gradient-blue { background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }
-.bg-gradient-green, body.my-apps-launcher.bg-gradient-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-.bg-gradient-orange, body.my-apps-launcher.bg-gradient-orange { background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); }
-.bg-gradient-pink, body.my-apps-launcher.bg-gradient-pink { background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); }
-.bg-gradient-white, body.my-apps-launcher.bg-gradient-white { background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%); }
-.bg-gradient-dark, body.my-apps-launcher.bg-gradient-dark { background: linear-gradient(135deg, #232526 0%, #414345 100%); }
-.bg-gradient-sunset, body.my-apps-launcher.bg-gradient-sunset { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-.bg-gradient-ocean, body.my-apps-launcher.bg-gradient-ocean { background: linear-gradient(135deg, #2e3192 0%, #1bffff 100%); }
-.bg-solid-white, body.my-apps-launcher.bg-solid-white { background: #fff; }
-.bg-solid-gray, body.my-apps-launcher.bg-solid-gray { background: #6b7280; }
-.bg-solid-blue, body.my-apps-launcher.bg-solid-blue { background: #3b82f6; }
-.bg-solid-green, body.my-apps-launcher.bg-solid-green { background: #10b981; }
-.bg-solid-red, body.my-apps-launcher.bg-solid-red { background: #ef4444; }
-.bg-solid-purple, body.my-apps-launcher.bg-solid-purple { background: #8b5cf6; }
-.bg-solid-dark, body.my-apps-launcher.bg-solid-dark { background: #1f2937; }
+/* Preset background CSS is generated from My_Apps::BACKGROUND_PRESET_CONFIG. */
 body.my-apps-launcher.bg-custom {
 	background-position: center center;
 	background-size: cover;
@@ -1723,12 +1707,23 @@ body.my-apps-launcher .app-detail-share-btn:active {
 }
 
 .bg-option {
+	appearance: none;
+	-webkit-appearance: none;
 	width: 36px;
 	height: 36px;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
 	border-radius: 8px;
 	border: 2px solid transparent;
 	cursor: pointer;
+	line-height: 0;
 	transition: transform 0.15s, border-color 0.15s;
+}
+
+body.my-apps-launcher .bg-picker-popup .bg-option {
+	background: var(--ma-bg-option, transparent) !important;
 }
 
 .bg-option.bg-gradient-white,

@@ -39,6 +39,8 @@ $background = is_string( $background ) && in_array( $background, My_Apps::VALID_
 $custom_bg = get_option( 'my_apps_background_custom', '' );
 $custom_bg = is_string( $custom_bg ) ? $custom_bg : '';
 $body_style = ( My_Apps::CUSTOM_BACKGROUND === $background && $custom_bg ) ? 'background: ' . $custom_bg : '';
+$gradient_backgrounds = My_Apps::background_presets( 'gradient' );
+$solid_backgrounds = My_Apps::background_presets( 'solid' );
 $can_upload_media = current_user_can( 'upload_files' );
 $has_admin_bar = is_admin_bar_showing();
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -213,27 +215,17 @@ $is_app_store = isset( $_GET['app-store'] );
 		<div class="bg-picker-section">
 			<div class="bg-picker-label"><?php esc_html_e( 'Gradients', 'my-apps' ); ?></div>
 			<div class="bg-options">
-				<button type="button" class="bg-option bg-gradient-purple" data-bg="gradient-purple" title="Purple"></button>
-				<button type="button" class="bg-option bg-gradient-blue" data-bg="gradient-blue" title="Blue"></button>
-				<button type="button" class="bg-option bg-gradient-green" data-bg="gradient-green" title="Green"></button>
-				<button type="button" class="bg-option bg-gradient-orange" data-bg="gradient-orange" title="Orange"></button>
-				<button type="button" class="bg-option bg-gradient-pink" data-bg="gradient-pink" title="Pink"></button>
-				<button type="button" class="bg-option bg-gradient-white" data-bg="gradient-white" title="White Gradient"></button>
-				<button type="button" class="bg-option bg-gradient-dark" data-bg="gradient-dark" title="Dark"></button>
-				<button type="button" class="bg-option bg-gradient-sunset" data-bg="gradient-sunset" title="Sunset"></button>
-				<button type="button" class="bg-option bg-gradient-ocean" data-bg="gradient-ocean" title="Ocean"></button>
+				<?php foreach ( $gradient_backgrounds as $slug => $preset ) : ?>
+				<button type="button" class="bg-option bg-<?php echo esc_attr( $slug ); ?>" data-bg="<?php echo esc_attr( $slug ); ?>" title="<?php echo esc_attr( $preset['name'] ); ?>"></button>
+				<?php endforeach; ?>
 			</div>
 		</div>
 		<div class="bg-picker-section">
 			<div class="bg-picker-label"><?php esc_html_e( 'Solid Colors', 'my-apps' ); ?></div>
 			<div class="bg-options">
-				<button type="button" class="bg-option bg-solid-white" data-bg="solid-white" title="White"></button>
-				<button type="button" class="bg-option bg-solid-gray" data-bg="solid-gray" title="Gray"></button>
-				<button type="button" class="bg-option bg-solid-blue" data-bg="solid-blue" title="Blue"></button>
-				<button type="button" class="bg-option bg-solid-green" data-bg="solid-green" title="Green"></button>
-				<button type="button" class="bg-option bg-solid-red" data-bg="solid-red" title="Red"></button>
-				<button type="button" class="bg-option bg-solid-purple" data-bg="solid-purple" title="Purple"></button>
-				<button type="button" class="bg-option bg-solid-dark" data-bg="solid-dark" title="Dark"></button>
+				<?php foreach ( $solid_backgrounds as $slug => $preset ) : ?>
+				<button type="button" class="bg-option bg-<?php echo esc_attr( $slug ); ?>" data-bg="<?php echo esc_attr( $slug ); ?>" title="<?php echo esc_attr( $preset['name'] ); ?>"></button>
+				<?php endforeach; ?>
 			</div>
 		</div>
 		<div class="bg-picker-section" id="bg-custom-css-section" hidden>

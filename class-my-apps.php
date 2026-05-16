@@ -29,6 +29,88 @@ class My_Apps {
 		'solid-purple',
 		'solid-dark',
 	);
+	const BACKGROUND_PRESET_CONFIG = array(
+		'gradient-purple' => array(
+			'group'      => 'gradient',
+			'name'       => 'Purple',
+			'background' => 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+		),
+		'gradient-blue'   => array(
+			'group'      => 'gradient',
+			'name'       => 'Blue',
+			'background' => 'linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%)',
+		),
+		'gradient-green'  => array(
+			'group'      => 'gradient',
+			'name'       => 'Green',
+			'background' => 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+		),
+		'gradient-orange' => array(
+			'group'      => 'gradient',
+			'name'       => 'Orange',
+			'background' => 'linear-gradient(135deg, #f2994a 0%, #f2c94c 100%)',
+		),
+		'gradient-pink'   => array(
+			'group'      => 'gradient',
+			'name'       => 'Pink',
+			'background' => 'linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%)',
+		),
+		'gradient-white'  => array(
+			'group'      => 'gradient',
+			'name'       => 'White Gradient',
+			'background' => 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)',
+		),
+		'gradient-dark'   => array(
+			'group'      => 'gradient',
+			'name'       => 'Dark',
+			'background' => 'linear-gradient(135deg, #232526 0%, #414345 100%)',
+		),
+		'gradient-sunset' => array(
+			'group'      => 'gradient',
+			'name'       => 'Sunset',
+			'background' => 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+		),
+		'gradient-ocean'  => array(
+			'group'      => 'gradient',
+			'name'       => 'Ocean',
+			'background' => 'linear-gradient(135deg, #2e3192 0%, #1bffff 100%)',
+		),
+		'solid-white'     => array(
+			'group'      => 'solid',
+			'name'       => 'White',
+			'background' => '#fff',
+		),
+		'solid-gray'      => array(
+			'group'      => 'solid',
+			'name'       => 'Gray',
+			'background' => '#6b7280',
+		),
+		'solid-blue'      => array(
+			'group'      => 'solid',
+			'name'       => 'Blue',
+			'background' => '#3b82f6',
+		),
+		'solid-green'     => array(
+			'group'      => 'solid',
+			'name'       => 'Green',
+			'background' => '#10b981',
+		),
+		'solid-red'       => array(
+			'group'      => 'solid',
+			'name'       => 'Red',
+			'background' => '#ef4444',
+		),
+		'solid-purple'    => array(
+			'group'      => 'solid',
+			'name'       => 'Purple',
+			'background' => '#8b5cf6',
+		),
+		'solid-dark'      => array(
+			'group'      => 'solid',
+			'name'       => 'Dark',
+			'background' => '#1f2937',
+		),
+	);
 	const VALID_BACKGROUNDS = array(
 		'gradient-purple',
 		'gradient-blue',
@@ -58,6 +140,48 @@ class My_Apps {
 	public static function icon_data_uri() {
 		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- SVG data URI for Desktop Mode dock rendering.
 		return 'data:image/svg+xml;base64,' . base64_encode( self::icon_svg() );
+	}
+
+	/**
+	 * Get background preset metadata.
+	 *
+	 * @param string $group Optional group filter.
+	 * @return array
+	 */
+	public static function background_presets( $group = '' ) {
+		if ( '' === $group ) {
+			return self::BACKGROUND_PRESET_CONFIG;
+		}
+
+		return array_filter(
+			self::BACKGROUND_PRESET_CONFIG,
+			function( $preset ) use ( $group ) {
+				return isset( $preset['group'] ) && $preset['group'] === $group;
+			}
+		);
+	}
+
+	/**
+	 * Build generated CSS for preset backgrounds and picker previews.
+	 *
+	 * @return string
+	 */
+	private static function preset_background_css() {
+		$rules = array();
+
+		foreach ( self::background_presets() as $slug => $preset ) {
+			if ( empty( $preset['background'] ) ) {
+				continue;
+			}
+
+			$class      = sanitize_html_class( 'bg-' . $slug );
+			$background = $preset['background'];
+
+			$rules[] = '.' . $class . ', body.my-apps-launcher.' . $class . ' { background: ' . $background . '; }';
+			$rules[] = 'body.my-apps-launcher .bg-picker-popup .bg-option.' . $class . ' { --ma-bg-option: ' . $background . '; }';
+		}
+
+		return implode( "\n", $rules );
 	}
 
 	/**
@@ -238,6 +362,12 @@ class My_Apps {
 
 	public function enqueue_styles() {
 		wp_enqueue_style( 'my-apps', plugin_dir_url( __FILE__ ) . 'style.css', array(), MY_APPS_VERSION );
+
+		static $did_add_background_css = false;
+		if ( ! $did_add_background_css ) {
+			wp_add_inline_style( 'my-apps', self::preset_background_css() );
+			$did_add_background_css = true;
+		}
 	}
 
 	public function admin_enqueue_scripts() {

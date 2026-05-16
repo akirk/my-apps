@@ -39,9 +39,7 @@ body.my-apps-launcher {
 	--ma-launcher-input-placeholder: rgba(255, 255, 255, 0.5);
 }
 
-body.my-apps-launcher:not([class*="bg-"]),
-body.my-apps-launcher.bg-gradient-white,
-body.my-apps-launcher.bg-solid-white {
+body.my-apps-launcher:not([class*="bg-"]) {
 	--ma-launcher-fg: #1f2937;
 	--ma-launcher-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 	--ma-launcher-toolbar-bg: rgba(15, 23, 42, 0.08);
@@ -1724,11 +1722,7 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 body.my-apps-launcher .bg-picker-popup .bg-option {
 	background: var(--ma-bg-option, transparent) !important;
-}
-
-.bg-option.bg-gradient-white,
-.bg-option.bg-solid-white {
-	border-color: #d0d7de;
+	border-color: var(--ma-bg-option-border, transparent);
 }
 
 .bg-option:hover {

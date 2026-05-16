@@ -23,6 +23,10 @@
 	const hiddenPopup = document.getElementById('hidden-popup');
 	const hiddenBtn = document.querySelector('.hidden-btn');
 	const hiddenAppsList = document.getElementById('hidden-apps-list');
+	const wallpaperHint = document.getElementById('wallpaper-hint');
+	const wallpaperHintText = document.getElementById('wallpaper-hint-text');
+	const wallpaperHintButton = document.getElementById('wallpaper-hint-button');
+	const wallpaperHintClose = document.getElementById('wallpaper-hint-close');
 	const body = document.body;
 	const adminMenuTree = document.getElementById('admin-menu-tree');
 	const adminMenuSearch = document.getElementById('admin-menu-search');
@@ -39,6 +43,8 @@
 	let bgMediaFrame = null;
 	let contextTarget = null;
 	let iconEditTarget = null;
+	let isWallpaperHintBound = false;
+	let isWallpaperHintCloseBound = false;
 	// Tracks a deep-link target picked up by checkDeepLink so loadAppStore
 	// can render the detail page directly instead of flashing the grid first.
 	let pendingDeepLink = null;
@@ -55,6 +61,9 @@
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
+	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
+	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
+	const WALLPAPER_SHUFFLE_BAG_KEY = 'wallpaperShuffleBag';
 
 	refreshBlueprintsSourceUrls();
 
@@ -1176,6 +1185,7 @@
 		bindAdminMenuSearch();
 		checkDeepLink();
 		initGreeting();
+		initWallpaperHint();
 	}
 
 	var HIDE_GREETING_KEY = 'my_apps_hide_greeting';
@@ -2544,6 +2554,7 @@
 
 		updateBackgroundSelection(data.slug);
 		updateBackgroundImagePreview(myAppsConfig.backgroundImageUrl);
+		updateWallpaperHintCopy();
 	}
 
 	function saveBackground(value, options) {
@@ -2570,16 +2581,268 @@
 				return true;
 			}
 
-			alert((data && data.data) || 'Error saving background');
+			if (!options.silent) {
+				alert((data && data.data) || 'Error saving background');
+			}
 			return false;
 		})
 		.catch(function() {
-			alert('Network error');
+			if (!options.silent) {
+				alert('Network error');
+			}
 			return false;
 		})
 		.finally(function() {
 			setBackgroundLoading(false);
 		});
+	}
+
+	function getI18n(key, fallback) {
+		return (myAppsConfig.i18n && myAppsConfig.i18n[key]) || fallback;
+	}
+
+	function getWallpaperPalette() {
+		if (!bgPicker) return [];
+
+		return Array.prototype.slice.call(bgPicker.querySelectorAll('.bg-option[data-bg]')).map(function(option) {
+			return {
+				slug: option.dataset.bg,
+				name: option.getAttribute('title') || ''
+			};
+		}).filter(function(item) {
+			return !!item.slug;
+		});
+	}
+
+	function getCurrentWallpaperSlug() {
+		if (myAppsConfig.background) {
+			return myAppsConfig.background;
+		}
+
+		var currentBg = body.className.match(/bg-[\w-]+/);
+		return currentBg ? currentBg[0].replace('bg-', '') : '';
+	}
+
+	function getWallpaperPaletteItem(slug) {
+		var palette = getWallpaperPalette();
+		var i;
+
+		for (i = 0; i < palette.length; i++) {
+			if (palette[i].slug === slug) {
+				return palette[i];
+			}
+		}
+
+		return null;
+	}
+
+	function getWallpaperPaletteSlugs(palette) {
+		return palette.map(function(item) {
+			return item.slug;
+		});
+	}
+
+	function getWallpaperPaletteSignature(slugs) {
+		return slugs.join('|');
+	}
+
+	function readWallpaperShuffleBag(paletteSlugs) {
+		var stored;
+		var parsed;
+		var bag;
+		var paletteSignature = getWallpaperPaletteSignature(paletteSlugs);
+		var validSlugs = {};
+		var seenSlugs = {};
+
+		paletteSlugs.forEach(function(slug) {
+			validSlugs[slug] = true;
+		});
+
+		try {
+			stored = localStorage.getItem(WALLPAPER_SHUFFLE_BAG_KEY);
+			parsed = stored ? JSON.parse(stored) : null;
+		} catch (e) {
+			return [];
+		}
+
+		if (!parsed || parsed.palette !== paletteSignature || !Array.isArray(parsed.bag)) {
+			return [];
+		}
+
+		bag = parsed.bag.filter(function(slug) {
+			if (!validSlugs[slug] || seenSlugs[slug]) {
+				return false;
+			}
+			seenSlugs[slug] = true;
+			return true;
+		});
+
+		return bag;
+	}
+
+	function writeWallpaperShuffleBag(paletteSlugs, bag) {
+		try {
+			localStorage.setItem(WALLPAPER_SHUFFLE_BAG_KEY, JSON.stringify({
+				palette: getWallpaperPaletteSignature(paletteSlugs),
+				bag: bag
+			}));
+		} catch (e) {}
+	}
+
+	function shuffleWallpaperSlugs(slugs) {
+		var shuffled = slugs.slice();
+		var i;
+		var j;
+		var tmp;
+
+		for (i = shuffled.length - 1; i > 0; i--) {
+			j = Math.floor(Math.random() * (i + 1));
+			tmp = shuffled[i];
+			shuffled[i] = shuffled[j];
+			shuffled[j] = tmp;
+		}
+
+		return shuffled;
+	}
+
+	function pickWallpaperShuffleEntry(currentSlug) {
+		var paletteSlugs = getWallpaperPaletteSlugs(getWallpaperPalette());
+		var bag = readWallpaperShuffleBag(paletteSlugs).filter(function(slug) {
+			return slug !== currentSlug;
+		});
+		var choices;
+		var nextSlug;
+
+		if (!bag.length) {
+			choices = paletteSlugs.filter(function(slug) {
+				return slug !== currentSlug;
+			});
+			if (!choices.length) return null;
+			bag = shuffleWallpaperSlugs(choices);
+		}
+
+		nextSlug = bag.shift();
+		if (!nextSlug) return null;
+
+		return {
+			slug: nextSlug,
+			paletteSlugs: paletteSlugs,
+			bag: bag
+		};
+	}
+
+	function updateWallpaperHintCopy() {
+		if (!wallpaperHint || !wallpaperHintText || !wallpaperHintButton) return;
+
+		var item = getWallpaperPaletteItem(getCurrentWallpaperSlug());
+		var namedPrompt = getI18n('wallpaperNamedPrompt', 'This wallpaper is %s.');
+		wallpaperHintText.textContent = item && item.name
+			? namedPrompt.replace('%s', item.name)
+			: getI18n('wallpaperPrompt', 'Not feeling this?');
+		wallpaperHintButton.textContent = getI18n('wallpaperTryAnother', 'Try another.');
+	}
+
+	function dismissWallpaperHint() {
+		if (!wallpaperHint) return;
+
+		markWallpaperHintDismissed();
+		setWallpaperHintCloseVisible(false);
+		wallpaperHint.hidden = true;
+	}
+
+	function markWallpaperHintDismissed() {
+		localStorage.wallpaperHintDismissed = '1';
+		localStorage.setItem(WALLPAPER_HINT_DISMISSED_KEY, '1');
+	}
+
+	function bindWallpaperHintButton() {
+		if (!wallpaperHintButton || isWallpaperHintBound) return;
+
+		wallpaperHintButton.addEventListener('click', function() {
+			randomizeWallpaperHint();
+		});
+		isWallpaperHintBound = true;
+	}
+
+	function bindWallpaperHintClose() {
+		if (!wallpaperHintClose || isWallpaperHintCloseBound) return;
+
+		wallpaperHintClose.addEventListener('click', dismissWallpaperHint);
+		isWallpaperHintCloseBound = true;
+	}
+
+	function setWallpaperHintCloseVisible(isVisible) {
+		if (!wallpaperHintClose) return;
+
+		wallpaperHintClose.hidden = !isVisible;
+	}
+
+	function shouldShowWallpaperHint() {
+		if (!wallpaperHint || !wallpaperHintButton || !bgPicker) return false;
+		if (localStorage.getItem(WALLPAPER_HINT_DISMISSED_KEY) === '1') return false;
+
+		if (localStorage.getItem(WALLPAPER_HINT_ELIGIBLE_KEY) === '1') {
+			return true;
+		}
+
+		return !myAppsConfig.hasCustomizedWallpaper && !myAppsConfig.background;
+	}
+
+	function showWallpaperHint(options) {
+		options = options || {};
+		if (!wallpaperHint || !wallpaperHintButton || !bgPicker) return false;
+
+		bindWallpaperHintButton();
+		if (options.showClose) {
+			bindWallpaperHintClose();
+		}
+		setWallpaperHintCloseVisible(!!options.showClose);
+		updateWallpaperHintCopy();
+		wallpaperHint.hidden = false;
+		return true;
+	}
+
+	function hideWallpaperHint() {
+		if (!wallpaperHint) return;
+
+		setWallpaperHintCloseVisible(false);
+		wallpaperHint.hidden = true;
+	}
+
+	function randomizeWallpaperHint(options) {
+		options = options || {};
+
+		var selection = pickWallpaperShuffleEntry(getCurrentWallpaperSlug());
+		if (!selection) return Promise.resolve(false);
+
+		if (wallpaperHintButton) {
+			wallpaperHintButton.disabled = true;
+		}
+
+		return saveBackground(selection.slug, {
+			closePicker: false,
+			silent: !!options.silent
+		}).then(function(saved) {
+			if (saved) {
+				writeWallpaperShuffleBag(selection.paletteSlugs, selection.bag);
+			}
+			return saved;
+		}).finally(function() {
+			if (wallpaperHintButton) {
+				wallpaperHintButton.disabled = false;
+			}
+		});
+	}
+
+	function initWallpaperHint() {
+		if (!shouldShowWallpaperHint()) return;
+
+		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
+		showWallpaperHint({ showClose: true });
+
+		if (!myAppsConfig.background) {
+			randomizeWallpaperHint({ silent: true });
+		}
 	}
 
 	function fetchCustomizationPayload() {
@@ -3025,12 +3288,14 @@
 		isEditMode = true;
 		body.classList.add('edit-mode');
 		sortable.option('disabled', false);
+		showWallpaperHint({ showClose: false });
 	}
 
 	function exitEditMode() {
 		isEditMode = false;
 		body.classList.remove('edit-mode');
 		sortable.option('disabled', true);
+		hideWallpaperHint();
 		saveOrder();
 	}
 

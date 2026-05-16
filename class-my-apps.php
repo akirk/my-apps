@@ -12,40 +12,274 @@ class My_Apps {
 	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const PRESET_BACKGROUNDS = array(
-		'gradient-purple',
-		'gradient-blue',
-		'gradient-green',
-		'gradient-orange',
-		'gradient-pink',
-		'gradient-white',
-		'gradient-dark',
+		'gradient-dawn',
+		'gradient-coral',
+		'gradient-bloom',
+		'gradient-meadow',
+		'gradient-spring',
 		'gradient-sunset',
-		'gradient-ocean',
-		'solid-white',
-		'solid-gray',
-		'solid-blue',
-		'solid-green',
-		'solid-red',
-		'solid-purple',
-		'solid-dark',
+		'gradient-dusk',
+		'gradient-ember',
+		'gradient-pine',
+		'gradient-plum',
+		'gradient-aurora',
+		'gradient-midnight',
+		'solid-butter',
+		'solid-peach',
+		'solid-blush',
+		'solid-mauve',
+		'solid-lilac',
+		'solid-periwinkle',
+		'solid-sky',
+		'solid-mist',
+		'solid-seafoam',
+		'solid-sage',
+		'solid-pistachio',
+		'solid-paper',
+		'solid-bone',
+		'solid-linen',
+		'solid-denim',
+		'solid-terracotta',
+		'solid-forest',
+		'solid-iris',
+		'solid-indigo',
+		'solid-ink',
+		'solid-snow',
+	);
+	const BACKGROUND_PRESET_CONFIG = array(
+		'gradient-dawn'     => array(
+			'group'      => 'gradient',
+			'name'       => 'Dawn',
+			'background' => 'linear-gradient(135deg, oklch(0.88 0.05 80), oklch(0.82 0.05 350))',
+			'fg'         => 'dark',
+		),
+		'gradient-coral'    => array(
+			'group'      => 'gradient',
+			'name'       => 'Coral',
+			'background' => 'linear-gradient(135deg, oklch(0.86 0.05 40), oklch(0.82 0.05 300))',
+			'fg'         => 'dark',
+		),
+		'gradient-bloom'    => array(
+			'group'      => 'gradient',
+			'name'       => 'Bloom',
+			'background' => 'linear-gradient(135deg, oklch(0.84 0.05 20), oklch(0.82 0.05 260))',
+			'fg'         => 'dark',
+		),
+		'gradient-meadow'   => array(
+			'group'      => 'gradient',
+			'name'       => 'Meadow',
+			'background' => 'linear-gradient(135deg, oklch(0.88 0.06 110), oklch(0.84 0.05 230))',
+			'fg'         => 'dark',
+		),
+		'gradient-spring'   => array(
+			'group'      => 'gradient',
+			'name'       => 'Spring',
+			'background' => 'linear-gradient(135deg, oklch(0.86 0.05 170), oklch(0.88 0.05 80))',
+			'fg'         => 'dark',
+		),
+		'gradient-sunset' => array(
+			'group'      => 'gradient',
+			'name'       => 'Sunset',
+			'background' => 'linear-gradient(135deg, oklch(0.88 0.05 80) 0%, oklch(0.84 0.05 20) 50%, oklch(0.82 0.05 300) 100%)',
+			'fg'         => 'dark',
+		),
+		'gradient-dusk'     => array(
+			'group'      => 'gradient',
+			'name'       => 'Dusk',
+			'background' => 'linear-gradient(135deg, oklch(0.82 0.05 260), oklch(0.35 0.05 250))',
+			'fg'         => 'light',
+		),
+		'gradient-ember'    => array(
+			'group'      => 'gradient',
+			'name'       => 'Ember',
+			'background' => 'linear-gradient(135deg, oklch(0.86 0.05 40), oklch(0.45 0.09 30))',
+			'fg'         => 'light',
+		),
+		'gradient-pine'     => array(
+			'group'      => 'gradient',
+			'name'       => 'Pine',
+			'background' => 'linear-gradient(135deg, oklch(0.86 0.05 140), oklch(0.40 0.07 160))',
+			'fg'         => 'light',
+		),
+		'gradient-plum'     => array(
+			'group'      => 'gradient',
+			'name'       => 'Plum',
+			'background' => 'linear-gradient(135deg, oklch(0.82 0.05 300), oklch(0.38 0.06 290))',
+			'fg'         => 'light',
+		),
+		'gradient-aurora'   => array(
+			'group'      => 'gradient',
+			'name'       => 'Aurora',
+			'background' => 'linear-gradient(135deg, oklch(0.88 0.06 110) 0%, oklch(0.82 0.05 260) 50%, oklch(0.40 0.06 290) 100%)',
+			'fg'         => 'light',
+		),
+		'gradient-midnight' => array(
+			'group'      => 'gradient',
+			'name'       => 'Midnight',
+			'background' => 'linear-gradient(135deg, oklch(0.82 0.05 260), oklch(0.22 0.01 250))',
+			'fg'         => 'light',
+		),
+		'solid-butter'    => array(
+			'group'      => 'solid',
+			'name'       => 'Butter',
+			'background' => 'oklch(0.88 0.05 80)',
+			'fg'         => 'dark',
+		),
+		'solid-peach'     => array(
+			'group'      => 'solid',
+			'name'       => 'Peach',
+			'background' => 'oklch(0.86 0.05 40)',
+			'fg'         => 'dark',
+		),
+		'solid-blush'     => array(
+			'group'      => 'solid',
+			'name'       => 'Blush',
+			'background' => 'oklch(0.84 0.05 20)',
+			'fg'         => 'dark',
+		),
+		'solid-mauve'     => array(
+			'group'      => 'solid',
+			'name'       => 'Mauve',
+			'background' => 'oklch(0.82 0.04 350)',
+			'fg'         => 'dark',
+		),
+		'solid-lilac'     => array(
+			'group'      => 'solid',
+			'name'       => 'Lilac',
+			'background' => 'oklch(0.82 0.05 300)',
+			'fg'         => 'dark',
+		),
+		'solid-periwinkle' => array(
+			'group'      => 'solid',
+			'name'       => 'Periwinkle',
+			'background' => 'oklch(0.82 0.05 260)',
+			'fg'         => 'dark',
+		),
+		'solid-sky'       => array(
+			'group'      => 'solid',
+			'name'       => 'Sky',
+			'background' => 'oklch(0.84 0.05 230)',
+			'fg'         => 'dark',
+		),
+		'solid-mist'      => array(
+			'group'      => 'solid',
+			'name'       => 'Mist',
+			'background' => 'oklch(0.85 0.04 200)',
+			'fg'         => 'dark',
+		),
+		'solid-seafoam'   => array(
+			'group'      => 'solid',
+			'name'       => 'Seafoam',
+			'background' => 'oklch(0.86 0.05 170)',
+			'fg'         => 'dark',
+		),
+		'solid-sage'      => array(
+			'group'      => 'solid',
+			'name'       => 'Sage',
+			'background' => 'oklch(0.86 0.05 140)',
+			'fg'         => 'dark',
+		),
+		'solid-pistachio' => array(
+			'group'      => 'solid',
+			'name'       => 'Pistachio',
+			'background' => 'oklch(0.88 0.06 110)',
+			'fg'         => 'dark',
+		),
+		'solid-paper'     => array(
+			'group'      => 'solid',
+			'name'       => 'Paper',
+			'background' => 'oklch(0.94 0.012 80)',
+			'fg'         => 'dark',
+		),
+		'solid-bone'      => array(
+			'group'      => 'solid',
+			'name'       => 'Bone',
+			'background' => 'oklch(0.92 0.015 60)',
+			'fg'         => 'dark',
+		),
+		'solid-linen'     => array(
+			'group'      => 'solid',
+			'name'       => 'Linen',
+			'background' => 'oklch(0.90 0.02 40)',
+			'fg'         => 'dark',
+		),
+		'solid-denim'     => array(
+			'group'      => 'solid',
+			'name'       => 'Denim',
+			'background' => 'oklch(0.55 0.08 250)',
+			'fg'         => 'light',
+		),
+		'solid-terracotta' => array(
+			'group'      => 'solid',
+			'name'       => 'Terracotta',
+			'background' => 'oklch(0.50 0.09 30)',
+			'fg'         => 'light',
+		),
+		'solid-forest'    => array(
+			'group'      => 'solid',
+			'name'       => 'Forest',
+			'background' => 'oklch(0.45 0.07 160)',
+			'fg'         => 'light',
+		),
+		'solid-iris'      => array(
+			'group'      => 'solid',
+			'name'       => 'Iris',
+			'background' => 'oklch(0.40 0.06 290)',
+			'fg'         => 'light',
+		),
+		'solid-indigo'    => array(
+			'group'      => 'solid',
+			'name'       => 'Indigo',
+			'background' => 'oklch(0.35 0.05 250)',
+			'fg'         => 'light',
+		),
+		'solid-ink'       => array(
+			'group'      => 'solid',
+			'name'       => 'Ink',
+			'background' => 'oklch(0.22 0.01 250)',
+			'fg'         => 'light',
+		),
+		'solid-snow'      => array(
+			'group'      => 'solid',
+			'name'       => 'Snow',
+			'background' => 'oklch(0.98 0.003 80)',
+			'fg'         => 'dark',
+		),
 	);
 	const VALID_BACKGROUNDS = array(
-		'gradient-purple',
-		'gradient-blue',
-		'gradient-green',
-		'gradient-orange',
-		'gradient-pink',
-		'gradient-white',
-		'gradient-dark',
+		'gradient-dawn',
+		'gradient-coral',
+		'gradient-bloom',
+		'gradient-meadow',
+		'gradient-spring',
 		'gradient-sunset',
-		'gradient-ocean',
-		'solid-white',
-		'solid-gray',
-		'solid-blue',
-		'solid-green',
-		'solid-red',
-		'solid-purple',
-		'solid-dark',
+		'gradient-dusk',
+		'gradient-ember',
+		'gradient-pine',
+		'gradient-plum',
+		'gradient-aurora',
+		'gradient-midnight',
+		'solid-butter',
+		'solid-peach',
+		'solid-blush',
+		'solid-mauve',
+		'solid-lilac',
+		'solid-periwinkle',
+		'solid-sky',
+		'solid-mist',
+		'solid-seafoam',
+		'solid-sage',
+		'solid-pistachio',
+		'solid-paper',
+		'solid-bone',
+		'solid-linen',
+		'solid-denim',
+		'solid-terracotta',
+		'solid-forest',
+		'solid-iris',
+		'solid-indigo',
+		'solid-ink',
+		'solid-snow',
 		self::CUSTOM_BACKGROUND,
 	);
 
@@ -58,6 +292,84 @@ class My_Apps {
 	public static function icon_data_uri() {
 		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- SVG data URI for Desktop Mode dock rendering.
 		return 'data:image/svg+xml;base64,' . base64_encode( self::icon_svg() );
+	}
+
+	/**
+	 * Get background preset metadata.
+	 *
+	 * @param string $group Optional group filter.
+	 * @return array
+	 */
+	public static function background_presets( $group = '' ) {
+		if ( '' === $group ) {
+			return self::BACKGROUND_PRESET_CONFIG;
+		}
+
+		return array_filter(
+			self::BACKGROUND_PRESET_CONFIG,
+			function( $preset ) use ( $group ) {
+				return isset( $preset['group'] ) && $preset['group'] === $group;
+			}
+		);
+	}
+
+	/**
+	 * Get launcher CSS variables for light preset backgrounds.
+	 *
+	 * @return string
+	 */
+	private static function dark_launcher_text_css() {
+		return implode(
+			' ',
+			array(
+				'--ma-launcher-fg: #1f2937;',
+				'--ma-launcher-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);',
+				'--ma-launcher-toolbar-bg: rgba(15, 23, 42, 0.08);',
+				'--ma-launcher-toolbar-bg-hover: rgba(15, 23, 42, 0.14);',
+				'--ma-launcher-done-bg: #1f2937;',
+				'--ma-launcher-done-bg-hover: #111827;',
+				'--ma-launcher-done-fg: #fff;',
+				'--ma-launcher-soft-bg: rgba(15, 23, 42, 0.06);',
+				'--ma-launcher-soft-border: rgba(15, 23, 42, 0.22);',
+				'--ma-launcher-muted-border: rgba(15, 23, 42, 0.35);',
+				'--ma-launcher-input-bg: rgba(255, 255, 255, 0.82);',
+				'--ma-launcher-input-bg-focus: #fff;',
+				'--ma-launcher-input-placeholder: rgba(15, 23, 42, 0.45);',
+			)
+		);
+	}
+
+	/**
+	 * Build generated CSS for preset backgrounds and picker previews.
+	 *
+	 * @return string
+	 */
+	private static function preset_background_css() {
+		$rules = array();
+
+		foreach ( self::background_presets() as $slug => $preset ) {
+			if ( empty( $preset['background'] ) ) {
+				continue;
+			}
+
+			$class      = sanitize_html_class( 'bg-' . $slug );
+			$background = $preset['background'];
+			$is_dark_fg = isset( $preset['fg'] ) && 'dark' === $preset['fg'];
+			$picker_css = array(
+				'--ma-bg-option: ' . $background . ';',
+			);
+
+			$rules[] = '.' . $class . ', body.my-apps-launcher.' . $class . ' { background: ' . $background . '; }';
+
+			if ( $is_dark_fg ) {
+				$picker_css[] = '--ma-bg-option-border: rgba(15, 23, 42, 0.18);';
+				$rules[]      = 'body.my-apps-launcher.' . $class . ' { ' . self::dark_launcher_text_css() . ' }';
+			}
+
+			$rules[] = 'body.my-apps-launcher .bg-picker-popup .bg-option.' . $class . ' { ' . implode( ' ', $picker_css ) . ' }';
+		}
+
+		return implode( "\n", $rules );
 	}
 
 	/**
@@ -238,6 +550,12 @@ class My_Apps {
 
 	public function enqueue_styles() {
 		wp_enqueue_style( 'my-apps', plugin_dir_url( __FILE__ ) . 'style.css', array(), MY_APPS_VERSION );
+
+		static $did_add_background_css = false;
+		if ( ! $did_add_background_css ) {
+			wp_add_inline_style( 'my-apps', self::preset_background_css() );
+			$did_add_background_css = true;
+		}
 	}
 
 	public function admin_enqueue_scripts() {
@@ -1645,7 +1963,9 @@ class My_Apps {
 			}
 		}
 
-		$background_state = self::current_background_state_payload();
+		$stored_background          = get_option( 'my_apps_background', '' );
+		$has_customized_wallpaper   = is_string( $stored_background ) && '' !== $stored_background;
+		$background_state           = self::current_background_state_payload();
 
 		wp_enqueue_script(
 			'sortablejs',
@@ -1687,6 +2007,7 @@ class My_Apps {
 				'appUrls'                => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'       => self::get_installed_plugin_statuses(),
 				'background'             => $background_state['slug'],
+				'hasCustomizedWallpaper' => $has_customized_wallpaper,
 				'customBackground'       => isset( $background_state['custom'] ) ? $background_state['custom'] : '',
 				'backgroundImageUrl'     => isset( $background_state['image_url'] ) ? $background_state['image_url'] : '',
 				'backgroundAttachmentId' => isset( $background_state['attachment_id'] ) ? $background_state['attachment_id'] : 0,
@@ -1697,6 +2018,9 @@ class My_Apps {
 					'useBackgroundImage'    => __( 'Use as Background', 'my-apps' ),
 					'mediaUnavailable'       => __( 'The media library is unavailable.', 'my-apps' ),
 					'invalidBackgroundImage' => __( 'Please choose an image file.', 'my-apps' ),
+					'wallpaperPrompt'        => __( 'Not feeling this?', 'my-apps' ),
+					'wallpaperNamedPrompt'   => __( 'This wallpaper is %s.', 'my-apps' ),
+					'wallpaperTryAnother'    => __( 'Try another.', 'my-apps' ),
 				),
 			)
 		);

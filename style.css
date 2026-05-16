@@ -6,6 +6,7 @@ body.my-apps-launcher {
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 	box-sizing: border-box;
 	background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+	transition: background 0.45s ease;
 	/* Opt the launcher modals into both colour schemes so light-dark()
 	   picks up the OS preference. The launcher grid itself sits on a
 	   preset/custom background and is unaffected by these palette vars. */
@@ -38,9 +39,7 @@ body.my-apps-launcher {
 	--ma-launcher-input-placeholder: rgba(255, 255, 255, 0.5);
 }
 
-body.my-apps-launcher:not([class*="bg-"]),
-body.my-apps-launcher.bg-gradient-white,
-body.my-apps-launcher.bg-solid-white {
+body.my-apps-launcher:not([class*="bg-"]) {
 	--ma-launcher-fg: #1f2937;
 	--ma-launcher-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 	--ma-launcher-toolbar-bg: rgba(15, 23, 42, 0.08);
@@ -109,23 +108,7 @@ body.my-apps-launcher ::selection {
 	color: #fff;
 }
 
-/* Background Options */
-.bg-gradient-purple, body.my-apps-launcher.bg-gradient-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.bg-gradient-blue, body.my-apps-launcher.bg-gradient-blue { background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }
-.bg-gradient-green, body.my-apps-launcher.bg-gradient-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-.bg-gradient-orange, body.my-apps-launcher.bg-gradient-orange { background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); }
-.bg-gradient-pink, body.my-apps-launcher.bg-gradient-pink { background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); }
-.bg-gradient-white, body.my-apps-launcher.bg-gradient-white { background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%); }
-.bg-gradient-dark, body.my-apps-launcher.bg-gradient-dark { background: linear-gradient(135deg, #232526 0%, #414345 100%); }
-.bg-gradient-sunset, body.my-apps-launcher.bg-gradient-sunset { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-.bg-gradient-ocean, body.my-apps-launcher.bg-gradient-ocean { background: linear-gradient(135deg, #2e3192 0%, #1bffff 100%); }
-.bg-solid-white, body.my-apps-launcher.bg-solid-white { background: #fff; }
-.bg-solid-gray, body.my-apps-launcher.bg-solid-gray { background: #6b7280; }
-.bg-solid-blue, body.my-apps-launcher.bg-solid-blue { background: #3b82f6; }
-.bg-solid-green, body.my-apps-launcher.bg-solid-green { background: #10b981; }
-.bg-solid-red, body.my-apps-launcher.bg-solid-red { background: #ef4444; }
-.bg-solid-purple, body.my-apps-launcher.bg-solid-purple { background: #8b5cf6; }
-.bg-solid-dark, body.my-apps-launcher.bg-solid-dark { background: #1f2937; }
+/* Preset background CSS is generated from My_Apps::BACKGROUND_PRESET_CONFIG. */
 body.my-apps-launcher.bg-custom {
 	background-position: center center;
 	background-size: cover;
@@ -295,6 +278,123 @@ body.edit-mode .launcher-toolbar .done-btn {
 	justify-content: center;
 	gap: var(--app-gap, 16px);
 	padding-top: 20px;
+}
+
+.wallpaper-hint {
+	margin-top: 32px;
+	text-align: center;
+	color: var(--ma-launcher-fg);
+	font-size: 13px;
+	line-height: 1.45;
+	opacity: 0.8;
+	text-shadow: var(--ma-launcher-text-shadow);
+}
+
+.wallpaper-hint[hidden] {
+	display: none;
+}
+
+body.my-apps-launcher .wallpaper-hint-button,
+body.my-apps-launcher .wallpaper-hint-button:hover,
+body.my-apps-launcher .wallpaper-hint-button:focus,
+body.my-apps-launcher .wallpaper-hint-button:active,
+body.my-apps-launcher .wallpaper-hint-close,
+body.my-apps-launcher .wallpaper-hint-close:hover,
+body.my-apps-launcher .wallpaper-hint-close:focus,
+body.my-apps-launcher .wallpaper-hint-close:active {
+	appearance: none;
+	-webkit-appearance: none;
+	background: transparent;
+	border: 0;
+	box-shadow: none;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+	line-height: inherit;
+	margin: 0;
+	padding: 0;
+}
+
+body.my-apps-launcher .wallpaper-hint-button {
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+}
+
+body.my-apps-launcher .wallpaper-hint-close,
+body.my-apps-launcher .wallpaper-hint-close:hover,
+body.my-apps-launcher .wallpaper-hint-close:focus,
+body.my-apps-launcher .wallpaper-hint-close:active {
+	appearance: none !important;
+	-webkit-appearance: none !important;
+	background: transparent !important;
+	border: 0 !important;
+	box-shadow: none !important;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px !important;
+	height: 18px !important;
+	margin: 0 0 0 7px !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	padding: 0 !important;
+	border-radius: 4px;
+	box-sizing: border-box;
+	font-size: 0;
+	line-height: 1 !important;
+	opacity: 0.72;
+	position: relative;
+	text-decoration: none !important;
+	text-shadow: none !important;
+	transform: none;
+	transition: none;
+	vertical-align: middle;
+}
+
+body.my-apps-launcher .wallpaper-hint-close:hover {
+	background: var(--ma-launcher-soft-bg) !important;
+	opacity: 1;
+}
+
+body.my-apps-launcher .wallpaper-hint-close::before,
+body.my-apps-launcher .wallpaper-hint-close::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 4px;
+	right: 4px;
+	height: 1.5px;
+	background: currentColor;
+	border-radius: 999px;
+}
+
+body.my-apps-launcher .wallpaper-hint-close::before {
+	transform: translateY(-50%) rotate(45deg);
+}
+
+body.my-apps-launcher .wallpaper-hint-close::after {
+	transform: translateY(-50%) rotate(-45deg);
+}
+
+body.my-apps-launcher .wallpaper-hint-close[hidden] {
+	display: none;
+}
+
+body.my-apps-launcher .wallpaper-hint-button:hover {
+	text-decoration-style: solid;
+}
+
+body.my-apps-launcher .wallpaper-hint-button:focus:not(:focus-visible),
+body.my-apps-launcher .wallpaper-hint-close:focus:not(:focus-visible) {
+	outline: none;
+}
+
+body.my-apps-launcher .wallpaper-hint-button:focus-visible,
+body.my-apps-launcher .wallpaper-hint-close:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 3px;
+	border-radius: 3px;
 }
 
 .apps-container.layout-grid {
@@ -1605,17 +1705,24 @@ body.my-apps-launcher .app-detail-share-btn:active {
 }
 
 .bg-option {
+	appearance: none;
+	-webkit-appearance: none;
 	width: 36px;
 	height: 36px;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
 	border-radius: 8px;
 	border: 2px solid transparent;
 	cursor: pointer;
+	line-height: 0;
 	transition: transform 0.15s, border-color 0.15s;
 }
 
-.bg-option.bg-gradient-white,
-.bg-option.bg-solid-white {
-	border-color: #d0d7de;
+body.my-apps-launcher .bg-picker-popup .bg-option {
+	background: var(--ma-bg-option, transparent) !important;
+	border-color: var(--ma-bg-option-border, transparent);
 }
 
 .bg-option:hover {

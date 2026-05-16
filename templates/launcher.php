@@ -167,7 +167,7 @@ $is_app_store = isset( $_GET['app-store'] );
 			id="wallpaper-hint-close"
 			aria-label="<?php esc_attr_e( 'Dismiss wallpaper randomizer', 'my-apps' ); ?>"
 			hidden
-		>x</button>
+		></button>
 	</div>
 <?php endif; ?>
 

@@ -32,37 +32,37 @@ class My_Apps {
 	const BACKGROUND_PRESET_CONFIG = array(
 		'gradient-purple' => array(
 			'group'      => 'gradient',
-			'name'       => 'Purple',
+			'name'       => 'Purple Dusk',
 			'background' => 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
 		),
 		'gradient-blue'   => array(
 			'group'      => 'gradient',
-			'name'       => 'Blue',
+			'name'       => 'Blue Lagoon',
 			'background' => 'linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%)',
 		),
 		'gradient-green'  => array(
 			'group'      => 'gradient',
-			'name'       => 'Green',
+			'name'       => 'Emerald Glow',
 			'background' => 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
 		),
 		'gradient-orange' => array(
 			'group'      => 'gradient',
-			'name'       => 'Orange',
+			'name'       => 'Golden Hour',
 			'background' => 'linear-gradient(135deg, #f2994a 0%, #f2c94c 100%)',
 		),
 		'gradient-pink'   => array(
 			'group'      => 'gradient',
-			'name'       => 'Pink',
+			'name'       => 'Rose Quartz',
 			'background' => 'linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%)',
 		),
 		'gradient-white'  => array(
 			'group'      => 'gradient',
-			'name'       => 'White Gradient',
+			'name'       => 'Morning Mist',
 			'background' => 'linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%)',
 		),
 		'gradient-dark'   => array(
 			'group'      => 'gradient',
-			'name'       => 'Dark',
+			'name'       => 'Charcoal Fade',
 			'background' => 'linear-gradient(135deg, #232526 0%, #414345 100%)',
 		),
 		'gradient-sunset' => array(

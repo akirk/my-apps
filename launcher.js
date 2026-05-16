@@ -2661,9 +2661,13 @@
 	function dismissWallpaperHint() {
 		if (!wallpaperHint) return;
 
+		markWallpaperHintDismissed();
+		wallpaperHint.hidden = true;
+	}
+
+	function markWallpaperHintDismissed() {
 		localStorage.wallpaperHintDismissed = '1';
 		localStorage.setItem(WALLPAPER_HINT_DISMISSED_KEY, '1');
-		wallpaperHint.hidden = true;
 	}
 
 	function bindWallpaperHintButton() {
@@ -2707,7 +2711,7 @@
 				shuffleCount += 1;
 				localStorage.setItem(WALLPAPER_HINT_SHUFFLE_COUNT_KEY, String(shuffleCount));
 				if (shuffleCount >= WALLPAPER_HINT_DISMISS_SHUFFLES) {
-					dismissWallpaperHint();
+					markWallpaperHintDismissed();
 				}
 			}
 

@@ -161,6 +161,13 @@ $is_app_store = isset( $_GET['app-store'] );
 		<button type="button" class="wallpaper-hint-button" id="wallpaper-hint-button" aria-label="<?php esc_attr_e( 'Try another wallpaper', 'my-apps' ); ?>">
 			<?php esc_html_e( 'Try another.', 'my-apps' ); ?>
 		</button>
+		<button
+			type="button"
+			class="wallpaper-hint-close"
+			id="wallpaper-hint-close"
+			aria-label="<?php esc_attr_e( 'Dismiss wallpaper randomizer', 'my-apps' ); ?>"
+			hidden
+		>x</button>
 	</div>
 <?php endif; ?>
 

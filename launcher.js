@@ -26,6 +26,7 @@
 	const wallpaperHint = document.getElementById('wallpaper-hint');
 	const wallpaperHintText = document.getElementById('wallpaper-hint-text');
 	const wallpaperHintButton = document.getElementById('wallpaper-hint-button');
+	const wallpaperHintClose = document.getElementById('wallpaper-hint-close');
 	const body = document.body;
 	const adminMenuTree = document.getElementById('admin-menu-tree');
 	const adminMenuSearch = document.getElementById('admin-menu-search');
@@ -43,6 +44,7 @@
 	let contextTarget = null;
 	let iconEditTarget = null;
 	let isWallpaperHintBound = false;
+	let isWallpaperHintCloseBound = false;
 	// Tracks a deep-link target picked up by checkDeepLink so loadAppStore
 	// can render the detail page directly instead of flashing the grid first.
 	let pendingDeepLink = null;
@@ -61,6 +63,7 @@
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
 	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
+	const WALLPAPER_HINT_MANUAL_KEY = 'wallpaperHintManual';
 	const WALLPAPER_HINT_SHUFFLE_COUNT_KEY = 'wallpaperHintShuffleCount';
 	const WALLPAPER_HINT_DISMISS_SHUFFLES = 3;
 
@@ -2651,7 +2654,7 @@
 		if (!wallpaperHint || !wallpaperHintText || !wallpaperHintButton) return;
 
 		var item = getWallpaperPaletteItem(getCurrentWallpaperSlug());
-		var namedPrompt = getI18n('wallpaperNamedPrompt', "Today's wallpaper is %s.");
+		var namedPrompt = getI18n('wallpaperNamedPrompt', 'This wallpaper is %s.');
 		wallpaperHintText.textContent = item && item.name
 			? namedPrompt.replace('%s', item.name)
 			: getI18n('wallpaperPrompt', 'Not feeling this?');
@@ -2662,6 +2665,8 @@
 		if (!wallpaperHint) return;
 
 		markWallpaperHintDismissed();
+		localStorage.removeItem(WALLPAPER_HINT_MANUAL_KEY);
+		setWallpaperHintCloseVisible(false);
 		wallpaperHint.hidden = true;
 	}
 
@@ -2677,6 +2682,23 @@
 			randomizeWallpaperHint({ countShuffle: true });
 		});
 		isWallpaperHintBound = true;
+	}
+
+	function bindWallpaperHintClose() {
+		if (!wallpaperHintClose || isWallpaperHintCloseBound) return;
+
+		wallpaperHintClose.addEventListener('click', dismissWallpaperHint);
+		isWallpaperHintCloseBound = true;
+	}
+
+	function setWallpaperHintCloseVisible(isVisible) {
+		if (!wallpaperHintClose) return;
+
+		wallpaperHintClose.hidden = !isVisible;
+	}
+
+	function isWallpaperHintManual() {
+		return localStorage.getItem(WALLPAPER_HINT_MANUAL_KEY) === '1';
 	}
 
 	function shouldShowWallpaperHint() {
@@ -2728,6 +2750,12 @@
 
 		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
 		bindWallpaperHintButton();
+		if (isWallpaperHintManual()) {
+			bindWallpaperHintClose();
+			setWallpaperHintCloseVisible(true);
+		} else {
+			setWallpaperHintCloseVisible(false);
+		}
 		updateWallpaperHintCopy();
 		wallpaperHint.hidden = false;
 
@@ -2741,8 +2769,11 @@
 
 		localStorage.removeItem(WALLPAPER_HINT_DISMISSED_KEY);
 		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
+		localStorage.setItem(WALLPAPER_HINT_MANUAL_KEY, '1');
 		localStorage.setItem(WALLPAPER_HINT_SHUFFLE_COUNT_KEY, '0');
 		bindWallpaperHintButton();
+		bindWallpaperHintClose();
+		setWallpaperHintCloseVisible(true);
 		updateWallpaperHintCopy();
 		wallpaperHint.hidden = false;
 	}

@@ -315,7 +315,11 @@ body.edit-mode .launcher-toolbar .done-btn {
 body.my-apps-launcher .wallpaper-hint-button,
 body.my-apps-launcher .wallpaper-hint-button:hover,
 body.my-apps-launcher .wallpaper-hint-button:focus,
-body.my-apps-launcher .wallpaper-hint-button:active {
+body.my-apps-launcher .wallpaper-hint-button:active,
+body.my-apps-launcher .wallpaper-hint-close,
+body.my-apps-launcher .wallpaper-hint-close:hover,
+body.my-apps-launcher .wallpaper-hint-close:focus,
+body.my-apps-launcher .wallpaper-hint-close:active {
 	appearance: none;
 	-webkit-appearance: none;
 	background: transparent;
@@ -328,19 +332,44 @@ body.my-apps-launcher .wallpaper-hint-button:active {
 	line-height: inherit;
 	margin: 0;
 	padding: 0;
+}
+
+body.my-apps-launcher .wallpaper-hint-button {
 	text-decoration: underline dotted;
 	text-underline-offset: 3px;
+}
+
+body.my-apps-launcher .wallpaper-hint-close,
+body.my-apps-launcher .wallpaper-hint-close:hover,
+body.my-apps-launcher .wallpaper-hint-close:focus,
+body.my-apps-launcher .wallpaper-hint-close:active {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	margin-left: 8px;
+	text-decoration: none;
+	transform: none;
+	transition: none;
+	vertical-align: -2px;
+}
+
+body.my-apps-launcher .wallpaper-hint-close[hidden] {
+	display: none;
 }
 
 body.my-apps-launcher .wallpaper-hint-button:hover {
 	text-decoration-style: solid;
 }
 
-body.my-apps-launcher .wallpaper-hint-button:focus:not(:focus-visible) {
+body.my-apps-launcher .wallpaper-hint-button:focus:not(:focus-visible),
+body.my-apps-launcher .wallpaper-hint-close:focus:not(:focus-visible) {
 	outline: none;
 }
 
-body.my-apps-launcher .wallpaper-hint-button:focus-visible {
+body.my-apps-launcher .wallpaper-hint-button:focus-visible,
+body.my-apps-launcher .wallpaper-hint-close:focus-visible {
 	outline: 2px solid currentColor;
 	outline-offset: 3px;
 	border-radius: 3px;

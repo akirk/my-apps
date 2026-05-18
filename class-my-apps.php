@@ -537,6 +537,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_hide', array( $this, 'ajax_hide_app' ) );
 		add_action( 'wp_ajax_my_apps_add', array( $this, 'ajax_add_app' ) );
 		add_action( 'wp_ajax_my_apps_save_background', array( $this, 'ajax_save_background' ) );
+		add_action( 'wp_ajax_my_apps_reset_background', array( $this, 'ajax_reset_background' ) );
 		add_action( 'wp_ajax_my_apps_get_background', array( $this, 'ajax_get_background' ) );
 		add_action( 'wp_ajax_my_apps_get_customization', array( $this, 'ajax_get_customization' ) );
 		add_action( 'wp_ajax_my_apps_save_app_icon', array( $this, 'ajax_save_app_icon' ) );
@@ -1321,6 +1322,20 @@ class My_Apps {
 		}
 
 		return new \WP_Error( 'my_apps_invalid_background', __( 'Invalid background.', 'my-apps' ) );
+	}
+
+	/**
+	 * Reset the launcher background to its unset first-run state.
+	 *
+	 * @return array
+	 */
+	private static function reset_background_value() {
+		delete_option( 'my_apps_background' );
+		delete_option( 'my_apps_background_custom' );
+		delete_option( 'my_apps_background_image_url' );
+		delete_option( 'my_apps_background_attachment_id' );
+
+		return self::current_background_payload();
 	}
 
 	/**
@@ -2421,6 +2436,19 @@ class My_Apps {
 		}
 
 		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX: Reset background preference.
+	 */
+	public function ajax_reset_background() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		wp_send_json_success( self::reset_background_value() );
 	}
 
 	/**

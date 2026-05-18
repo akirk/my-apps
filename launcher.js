@@ -4161,6 +4161,156 @@
 		return retrofitGitTargetFolderName(blueprint);
 	}
 
+	var aiAssistantBootstrapPromise = null;
+
+	function isAiAssistantInstall(slug, result) {
+		return slug === 'ai-assistant' ||
+			(result && result.plugin === 'ai-assistant/ai-assistant.php');
+	}
+
+	function assetUrl(src, version) {
+		if (!version) return src;
+		try {
+			var url = new URL(src, window.location.href);
+			url.searchParams.set('ver', version);
+			return url.toString();
+		} catch (e) {
+			return src + (src.indexOf('?') === -1 ? '?' : '&') + 'ver=' + encodeURIComponent(version);
+		}
+	}
+
+	function loadAiAssistantStyles(styles) {
+		(styles || []).forEach(function(style) {
+			if (!style || !style.href) return;
+			var id = style.id ? style.id : '';
+			var elementId = id ? id.replace(/-css$/, '') + '-css' : '';
+			if (elementId && document.getElementById(elementId)) return;
+
+			var link = document.createElement('link');
+			if (elementId) {
+				link.id = elementId;
+			}
+			link.rel = 'stylesheet';
+			link.href = assetUrl(style.href, style.version);
+			document.head.appendChild(link);
+		});
+	}
+
+	function applyAiAssistantInlineStyles(inlineStyles) {
+		(inlineStyles || []).forEach(function(style) {
+			if (!style || !style.css) return;
+			var id = style.id || '';
+			if (id && document.getElementById(id)) return;
+
+			var el = document.createElement('style');
+			if (id) {
+				el.id = id;
+			}
+			el.textContent = style.css;
+			document.head.appendChild(el);
+		});
+	}
+
+	function loadAiAssistantScript(script) {
+		if (!script || !script.src) {
+			return Promise.resolve();
+		}
+
+		if (script.global && window[script.global]) {
+			return Promise.resolve();
+		}
+
+		var elementId = script.id ? script.id.replace(/-js$/, '') + '-js' : '';
+		if (elementId && document.getElementById(elementId)) {
+			return Promise.resolve();
+		}
+
+		return new Promise(function(resolve, reject) {
+			var el = document.createElement('script');
+			if (elementId) {
+				el.id = elementId;
+			}
+			el.src = assetUrl(script.src, script.version);
+			el.onload = function() { resolve(); };
+			el.onerror = function() { reject(new Error('Could not load ' + script.src)); };
+			document.head.appendChild(el);
+		});
+	}
+
+	function loadAiAssistantScripts(scripts) {
+		return (scripts || []).reduce(function(promise, script) {
+			return promise.then(function() {
+				return loadAiAssistantScript(script);
+			});
+		}, Promise.resolve());
+	}
+
+	function applyAiAssistantGlobals(globals) {
+		Object.keys(globals || {}).forEach(function(name) {
+			window[name] = globals[name];
+		});
+	}
+
+	function runAiAssistantBootstrap(payload) {
+		applyAiAssistantGlobals(payload.globals || {});
+		loadAiAssistantStyles(payload.styles || []);
+		applyAiAssistantInlineStyles(payload.inlineStyles || []);
+
+		return loadAiAssistantScripts(payload.scripts || []).then(function() {
+			if (
+				window.aiAssistantBootstrapRuntime &&
+				typeof window.aiAssistantBootstrapRuntime.renderAndInit === 'function'
+			) {
+				window.aiAssistantBootstrapRuntime.renderAndInit();
+			}
+			return true;
+		});
+	}
+
+	function bootstrapAiAssistantAfterInstall(slug, result) {
+		if (!isAiAssistantInstall(slug, result)) {
+			return Promise.resolve(false);
+		}
+
+		if (
+			window.aiAssistantBootstrapRuntime &&
+			typeof window.aiAssistantBootstrapRuntime.renderAndInit === 'function'
+		) {
+			window.aiAssistantBootstrapRuntime.renderAndInit();
+			return Promise.resolve(true);
+		}
+
+		if (!myAppsConfig.aiAssistantBootstrapNonce) {
+			return Promise.resolve(false);
+		}
+
+		if (aiAssistantBootstrapPromise) {
+			return aiAssistantBootstrapPromise;
+		}
+
+		var formData = new FormData();
+		formData.append('action', 'ai_assistant_bootstrap');
+		formData.append('_wpnonce', myAppsConfig.aiAssistantBootstrapNonce);
+
+		aiAssistantBootstrapPromise = fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: formData
+		})
+			.then(function(res) { return res.json(); })
+			.then(function(data) {
+				if (!data || !data.success) {
+					return false;
+				}
+				return runAiAssistantBootstrap(data.data || {});
+			})
+			.catch(function() {
+				return false;
+			});
+
+		return aiAssistantBootstrapPromise;
+	}
+
 	function installWpOrgPluginOnHost(slug) {
 		var formData = new FormData();
 		formData.append('action', 'my_apps_install_plugin');
@@ -4177,7 +4327,9 @@
 				if (!data || !data.success) {
 					throw new Error(ajaxErrorMessage(data, 'Could not install plugin.'));
 				}
-				return data.data || {};
+				var result = data.data || {};
+				bootstrapAiAssistantAfterInstall(slug, result);
+				return result;
 			});
 	}
 

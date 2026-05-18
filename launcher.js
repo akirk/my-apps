@@ -810,7 +810,7 @@
 
 		function finishResult(data) {
 			if (data.status === 'success') {
-				handlePlaygroundInstallSuccess(install);
+				handlePlaygroundInstallSuccess(install, data);
 				return;
 			}
 
@@ -921,7 +921,7 @@
 			});
 	}
 
-	function handlePlaygroundInstallSuccess(install) {
+	function handlePlaygroundInstallSuccess(install, result) {
 		return completeInstalledBlueprint(install).then(function(added) {
 			var wasUpdate = install.btn && install.btn.dataset.defaultLabel === 'Update';
 			finishInstallButton(install.btn, wasUpdate ? 'Updated' : 'Installed', install);
@@ -930,6 +930,7 @@
 			} else {
 				showToast(added ? 'Installed and added to My Apps' : 'Installed');
 			}
+			bootstrapAiAssistantAfterPlaygroundInstall(install, result);
 			return added;
 		});
 	}
@@ -4236,6 +4237,58 @@
 	function isAiAssistantInstall(slug, result) {
 		return slug === 'ai-assistant' ||
 			(result && result.plugin === 'ai-assistant/ai-assistant.php');
+	}
+
+	function isAiAssistantApp(app) {
+		if (!app) return false;
+		var path = app._path ? String(app._path).replace(/^\/+/, '') : '';
+		return (app._source === 'wp.org' && app._slug === 'ai-assistant') ||
+			(!app._source && app._slug === 'ai-assistant') ||
+			path === 'apps/ai-assistant.json' ||
+			path === 'plugin/ai-assistant';
+	}
+
+	function blueprintInstallsAiAssistant(blueprint) {
+		if (!blueprint || !Array.isArray(blueprint.steps)) return false;
+		return blueprint.steps.some(function(step) {
+			var pluginData = step && step.pluginData;
+			if (!step || step.step !== 'installPlugin' || !pluginData) return false;
+			if (pluginData.resource === 'wordpress.org/plugins' && pluginData.slug === 'ai-assistant') return true;
+			return step.options && step.options.targetFolderName === 'ai-assistant';
+		});
+	}
+
+	function extractPluginInstallResult(result) {
+		if (!result || typeof result !== 'object') return null;
+		if (result.plugin) return result;
+
+		var candidates = [ result.data, result.result, result.pluginResult ];
+		for (var i = 0; i < candidates.length; i++) {
+			if (candidates[i] && typeof candidates[i] === 'object' && candidates[i].plugin) {
+				return candidates[i];
+			}
+		}
+		return null;
+	}
+
+	function bootstrapAiAssistantAfterPlaygroundInstall(install, result) {
+		var app = install && install.app ? install.app : null;
+		var blueprint = install && install.blueprint ? install.blueprint : null;
+		var pluginResult = extractPluginInstallResult(result);
+		var slug = app && app._slug ? app._slug : '';
+
+		if (
+			!isAiAssistantInstall(slug, pluginResult) &&
+			!isAiAssistantApp(app) &&
+			!blueprintInstallsAiAssistant(blueprint)
+		) {
+			return Promise.resolve(false);
+		}
+
+		return bootstrapAiAssistantAfterInstall(
+			slug || 'ai-assistant',
+			pluginResult || { plugin: 'ai-assistant/ai-assistant.php' }
+		);
 	}
 
 	function assetUrl(src, version) {

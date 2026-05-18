@@ -215,41 +215,41 @@
 		}
 	}
 
-	function promptForBlueprintsSource() {
-		var current = getStoredBlueprintsSourceInput();
-		var input = window.prompt('WordPress/blueprints PR number, PR URL, or GitHub fork branch URL. Leave empty to use the default catalog.', current);
-		if (input === null) return;
-
-		var source = normalizeBlueprintsSourceInput(input);
-		if (source === null) {
-			showToast('Enter a PR number, PR URL, or GitHub branch URL');
-			return;
-		}
-		if (!setStoredBlueprintsSource(source)) {
-			return;
-		}
-		refreshBlueprintsSourceUrls();
+	function resetBlueprintsSourceCatalogState() {
 		appStoreData = null;
 		recipes = {};
 		hasRecipes = false;
+		recipesLoadState = 'idle';
 		activeRecipe = null;
 		pendingRecipe = null;
 		pendingDeepLink = null;
 		deepLinkRendered = false;
+	}
+
+	function applyBlueprintsSource(source) {
+		if (!setStoredBlueprintsSource(source)) {
+			return false;
+		}
+		refreshBlueprintsSourceUrls();
+		resetBlueprintsSourceCatalogState();
+		if (typeof appStoreSearchInput !== 'undefined' && appStoreSearchInput) {
+			appStoreSearchInput.value = '';
+		}
 		updateBlueprintsSourceBadge();
 		if (installSoftwareModal.classList.contains('active')) {
 			loadAppStore();
 		}
 		showToast(source ? 'Using custom blueprints source' : 'Using default catalog');
+		return true;
 	}
 
-	function bindBlueprintsSourceShortcut() {
-		document.addEventListener('keydown', function(e) {
-			if (e.defaultPrevented) return;
-			if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.key.toLowerCase() !== 'p') return;
-			e.preventDefault();
-			promptForBlueprintsSource();
-		});
+	function importBlueprintsSourceText(text) {
+		var source = normalizeBlueprintsSourceInput(text);
+		if (!source || !source.baseUrl) {
+			return false;
+		}
+		applyBlueprintsSource(source);
+		return true;
 	}
 
 	function isAppStoreEmbeddedView() {
@@ -1172,7 +1172,6 @@
 	];
 
 	function init() {
-		bindBlueprintsSourceShortcut();
 		updateBlueprintsSourceBadge();
 		if (new URL(window.location).searchParams.has('app-store')) {
 			checkDeepLink();
@@ -3839,6 +3838,7 @@
 	var activeCategory = DEFAULT_APP_STORE_CATEGORY;
 	var activeView = 'apps';
 	var activeRecipe = null;
+	var appStoreEventsBound = false;
 
 	function updateBlueprintsSourceBadge() {
 		if (!appStoreSourceBadge) return;
@@ -3846,14 +3846,32 @@
 		var source = getStoredBlueprintsSource();
 		if (!source) {
 			appStoreSourceBadge.hidden = true;
-			appStoreSourceBadge.textContent = '';
+			appStoreSourceBadge.innerHTML = '';
 			appStoreSourceBadge.removeAttribute('title');
 			return;
 		}
 
 		appStoreSourceBadge.hidden = false;
-		appStoreSourceBadge.textContent = source.label || 'Custom source';
 		appStoreSourceBadge.title = source.input || source.baseUrl;
+		appStoreSourceBadge.innerHTML = '';
+
+		var labelEl = document.createElement('span');
+		labelEl.className = 'app-store-source-label';
+		labelEl.textContent = source.label || 'Custom source';
+		appStoreSourceBadge.appendChild(labelEl);
+
+		var clearBtn = document.createElement('button');
+		clearBtn.type = 'button';
+		clearBtn.className = 'app-store-source-clear';
+		clearBtn.setAttribute('aria-label', 'Use default catalog');
+		clearBtn.title = 'Use default catalog';
+		clearBtn.textContent = '\u00d7';
+		clearBtn.addEventListener('click', function(e) {
+			e.preventDefault();
+			e.stopPropagation();
+			applyBlueprintsSource('');
+		});
+		appStoreSourceBadge.appendChild(clearBtn);
 	}
 
 	function showAppStoreView(view) {
@@ -3923,6 +3941,7 @@
 	function openInstallSoftwareModal() {
 		installSoftwareModal.classList.add('active');
 		document.body.style.overflow = 'hidden';
+		bindAppStoreEvents();
 		showAppStoreView('apps');
 		if (!appStoreData) {
 			loadAppStore();
@@ -4797,8 +4816,10 @@
 
 	// 'loading' \u2192 plugins fetch in flight; 'loaded' \u2192 merged in; 'failed' \u2192 fetch errored or returned nothing.
 	var pluginsLoadState = 'loading';
+	var appStoreLoadId = 0;
 
 	function loadAppStore() {
+		var loadId = ++appStoreLoadId;
 		appStoreContent.innerHTML = '<div class="app-store-loading">Loading apps\u2026</div>';
 		pluginsLoadState = 'loading';
 		recipesLoadState = 'loading';
@@ -4807,6 +4828,7 @@
 		var recipesPromise = fetch(RECIPES_URL)
 			.then(function(r) { return r.json(); })
 			.then(function(data) {
+				if (loadId !== appStoreLoadId) return;
 				if (data && typeof data === 'object' && !Array.isArray(data)) {
 					recipes = data;
 					hasRecipes = Object.keys(recipes).length > 0;
@@ -4816,12 +4838,14 @@
 				}
 			})
 			.catch(function() {
+				if (loadId !== appStoreLoadId) return;
 				recipesLoadState = 'failed';
 			});
 
 		fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
+				if (loadId !== appStoreLoadId) return;
 				appStoreData = mergeCustomBlueprints(data);
 				buildAppStoreNav(appStoreData);
 
@@ -4844,6 +4868,7 @@
 				// covered by the curated plugins.json now, so we no longer
 				// fetch every blueprint up front to extract them.
 				Promise.all([pluginsPromise, recipesPromise]).then(function(results) {
+					if (loadId !== appStoreLoadId) return;
 					var plugins = results[0];
 					if (!plugins || !Object.keys(plugins).length) {
 						pluginsLoadState = 'failed';
@@ -4874,6 +4899,7 @@
 				});
 			})
 			.catch(function() {
+				if (loadId !== appStoreLoadId) return;
 				appStoreContent.innerHTML = '<div class="app-store-error">Unable to load apps. Check your connection.</div>';
 			});
 	}
@@ -5056,11 +5082,16 @@
 			}
 		}
 
+		var customCategories = originalCategories ? originalCategories.slice() : [];
+		if (customCategories.indexOf('Custom') === -1) {
+			customCategories.push('Custom');
+		}
+
 		var appMeta = {
 			title: title,
 			description: description,
 			author: author,
-			categories: originalCategories || ['Custom']
+			categories: customCategories
 		};
 
 		// Only set overridesPath if this actually overrides a non-custom app
@@ -5073,7 +5104,7 @@
 		appStoreData[customPath] = appMeta;
 
 		buildAppStoreNav(appStoreData);
-		renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+		navigateToAppStoreCategory('Custom');
 		showToast(matchedPath ? '"' + title + '" overridden with custom blueprint' : '"' + title + '" added');
 		return true;
 	}
@@ -5111,6 +5142,12 @@
 		var text = clipboard ? clipboard.getData('text') : '';
 		if (!text) return;
 
+		if (importBlueprintsSourceText(text)) {
+			e.preventDefault();
+			e.stopPropagation();
+			return;
+		}
+
 		if (importBlueprintText(text, { showErrors: true, consumeInvalid: true })) {
 			e.preventDefault();
 			e.stopPropagation();
@@ -5121,6 +5158,14 @@
 		var clipboard = e.clipboardData || window.clipboardData;
 		var text = clipboard ? clipboard.getData('text') : '';
 		if (!text) return;
+
+		if (importBlueprintsSourceText(text)) {
+			appStoreSearchInput.value = '';
+			e.preventDefault();
+			e.stopPropagation();
+			return;
+		}
+
 		if (!isJsonTextCandidate(text)) return;
 
 		appStoreSearchInput.value = '';
@@ -5133,8 +5178,13 @@
 		}
 	}
 
-	function handleBlueprintSearchInput() {
+	function handleBlueprintSearchInput(e) {
 		var value = appStoreSearchInput.value || '';
+		if (e && e.inputType === 'insertFromPaste' && importBlueprintsSourceText(value)) {
+			appStoreSearchInput.value = '';
+			return true;
+		}
+
 		if (!isJsonTextCandidate(value)) {
 			return false;
 		}
@@ -5148,6 +5198,9 @@
 	}
 
 	function bindAppStoreEvents() {
+		if (appStoreEventsBound) return;
+		appStoreEventsBound = true;
+
 		installSoftwareModal.addEventListener('paste', handleBlueprintPaste);
 		appStoreSearchInput.addEventListener('paste', handleBlueprintSearchPaste);
 
@@ -5179,8 +5232,8 @@
 			filterAppStore();
 		});
 
-		appStoreSearchInput.addEventListener('input', function() {
-			if (handleBlueprintSearchInput()) {
+		appStoreSearchInput.addEventListener('input', function(e) {
+			if (handleBlueprintSearchInput(e)) {
 				filterAppStore();
 				return;
 			}
@@ -5189,8 +5242,43 @@
 	}
 
 	function filterAppStore() {
+		if (!appStoreData) return;
+
 		var search = (appStoreSearchInput.value || '').toLowerCase();
 		renderAppStore(appStoreData, activeCategory, search);
+	}
+
+	function navigateToAppStoreCategory(cat) {
+		activeCategory = cat;
+		activeRecipe = null;
+
+		if (appStoreSearchInput) {
+			appStoreSearchInput.value = '';
+		}
+
+		var url = new URL(window.location);
+		var changed = false;
+		['app', 'plugin', 'recipe'].forEach(function(name) {
+			if (url.searchParams.has(name)) {
+				url.searchParams.delete(name);
+				changed = true;
+			}
+		});
+		if (changed) {
+			history.replaceState({}, '', url.toString());
+		}
+
+		var sidebar = document.getElementById('app-store-sidebar');
+		if (sidebar) {
+			sidebar.classList.remove('app-store-sidebar-hidden');
+		}
+
+		showAppStoreView('apps');
+		appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
+			el.classList.toggle('active', el.dataset.category === cat);
+		});
+
+		filterAppStore();
 	}
 
 	function selectCategory(cat) {

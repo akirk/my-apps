@@ -45,9 +45,9 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
 
 You can add your own app to the App Store by pasting a complete WordPress Playground `blueprint.json`. Open My Apps, choose Add, then paste the blueprint anywhere in the App Store. On mobile, focus the Search field and paste the blueprint there.
 
-My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author` fields to create the app-store entry. If the title matches an existing app, you can temporarily override that app with your pasted blueprint. Custom and modified blueprint entries are stored in this browser and can be removed or reverted from their badge in the App Store.
+My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author` fields to create the app-store entry. If the title matches an existing app, you can temporarily override that app with your pasted blueprint. Custom and modified blueprint entries are stored in this browser, appear in the Custom section, and can be removed or reverted from their badge in the App Store.
 
-To test App Store catalog, recipe, or plugin recommendation changes from another blueprints source without changing this plugin, press `Ctrl+P` in My Apps. Enter a `WordPress/blueprints` PR number, a PR URL, or a GitHub fork branch URL. Submit an empty value to return to the default catalog.
+To test App Store catalog, recipe, or plugin recommendation changes from another blueprints source without changing this plugin, paste a `WordPress/blueprints` PR number, a PR URL, or a GitHub fork branch URL anywhere in the App Store. On mobile, paste it into Search. Use the x next to the source indicator to return to the default catalog.
 
 Example:
 

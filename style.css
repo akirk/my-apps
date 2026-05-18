@@ -800,10 +800,12 @@ body.edit-mode .add-app-btn {
 .app-store-source-badge {
 	display: inline-flex;
 	align-items: center;
+	gap: 4px;
 	max-width: min(320px, 45vw);
-	min-height: 22px;
+	height: 22px;
 	padding: 3px 8px;
 	border: 1px solid var(--ma-border);
+	box-sizing: border-box;
 	border-radius: 999px;
 	background: var(--ma-bg-tinted);
 	color: var(--ma-fg-secondary);
@@ -811,8 +813,45 @@ body.edit-mode .add-app-btn {
 	font-weight: 600;
 	line-height: 1.2;
 	white-space: nowrap;
+}
+
+.app-store-source-label {
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.app-store-source-clear {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 16px;
+	width: 16px;
+	min-width: 16px;
+	max-width: 16px;
+	height: 16px;
+	min-height: 16px;
+	max-height: 16px;
+	margin-right: -4px;
+	padding: 0;
+	border: 0;
+	box-sizing: border-box;
+	border-radius: 50%;
+	appearance: none;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0.72;
+}
+
+.app-store-source-clear:hover,
+.app-store-source-clear:focus-visible {
+	background: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.14));
+	opacity: 1;
+	outline: none;
 }
 
 .app-store-source-badge[hidden] {

@@ -1,4 +1,4 @@
-assets	export-ignore
+/.wordpress-org/**	export-ignore
 .claude	export-ignore
 .extract-wp-hooks.json	export-ignore
 .git*	export-ignore

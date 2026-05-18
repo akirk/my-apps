@@ -2879,10 +2879,12 @@
 	function initWallpaperHint() {
 		if (!shouldShowWallpaperHint()) return Promise.resolve(false);
 
+		var wasWallpaperHintEligible = localStorage.getItem(WALLPAPER_HINT_ELIGIBLE_KEY) === '1';
+
 		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
 		showWallpaperHint({ showClose: true });
 
-		if (!myAppsConfig.background) {
+		if (!myAppsConfig.background && !wasWallpaperHintEligible) {
 			return randomizeWallpaperHint({ silent: true });
 		}
 

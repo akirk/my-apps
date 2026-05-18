@@ -2450,6 +2450,47 @@
 		}
 	}
 
+	function clearWallpaperHintStorage() {
+		try {
+			localStorage.removeItem(WALLPAPER_HINT_DISMISSED_KEY);
+			localStorage.removeItem(WALLPAPER_HINT_ELIGIBLE_KEY);
+			localStorage.removeItem(WALLPAPER_SHUFFLE_BAG_KEY);
+		} catch (e) {}
+	}
+
+	function resetBackgroundDemo() {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_reset_background');
+		formData.append('nonce', myAppsConfig.nonce);
+
+		setBackgroundLoading(true);
+
+		return fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (!data || !data.success) {
+				throw new Error((data && data.data) || 'Error resetting background');
+			}
+
+			clearWallpaperHintStorage();
+			applyBackgroundPayload(data.data);
+			myAppsConfig.hasCustomizedWallpaper = false;
+			closeBgPicker();
+
+			return initWallpaperHint();
+		})
+		.catch(function(error) {
+			showToast(error.message || 'Error resetting background');
+			return false;
+		})
+		.finally(function() {
+			setBackgroundLoading(false);
+		});
+	}
+
 	function reloadBackground(data) {
 		var fallbackPayload = normalizeBackgroundPayload(data, 4);
 
@@ -2471,6 +2512,7 @@
 			window.MyApps = {};
 		}
 		window.MyApps.reloadBackground = reloadBackground;
+		window.MyApps.resetBackgroundDemo = resetBackgroundDemo;
 		window.MyApps.reloadApps = reloadApps;
 		window.MyApps.reloadCustomization = reloadApps;
 	}
@@ -2835,14 +2877,16 @@
 	}
 
 	function initWallpaperHint() {
-		if (!shouldShowWallpaperHint()) return;
+		if (!shouldShowWallpaperHint()) return Promise.resolve(false);
 
 		localStorage.setItem(WALLPAPER_HINT_ELIGIBLE_KEY, '1');
 		showWallpaperHint({ showClose: true });
 
 		if (!myAppsConfig.background) {
-			randomizeWallpaperHint({ silent: true });
+			return randomizeWallpaperHint({ silent: true });
 		}
+
+		return Promise.resolve(true);
 	}
 
 	function fetchCustomizationPayload() {

@@ -5392,6 +5392,9 @@
 		var wpIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/></svg>';
 
 		var hasResults = false;
+		var matchingRecipeKeys = (search && category !== '__plugins__')
+			? getMatchingRecipeKeys(search)
+			: [];
 
 		var keys = dedupePluginsAgainstApps(Object.keys(data), data);
 		keys.sort(function(a, b) {
@@ -5583,6 +5586,13 @@
 			listEl.appendChild(itemEl);
 		});
 
+		matchingRecipeKeys.forEach(function(recipeKey) {
+			var recipeItem = buildRecipeSearchItem(recipeKey);
+			if (!recipeItem) return;
+			hasResults = true;
+			listEl.appendChild(recipeItem);
+		});
+
 		appStoreContent.innerHTML = '';
 
 		if (category === '__plugins__') {
@@ -5623,7 +5633,7 @@
 		} else {
 			var emptyEl = document.createElement('div');
 			emptyEl.className = 'app-store-error';
-			emptyEl.textContent = 'No apps found.';
+			emptyEl.textContent = search ? 'No results found.' : 'No apps found.';
 			appStoreContent.appendChild(emptyEl);
 		}
 	}
@@ -5650,6 +5660,113 @@
 			return match;
 		}
 		return null;
+	}
+
+	function recipeSearchHaystack(recipe, key) {
+		if (!recipe) return '';
+
+		var stepText = '';
+		(recipe.steps || []).forEach(function(step) {
+			if (!step) return;
+			stepText += ' ' + [
+				step.title,
+				step.description,
+				step.type,
+				step.path,
+				step.slug,
+				step.repo,
+				step.url
+			].filter(Boolean).join(' ');
+		});
+
+		return [
+			key,
+			recipe.title,
+			recipe.tagline,
+			recipe.description,
+			recipe.learn_more,
+			stepText
+		].filter(Boolean).join(' ').toLowerCase();
+	}
+
+	function getMatchingRecipeKeys(search) {
+		if (!search || !hasRecipes) return [];
+
+		return Object.keys(recipes)
+			.filter(function(key) {
+				return recipeSearchHaystack(recipes[key], key).indexOf(search) !== -1;
+			})
+			.sort(function(a, b) {
+				return (recipes[a].title || '').localeCompare(recipes[b].title || '', undefined, { sensitivity: 'base' });
+			});
+	}
+
+	function buildRecipeSearchItem(recipeKey) {
+		var recipe = recipes[recipeKey];
+		if (!recipe) return null;
+
+		var itemEl = document.createElement('div');
+		itemEl.className = 'app-store-item app-store-item-recipe';
+
+		var iconEl = document.createElement('div');
+		iconEl.className = 'app-store-icon app-store-icon-link';
+		iconEl.style.background = recipe.gradient || defaultGradient;
+		if (recipe.icon) {
+			iconEl.textContent = recipe.icon;
+			iconEl.style.fontSize = '24px';
+			iconEl.style.lineHeight = '1';
+		} else {
+			iconEl.innerHTML = WP_ICON_SVG;
+		}
+
+		var infoEl = document.createElement('div');
+		infoEl.className = 'app-store-info';
+
+		var categoryEl = document.createElement('div');
+		categoryEl.className = 'app-store-category';
+		categoryEl.textContent = 'Recipe';
+		infoEl.appendChild(categoryEl);
+
+		var titleEl = document.createElement('div');
+		titleEl.className = 'app-store-title app-store-title-link';
+		titleEl.textContent = recipe.title;
+		infoEl.appendChild(titleEl);
+
+		var descEl = document.createElement('div');
+		descEl.className = 'app-store-description';
+		descEl.textContent = recipe.tagline || recipe.description || '';
+		infoEl.appendChild(descEl);
+
+		var stepCount = (recipe.steps && recipe.steps.length) || 0;
+		var metaEl = document.createElement('div');
+		metaEl.className = 'app-store-meta';
+		var badgeEl = document.createElement('span');
+		badgeEl.className = 'app-store-badge';
+		badgeEl.textContent = stepCount + ' step' + (stepCount === 1 ? '' : 's');
+		metaEl.appendChild(badgeEl);
+		infoEl.appendChild(metaEl);
+
+		var actionsEl = document.createElement('div');
+		actionsEl.className = 'app-store-actions';
+		var viewBtn = document.createElement('button');
+		viewBtn.type = 'button';
+		viewBtn.className = 'app-store-install-btn';
+		viewBtn.textContent = 'View';
+		actionsEl.appendChild(viewBtn);
+
+		var openRecipe = function(e) {
+			e.stopPropagation();
+			selectRecipe(recipeKey);
+		};
+		titleEl.addEventListener('click', openRecipe);
+		iconEl.addEventListener('click', openRecipe);
+		viewBtn.addEventListener('click', openRecipe);
+
+		itemEl.appendChild(iconEl);
+		itemEl.appendChild(infoEl);
+		itemEl.appendChild(actionsEl);
+
+		return itemEl;
 	}
 
 	function renderRecipesGrid(search) {
@@ -5682,8 +5799,7 @@
 		Object.keys(recipes).forEach(function(key) {
 			var r = recipes[key];
 			if (search) {
-				var hay = (r.title + ' ' + (r.tagline || '') + ' ' + (r.description || '')).toLowerCase();
-				if (hay.indexOf(search) === -1) return;
+				if (recipeSearchHaystack(r, key).indexOf(search) === -1) return;
 			}
 			hasResults = true;
 

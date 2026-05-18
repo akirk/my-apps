@@ -2,6 +2,12 @@
 body.my-apps-launcher {
 	margin: 0;
 	padding: 20px;
+	--ma-launcher-viewport-offset-y: 0px;
+	--ma-launcher-page-padding-y: 40px;
+	/* Keep body backgrounds at least viewport-tall without adding padding
+	   or the WordPress admin bar on top of the scrollable document height. */
+	min-height: calc(100vh - var(--ma-launcher-viewport-offset-y) - var(--ma-launcher-page-padding-y));
+	min-height: calc(100dvh - var(--ma-launcher-viewport-offset-y) - var(--ma-launcher-page-padding-y));
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 	box-sizing: border-box;
 	background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
@@ -36,6 +42,10 @@ body.my-apps-launcher {
 	--ma-launcher-input-bg: rgba(255, 255, 255, 0.2);
 	--ma-launcher-input-bg-focus: rgba(255, 255, 255, 0.3);
 	--ma-launcher-input-placeholder: rgba(255, 255, 255, 0.5);
+}
+
+body.my-apps-launcher.my-apps-has-admin-bar {
+	--ma-launcher-viewport-offset-y: var(--wp-admin--admin-bar--height, 32px);
 }
 
 body.my-apps-launcher:not([class*="bg-"]) {
@@ -119,6 +129,12 @@ body.my-apps-launcher.bg-custom {
 	body.my-apps-launcher {
 		padding-left: 10px;
 		padding-right: 10px;
+	}
+}
+
+@media screen and (max-width: 782px) {
+	body.my-apps-launcher.my-apps-has-admin-bar {
+		--ma-launcher-viewport-offset-y: var(--wp-admin--admin-bar--height, 46px);
 	}
 }
 

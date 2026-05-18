@@ -49,6 +49,14 @@
 				"$ref": "#/$defs/appOverride"
 			}
 		},
+		"redirect_root": {
+			"type": [
+				"boolean",
+				"string",
+				"number"
+			],
+			"description": "Playground-only setting for whether requests to the site root should redirect to /my-apps/."
+		},
 		"background": {
 			"type": "string"
 		},

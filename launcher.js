@@ -2075,7 +2075,7 @@
 
 		document.querySelector('.add-app-btn').addEventListener('click', function(e) {
 			e.stopPropagation();
-			openInstallSoftwareModal();
+			openDefaultAppStore();
 		});
 
 		addAppForm.addEventListener('submit', handleAddApp);
@@ -3882,6 +3882,32 @@
 		if (!appStoreData) {
 			loadAppStore();
 		}
+	}
+
+	function openDefaultAppStore() {
+		activeCategory = DEFAULT_APP_STORE_CATEGORY;
+		activeRecipe = null;
+
+		if (appStoreSearchInput) {
+			appStoreSearchInput.value = '';
+		}
+
+		openInstallSoftwareModal();
+
+		if (!appStoreData) {
+			return;
+		}
+
+		var sidebar = document.getElementById('app-store-sidebar');
+		if (sidebar) {
+			sidebar.classList.remove('app-store-sidebar-hidden');
+		}
+
+		appStoreNav.querySelectorAll('.app-store-nav-item').forEach(function(el) {
+			el.classList.toggle('active', el.dataset.category === activeCategory);
+		});
+
+		renderAppStore(appStoreData, activeCategory, '');
 	}
 
 	function closeInstallSoftwareModal() {

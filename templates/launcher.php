@@ -184,7 +184,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				<div class="settings-setting">
 					<div class="settings-setting-copy">
 						<h3><?php esc_html_e( 'Start at My Apps', 'my-apps' ); ?></h3>
-						<p><?php esc_html_e( 'When someone opens this Playground at /, send them straight to /my-apps/. Turn this off if / should show the WordPress front page instead.', 'my-apps' ); ?></p>
+						<p><?php esc_html_e( 'Send you from / straight to /my-apps/. Turn this off to show the WordPress front page instead.', 'my-apps' ); ?></p>
 					</div>
 					<button type="button" class="settings-switch<?php if ( $redirect_root_enabled ) : ?> active<?php endif; ?>" id="setting-root-redirect-toggle" data-action="toggle-root-redirect" role="switch" aria-checked="<?php echo esc_attr( $redirect_root_enabled ? 'true' : 'false' ); ?>">
 						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>

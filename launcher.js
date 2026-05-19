@@ -3895,7 +3895,7 @@
 		if (cat === 'all') return DEFAULT_APP_STORE_CATEGORY;
 		if (cat === '__plugins__') return 'Other Plugins';
 		if (cat === '__recipes__') {
-			return (activeRecipe && recipes[activeRecipe]) ? recipes[activeRecipe].title : 'Recipes';
+			return (activeRecipe && recipes[activeRecipe]) ? recipes[activeRecipe].title : 'What can I do?';
 		}
 		return cat;
 	}
@@ -3906,9 +3906,13 @@
 		var category = (url.searchParams.get('category') || '').toLowerCase();
 
 		return url.searchParams.has('recipes') ||
+			url.searchParams.has('what-can-i-do') ||
 			appStore === 'recipes' ||
+			appStore === 'what-can-i-do' ||
 			add === 'recipes' ||
+			add === 'what-can-i-do' ||
 			category === 'recipes' ||
+			category === 'what-can-i-do' ||
 			category === '__recipes__';
 	}
 
@@ -3923,13 +3927,14 @@
 
 		var url = new URL(window.location);
 		var changed = false;
-		['recipes', 'category'].forEach(function(name) {
+		['recipes', 'what-can-i-do', 'category'].forEach(function(name) {
 			if (url.searchParams.has(name)) {
 				url.searchParams.delete(name);
 				changed = true;
 			}
 		});
-		if ((url.searchParams.get('add') || '').toLowerCase() === 'recipes') {
+		var addParam = (url.searchParams.get('add') || '').toLowerCase();
+		if (addParam === 'recipes' || addParam === 'what-can-i-do') {
 			url.searchParams.delete('add');
 			changed = true;
 		}
@@ -4940,18 +4945,16 @@
 
 		appStoreNav.innerHTML = '';
 
-		// Recipes are curated use cases — surface them as the first sidebar
-		// entry so people see what WordPress can actually do before drilling
-		// into individual apps. A divider visually groups them apart from
-		// the regular category list below. Render optimistically while the
-		// recipes fetch is still in flight so the second build doesn't
-		// insert a new item at the top and shift the layout.
+		// What Can I Do? guides are curated use cases. Surface them first
+		// so people see what WordPress can actually do before drilling into
+		// individual apps. Render optimistically while the recipes fetch is
+		// still in flight so the second build doesn't shift the layout.
 		var showRecipesNav = hasRecipes || recipesLoadState === 'idle' || recipesLoadState === 'loading';
 		if (showRecipesNav) {
 			var recipesLi = document.createElement('li');
 			recipesLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === '__recipes__' ? ' active' : '');
 			recipesLi.dataset.category = '__recipes__';
-			recipesLi.textContent = 'Recipes';
+			recipesLi.textContent = 'What can I do?';
 			appStoreNav.appendChild(recipesLi);
 
 			var recipesDivider = document.createElement('li');
@@ -5724,7 +5727,7 @@
 
 		var categoryEl = document.createElement('div');
 		categoryEl.className = 'app-store-category';
-		categoryEl.textContent = 'Recipe';
+		categoryEl.textContent = 'What can I do?';
 		infoEl.appendChild(categoryEl);
 
 		var titleEl = document.createElement('div');
@@ -5774,20 +5777,20 @@
 
 		var introEl = document.createElement('p');
 		introEl.className = 'app-store-intro';
-		introEl.textContent = 'WordPress can do a lot more than blogging — but turning that into something useful takes knowing which pieces fit together. Each recipe is a guide for one of those use cases.';
+		introEl.textContent = 'WordPress can do a lot more than blogging — but turning that into something useful takes knowing which pieces fit together. Each guide shows one useful thing you can build or set up.';
 		appStoreContent.appendChild(introEl);
 
 		if (recipesLoadState === 'loading' && !hasRecipes) {
 			var loadingEl = document.createElement('div');
 			loadingEl.className = 'app-store-loading';
-			loadingEl.textContent = 'Loading recipes…';
+			loadingEl.textContent = 'Loading guides…';
 			appStoreContent.appendChild(loadingEl);
 			return;
 		}
 		if (recipesLoadState === 'failed' && !hasRecipes) {
 			var failedEl = document.createElement('div');
 			failedEl.className = 'app-store-error';
-			failedEl.textContent = 'Recipes are unavailable right now. Try Apps instead.';
+			failedEl.textContent = 'Those guides are unavailable right now. Try Apps instead.';
 			appStoreContent.appendChild(failedEl);
 			return;
 		}
@@ -5841,7 +5844,7 @@
 		} else {
 			var emptyEl = document.createElement('div');
 			emptyEl.className = 'app-store-error';
-			emptyEl.textContent = 'No recipes match your search.';
+			emptyEl.textContent = 'No guides match your search.';
 			appStoreContent.appendChild(emptyEl);
 		}
 	}
@@ -5856,7 +5859,7 @@
 
 		appStoreContent.innerHTML = '';
 
-		// Heading: back arrow + parent label (Recipes grid). The recipe
+		// Heading: back arrow + parent label. The guide
 		// title itself appears in the hero below.
 		appStoreHeading.innerHTML = '';
 		var backBtn = document.createElement('button');
@@ -5865,7 +5868,7 @@
 		backBtn.innerHTML = BACK_ARROW_SVG;
 		var backLabel = document.createElement('span');
 		backLabel.className = 'app-detail-back-label';
-		backLabel.textContent = 'Recipes';
+		backLabel.textContent = 'What can I do?';
 		backBtn.appendChild(backLabel);
 		backBtn.addEventListener('click', function() {
 			activeRecipe = null;
@@ -6484,7 +6487,7 @@
 
 		detail.appendChild(descSection);
 
-		// ── Recipe (fetched from individual blueprint JSON) ──
+		// ── Installation steps fetched from the individual blueprint JSON ──
 		var recipeSection = document.createElement('div');
 		recipeSection.className = 'app-detail-section';
 
@@ -6494,7 +6497,7 @@
 
 		var recipeLoading = document.createElement('p');
 		recipeLoading.className = 'app-detail-comp-loading';
-		recipeLoading.textContent = 'Loading recipe\u2026';
+		recipeLoading.textContent = 'Loading installation steps\u2026';
 		recipeSection.appendChild(recipeLoading);
 
 		detail.appendChild(recipeSection);
@@ -6725,7 +6728,7 @@
 				}
 			})
 			.catch(function() {
-				recipeLoading.textContent = 'Could not load recipe.';
+				recipeLoading.textContent = 'Could not load installation steps.';
 			});
 	}
 
@@ -6917,8 +6920,8 @@
 			openInstallSoftwareModal();
 			return;
 		}
-		var addParam = url.searchParams.get('add');
-		if (addParam === 'recipes') {
+		var addParam = (url.searchParams.get('add') || '').toLowerCase();
+		if (addParam === 'recipes' || addParam === 'what-can-i-do') {
 			openRecipesRoute(true);
 			return;
 		}

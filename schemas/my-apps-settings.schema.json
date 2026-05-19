@@ -63,7 +63,7 @@
 				"string",
 				"number"
 			],
-			"description": "Setting for whether the WordPress logo menu and site name shortcuts should be hidden from the masterbar. Defaults on in Playground."
+			"description": "Setting for whether the WordPress logo menu, site name shortcuts, and App Store plugin recommendations should be hidden. Defaults on in Playground."
 		},
 		"background": {
 			"type": "string"

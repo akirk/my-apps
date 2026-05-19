@@ -1334,6 +1334,10 @@
 		}
 	}
 
+	function areAppStorePluginsHidden() {
+		return !!wpAdminLinksHidden;
+	}
+
 	function updateSettingsControls() {
 		updateGreetingToggleLabel();
 		updateRootRedirectToggleLabel();
@@ -1423,6 +1427,13 @@
 
 			if (wpAdminLinksHidden) {
 				applyWpAdminLinksPreference();
+				if (activeCategory === '__plugins__') {
+					navigateToAppStoreCategory(DEFAULT_APP_STORE_CATEGORY);
+				}
+				if (appStoreData) {
+					buildAppStoreNav(appStoreData);
+					filterAppStore();
+				}
 				showToast('wp-admin links hidden');
 			} else {
 				showToast('wp-admin links restored');
@@ -4269,6 +4280,10 @@
 	// keyed the same way the old PHP endpoint returned, so
 	// mergeRecommendedPlugins doesn't need to change.
 	function fetchRecommendedPlugins() {
+		if (areAppStorePluginsHidden()) {
+			return Promise.resolve({});
+		}
+
 		var pluginInstallUrl = getPluginInstallUrl();
 
 		return fetch(PLUGINS_URL)
@@ -4453,6 +4468,10 @@
 	}
 
 	function mergeRecommendedPlugins(data, plugins) {
+		if (areAppStorePluginsHidden()) {
+			return;
+		}
+
 		Object.keys(plugins).forEach(function(key) {
 			var p = plugins[key];
 			data['plugin/' + key] = {
@@ -5178,6 +5197,11 @@
 			return true;
 		}
 		if (pendingDeepLink.type === 'plugin') {
+			if (areAppStorePluginsHidden()) {
+				pendingDeepLink = null;
+				return false;
+			}
+
 			var pluginPath = pendingDeepLink.path;
 			if (!appStoreData[pluginPath]) return false;
 			renderPluginDetail(pluginPath, appStoreData[pluginPath]);
@@ -5191,6 +5215,7 @@
 	function buildAppStoreNav(data) {
 		var categories = new Set();
 		Object.keys(data).forEach(function(path) {
+			if (areAppStorePluginsHidden() && data[path]._type === 'plugin') return;
 			var cats = data[path].categories || [];
 			cats.forEach(function(c) { categories.add(c); });
 		});
@@ -5222,14 +5247,17 @@
 			appStoreNav.appendChild(li);
 		});
 
-		// Always show the Other Plugins entry — the curated list ships with
-		// the plugin, so even if the wp.org enrichment call fails we still
-		// have something meaningful to render in that section.
-		var pluginsLi = document.createElement('li');
-		pluginsLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === '__plugins__' ? ' active' : '');
-		pluginsLi.dataset.category = '__plugins__';
-		pluginsLi.textContent = 'Other Plugins';
-		appStoreNav.appendChild(pluginsLi);
+		// Always show the Other Plugins entry when plugin recommendations
+		// are enabled. The curated list ships with the plugin, so even if
+		// the wp.org enrichment call fails we still have something meaningful
+		// to render in that section.
+		if (!areAppStorePluginsHidden()) {
+			var pluginsLi = document.createElement('li');
+			pluginsLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === '__plugins__' ? ' active' : '');
+			pluginsLi.dataset.category = '__plugins__';
+			pluginsLi.textContent = 'Other Plugins';
+			appStoreNav.appendChild(pluginsLi);
+		}
 
 		var addDivider = document.createElement('li');
 		addDivider.className = 'app-store-nav-divider';
@@ -5247,19 +5275,21 @@
 		addWebLi.textContent = 'Add Web Link';
 		appStoreNav.appendChild(addWebLi);
 
-		// Plugin directory link
-		var divider = document.createElement('li');
-		divider.className = 'app-store-nav-divider';
-		appStoreNav.appendChild(divider);
+		if (!areAppStorePluginsHidden()) {
+			// Plugin directory link
+			var divider = document.createElement('li');
+			divider.className = 'app-store-nav-divider';
+			appStoreNav.appendChild(divider);
 
-		var pluginDirLi = document.createElement('li');
-		pluginDirLi.className = 'app-store-nav-item app-store-nav-external';
-		var pluginDirLink = document.createElement('a');
-		pluginDirLink.href = getPluginInstallUrl();
-		pluginDirLink.target = '_top';
-		pluginDirLink.textContent = 'Plugin Directory';
-		pluginDirLi.appendChild(pluginDirLink);
-		appStoreNav.appendChild(pluginDirLi);
+			var pluginDirLi = document.createElement('li');
+			pluginDirLi.className = 'app-store-nav-item app-store-nav-external';
+			var pluginDirLink = document.createElement('a');
+			pluginDirLink.href = getPluginInstallUrl();
+			pluginDirLink.target = '_top';
+			pluginDirLink.textContent = 'Plugin Directory';
+			pluginDirLi.appendChild(pluginDirLink);
+			appStoreNav.appendChild(pluginDirLi);
+		}
 
 		var submitLi = document.createElement('li');
 		submitLi.className = 'app-store-nav-item app-store-nav-external';
@@ -5632,6 +5662,11 @@
 		category = category || DEFAULT_APP_STORE_CATEGORY;
 		search = (search || '').toLowerCase();
 
+		if (category === '__plugins__' && areAppStorePluginsHidden()) {
+			category = DEFAULT_APP_STORE_CATEGORY;
+			activeCategory = category;
+		}
+
 		if (category === '__recipes__') {
 			if (activeRecipe && recipes[activeRecipe]) {
 				renderRecipeDetail(activeRecipe, data, search);
@@ -5658,6 +5693,7 @@
 
 		keys.forEach(function(path) {
 			var app = data[path];
+			if (areAppStorePluginsHidden() && app._type === 'plugin') return;
 			app._path = path;
 
 			// Category filter
@@ -5904,6 +5940,7 @@
 			return { path: step.path, app: appStoreData[step.path] };
 		}
 		if (step.type === 'plugin' && step.slug) {
+			if (areAppStorePluginsHidden()) return null;
 			var key = 'plugin/' + step.slug;
 			if (appStoreData[key]) return { path: key, app: appStoreData[key] };
 		}
@@ -7157,7 +7194,7 @@
 			var blueprintUrl = getBlueprintUrl(appParam);
 			var gradient = getCategoryGradient(app.categories);
 			renderAppDetail(appParam, app, blueprintUrl, gradient);
-		} else if (pluginParam && appStoreData && appStoreData[pluginParam]) {
+		} else if (pluginParam && !areAppStorePluginsHidden() && appStoreData && appStoreData[pluginParam]) {
 			renderPluginDetail(pluginParam, appStoreData[pluginParam]);
 		} else if (appStoreData) {
 			// Back to list / grid / recipe detail (whichever activeCategory +
@@ -7212,7 +7249,7 @@
 		if (recipeParam) {
 			pendingRecipe = recipeParam;
 			activeCategory = '__recipes__';
-		} else if (appParam || pluginParam) {
+		} else if (appParam || (pluginParam && !areAppStorePluginsHidden())) {
 			activeCategory = DEFAULT_APP_STORE_CATEGORY;
 			activeRecipe = null;
 		}
@@ -7220,7 +7257,7 @@
 		if (appParam) {
 			pendingDeepLink = { type: 'app', path: appParam };
 			openInstallSoftwareModal();
-		} else if (pluginParam) {
+		} else if (pluginParam && !areAppStorePluginsHidden()) {
 			pendingDeepLink = { type: 'plugin', path: pluginParam };
 			openInstallSoftwareModal();
 		} else if (recipeParam) {

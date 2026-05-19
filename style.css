@@ -2798,6 +2798,7 @@ body.my-apps-launcher .recipe-card:active {
 	line-height: 1.45;
 	color: var(--ma-fg-secondary);
 	flex: 1;
+	white-space: pre-line;
 }
 
 .recipe-card-meta {
@@ -2849,6 +2850,7 @@ body.my-apps-launcher .recipe-card:active {
 	font-size: 14px;
 	line-height: 1.45;
 	color: var(--ma-fg-secondary);
+	white-space: pre-line;
 }
 
 .recipe-description {
@@ -2856,6 +2858,7 @@ body.my-apps-launcher .recipe-card:active {
 	line-height: 1.55;
 	color: var(--ma-fg-secondary);
 	margin: 0 0 24px;
+	white-space: pre-line;
 }
 
 .recipe-steps {
@@ -2924,6 +2927,7 @@ body.my-apps-launcher .recipe-card:active {
 	line-height: 1.5;
 	color: var(--ma-fg-secondary);
 	margin: 0 0 10px;
+	white-space: pre-line;
 }
 
 .recipe-step-card {

@@ -62,6 +62,7 @@
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 	let rootRedirectEnabled = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.redirectRoot);
+	let wpAdminLinksHidden = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.hideWpAdminLinks);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
 	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
@@ -1319,6 +1320,10 @@
 		updateSwitchControl(document.getElementById('setting-root-redirect-toggle'), rootRedirectEnabled);
 	}
 
+	function updateWpAdminLinksToggleLabel() {
+		updateSwitchControl(document.getElementById('setting-wp-admin-links-toggle'), wpAdminLinksHidden);
+	}
+
 	function updateSwitchControl(button, checked) {
 		if (!button) return;
 		button.classList.toggle('active', checked);
@@ -1332,6 +1337,7 @@
 	function updateSettingsControls() {
 		updateGreetingToggleLabel();
 		updateRootRedirectToggleLabel();
+		updateWpAdminLinksToggleLabel();
 	}
 
 	function openSettingsModal() {
@@ -1376,6 +1382,57 @@
 			rootRedirectEnabled = previous;
 			updateRootRedirectToggleLabel();
 			showToast('Could not save root redirect setting');
+		});
+	}
+
+	function applyWpAdminLinksPreference() {
+		if (!wpAdminLinksHidden) return;
+		['wp-admin-bar-wp-logo', 'wp-admin-bar-site-name'].forEach(function(id) {
+			var node = document.getElementById(id);
+			if (node && node.parentNode) {
+				node.parentNode.removeChild(node);
+			}
+		});
+	}
+
+	function toggleWpAdminLinks() {
+		var previous = wpAdminLinksHidden;
+		var next = !wpAdminLinksHidden;
+		wpAdminLinksHidden = next;
+		updateWpAdminLinksToggleLabel();
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_save_wp_admin_links');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('enabled', next ? '1' : '0');
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: formData,
+		})
+		.then(function(r) { return r.json(); })
+		.then(function(resp) {
+			if (!resp.success) {
+				throw new Error('Save failed');
+			}
+
+			wpAdminLinksHidden = !!(resp.data && resp.data.hide_wp_admin_links);
+			myAppsConfig.hideWpAdminLinks = wpAdminLinksHidden;
+			updateWpAdminLinksToggleLabel();
+
+			if (wpAdminLinksHidden) {
+				applyWpAdminLinksPreference();
+				showToast('wp-admin links hidden');
+			} else {
+				showToast('wp-admin links restored');
+				setTimeout(function() { window.location.reload(); }, 500);
+			}
+		})
+		.catch(function() {
+			wpAdminLinksHidden = previous;
+			updateWpAdminLinksToggleLabel();
+			showToast('Could not save wp-admin links setting');
 		});
 	}
 
@@ -2292,6 +2349,8 @@
 					toggleGreeting();
 				} else if (item.dataset.action === 'toggle-root-redirect') {
 					toggleRootRedirect();
+				} else if (item.dataset.action === 'toggle-wp-admin-links') {
+					toggleWpAdminLinks();
 				} else if (item.dataset.action === 'export') {
 					handleExport();
 				} else if (item.dataset.action === 'import') {
@@ -3432,6 +3491,7 @@
 		if (displaySettings.grid_columns) applyGridColumns(displaySettings.grid_columns);
 		if (displaySettings.icon_size) applyAppSize(displaySettings.icon_size);
 		if (displaySettings.spacing) applySpacing(displaySettings.spacing);
+		applyWpAdminLinksPreference();
 	})();
 
 	function handleExport() {

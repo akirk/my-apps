@@ -13,6 +13,7 @@ class My_Apps {
 	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const ROOT_REDIRECT_OPTION = 'my_apps_redirect_root';
+	const HIDE_WP_ADMIN_LINKS_OPTION = 'my_apps_hide_wp_admin_links';
 	const PRESET_BACKGROUNDS = array(
 		'gradient-dawn',
 		'gradient-coral',
@@ -559,6 +560,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
 		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
 		add_action( 'wp_ajax_my_apps_save_root_redirect', array( $this, 'ajax_save_root_redirect' ) );
+		add_action( 'wp_ajax_my_apps_save_wp_admin_links', array( $this, 'ajax_save_wp_admin_links' ) );
 		add_action( 'wp_ajax_my_apps_install_plugin', array( $this, 'ajax_install_plugin' ) );
 	}
 
@@ -1969,7 +1971,28 @@ class My_Apps {
 	 * @param mixed $wp_admin_bar The admin bar.
 	 */
 	public function admin_bar_remove_nodes( $wp_admin_bar ) {
-		foreach ( array( 'site-editor' ) as $node_id ) {
+		$node_ids = array( 'site-editor' );
+
+		if ( self::are_wp_admin_links_hidden() ) {
+			$node_ids = array_merge(
+				$node_ids,
+				array(
+					'wp-logo',
+					'about',
+					'wporg',
+					'documentation',
+					'support-forums',
+					'feedback',
+					'site-name',
+					'dashboard',
+					'themes',
+					'customize',
+					'view-site',
+				)
+			);
+		}
+
+		foreach ( array_unique( $node_ids ) as $node_id ) {
 			$wp_admin_bar->remove_node( $node_id );
 		}
 	}
@@ -1985,6 +2008,17 @@ class My_Apps {
 		}
 
 		return '1' === get_option( self::ROOT_REDIRECT_OPTION, '1' );
+	}
+
+	/**
+	 * Determine whether wp-admin links should be hidden in the masterbar.
+	 *
+	 * @return bool
+	 */
+	public static function are_wp_admin_links_hidden() {
+		$default = self::is_playground() ? '1' : '0';
+
+		return '1' === get_option( self::HIDE_WP_ADMIN_LINKS_OPTION, $default );
 	}
 
 	/**
@@ -2149,6 +2183,7 @@ class My_Apps {
 				'installedPlugins'          => self::get_installed_plugin_statuses(),
 				'background'                => $background_state['slug'],
 				'redirectRoot'              => self::is_root_redirect_enabled(),
+				'hideWpAdminLinks'          => self::are_wp_admin_links_hidden(),
 				'hasCustomizedWallpaper'    => $has_customized_wallpaper,
 				'customBackground'          => isset( $background_state['custom'] ) ? $background_state['custom'] : '',
 				'backgroundImageUrl'        => isset( $background_state['image_url'] ) ? $background_state['image_url'] : '',
@@ -2626,6 +2661,28 @@ class My_Apps {
 	}
 
 	/**
+	 * AJAX: Save wp-admin links visibility setting.
+	 */
+	public function ajax_save_wp_admin_links() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Not allowed' );
+		}
+
+		$enabled_raw = isset( $_POST['enabled'] ) ? sanitize_text_field( wp_unslash( $_POST['enabled'] ) ) : '0';
+		$enabled     = wp_validate_boolean( $enabled_raw );
+
+		update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, $enabled ? '1' : '0' );
+
+		wp_send_json_success(
+			array(
+				'hide_wp_admin_links' => $enabled,
+			)
+		);
+	}
+
+	/**
 	 * AJAX: Save an app icon override.
 	 */
 	public function ajax_save_app_icon() {
@@ -2961,6 +3018,7 @@ class My_Apps {
 			'app_overrides'      => self::get_app_overrides(),
 			'app_icon_overrides' => self::get_app_icon_overrides(),
 		);
+		$settings_export['hide_wp_admin_links'] = self::are_wp_admin_links_hidden();
 		if ( self::is_playground() ) {
 			$settings_export['redirect_root'] = self::is_root_redirect_enabled();
 		}
@@ -3007,6 +3065,9 @@ class My_Apps {
 		}
 		if ( self::is_playground() && isset( $data['redirect_root'] ) && is_scalar( $data['redirect_root'] ) ) {
 			update_option( self::ROOT_REDIRECT_OPTION, wp_validate_boolean( $data['redirect_root'] ) ? '1' : '0' );
+		}
+		if ( isset( $data['hide_wp_admin_links'] ) && is_scalar( $data['hide_wp_admin_links'] ) ) {
+			update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, wp_validate_boolean( $data['hide_wp_admin_links'] ) ? '1' : '0' );
 		}
 		if ( isset( $data['background'] ) && is_scalar( $data['background'] ) ) {
 			$background = trim( (string) $data['background'] );

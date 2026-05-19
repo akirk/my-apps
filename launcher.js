@@ -561,47 +561,6 @@
 		return /^install failed/i.test(details) ? details : 'Install failed: ' + details;
 	}
 
-	// ── Auto-add icon for blueprint/plugin installs ──
-	// Opt-in: only fires when the blueprint declares `launcher_url` (the
-	// page the launcher icon should open). `landingPage` alone is no
-	// longer enough — it's a Playground concept (where to navigate after
-	// install) and not always a page the user wants pinned.
-	function addAppFromBlueprint(app, blueprint, gradient) {
-		var launcherUrl = blueprint && blueprint.launcher_url;
-		if (!launcherUrl) return Promise.resolve(false);
-		app._launcherUrl = launcherUrl;
-
-		var appUrl = launcherUrl.indexOf('http') === 0
-			? launcherUrl
-			: window.location.origin + launcherUrl;
-
-		if (knownAppUrlExists(appUrl)) {
-			return Promise.resolve(false);
-		}
-
-		var formData = new FormData();
-		formData.append('action', 'my_apps_add');
-		formData.append('nonce', myAppsConfig.nonce);
-		formData.append('name', app.title);
-		formData.append('url', appUrl);
-		if (app._icon) {
-			formData.append('icon_url', app._icon);
-		} else {
-			formData.append('gradient', gradient || 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)');
-		}
-
-		return fetch(myAppsConfig.ajaxUrl, { method: 'POST', body: formData })
-			.then(function(res) { return res.json(); })
-			.then(function(data) {
-				if (data && data.success) {
-					rememberAppUrl(appUrl);
-					return !(data.data && data.data.duplicate);
-				}
-				return false;
-			})
-			.catch(function() { return false; });
-	}
-
 	function resolveBlueprintFromUrl(blueprintUrl) {
 		var customBlueprints = getCustomBlueprints();
 		var blueprintPath = null;
@@ -614,17 +573,6 @@
 			return Promise.resolve(customBlueprints[blueprintPath].blueprint);
 		}
 		return fetch(blueprintUrl).then(function(res) { return res.json(); });
-	}
-
-	function addAppFromBlueprintUrl(app, blueprintUrl, gradient) {
-		return resolveBlueprintFromUrl(blueprintUrl)
-			.then(function(blueprint) {
-				if (blueprint && blueprint.launcher_url) {
-					app._launcherUrl = blueprint.launcher_url;
-				}
-				return addAppFromBlueprint(app, blueprint, gradient);
-			})
-			.catch(function() { return false; });
 	}
 
 	function encodeBlueprintDataUrl(blueprint) {
@@ -961,33 +909,27 @@
 		return requestId;
 	}
 
-	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, gradient, btn) {
+	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, btn) {
 		var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 		var blueprintUrl = getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl);
-		var optimisticAddPromise = null;
 
 		setInstallButtonState(btn, 'Installing...', true);
-		if (!desktopMode && app && blueprint) {
-			optimisticAddPromise = addAppFromBlueprint(app, blueprint, gradient);
-		}
 
 		return Promise.resolve(startPlaygroundBlueprintInstall(blueprintUrl, {
 			app: app || null,
 			blueprint: blueprint || null,
-			gradient: gradient || '',
 			btn: btn || null,
 			desktopMode: desktopMode,
 			landingUrl: getInstallLandingUrl(app, blueprint),
-			blueprintUrl: blueprintUrl,
-			optimisticAddPromise: optimisticAddPromise
+			blueprintUrl: blueprintUrl
 		}));
 	}
 
-	function installBlueprintInPlayground(app, blueprintUrl, gradient, btn) {
+	function installBlueprintInPlayground(app, blueprintUrl, btn) {
 		setInstallButtonState(btn, 'Installing...', true);
 		return resolveBlueprintFromUrl(blueprintUrl)
 			.then(function(blueprint) {
-				return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, gradient, btn);
+				return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, btn);
 			})
 			.catch(function(error) {
 				var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
@@ -1003,7 +945,6 @@
 				return startPlaygroundBlueprintInstall(blueprintUrl, {
 					app: app || null,
 					blueprint: null,
-					gradient: gradient || '',
 					btn: btn || null,
 					desktopMode: desktopMode,
 					landingUrl: '',
@@ -1013,33 +954,17 @@
 	}
 
 	function completeInstalledBlueprint(install) {
-		var addPromise = install.optimisticAddPromise
-			? install.optimisticAddPromise
-			: (install.app && install.blueprint
-				? addAppFromBlueprint(install.app, install.blueprint, install.gradient)
-				: Promise.resolve(false));
-
-		return addPromise
-			.then(function(added) {
-				var launcherRefresh = reloadApps();
-				var shellRefresh = install.desktopMode ? refreshDesktopModeShell() : Promise.resolve();
-				return Promise.all([launcherRefresh, shellRefresh]).then(function() {
-					return added;
-				});
-			});
+		var launcherRefresh = reloadApps();
+		var shellRefresh = install.desktopMode ? refreshDesktopModeShell() : Promise.resolve();
+		return Promise.all([launcherRefresh, shellRefresh]);
 	}
 
 	function handlePlaygroundInstallSuccess(install, result) {
-		return completeInstalledBlueprint(install).then(function(added) {
+		return completeInstalledBlueprint(install).then(function() {
 			var wasUpdate = install.btn && install.btn.dataset.defaultLabel === 'Update';
 			finishInstallButton(install.btn, wasUpdate ? 'Updated' : 'Installed', install);
-			if (wasUpdate) {
-				showToast(added ? 'Updated and added to My Apps' : 'Updated');
-			} else {
-				showToast(added ? 'Installed and added to My Apps' : 'Installed');
-			}
+			showToast(wasUpdate ? 'Updated' : 'Installed');
 			bootstrapAiAssistantAfterPlaygroundInstall(install, result);
-			return added;
 		});
 	}
 
@@ -4334,9 +4259,10 @@
 					var categories = Array.isArray(meta.categories) ? meta.categories : [];
 					var note = meta.note || '';
 					var landingPage = (typeof meta.landing_page === 'string' && meta.landing_page.indexOf('/') === 0) ? meta.landing_page : '';
-					// `launcher_url` opts the entry into auto-adding a launcher
-					// icon after install. Accepts an absolute http(s) URL or a
-					// site-relative path starting with "/".
+					// `launcher_url` is used only to detect/open an app that the
+					// installed plugin registers through `my_apps_plugins`.
+					// Accepts an absolute http(s) URL or a site-relative path
+					// starting with "/".
 					var launcherUrl = '';
 					if (typeof meta.launcher_url === 'string') {
 						if (/^https?:\/\//.test(meta.launcher_url) || meta.launcher_url.indexOf('/') === 0) {
@@ -4958,7 +4884,7 @@
 		return plan;
 	}
 
-	function installBlueprintOnHost(app, blueprintUrl, gradient, infoEl, btn) {
+	function installBlueprintOnHost(app, blueprintUrl, infoEl, btn) {
 		if (infoEl && infoEl.classList.contains('active')) {
 			closeBlueprintInstallInfo(infoEl, btn);
 			return;
@@ -5017,13 +4943,12 @@
 						var install = {
 							app: app,
 							blueprint: blueprint,
-							gradient: gradient,
 							btn: btn,
 							desktopMode: desktopMode,
 							landingUrl: getInstallLandingUrl(app, blueprint)
 						};
-						return completeInstalledBlueprint(install).then(function(added) {
-							return { added: added, install: install };
+						return completeInstalledBlueprint(install).then(function() {
+							return { install: install };
 						});
 					})
 					.then(function(outcome) {
@@ -5031,11 +4956,11 @@
 						var alreadyInstalled = installResults.length && installResults.every(function(result) { return result.alreadyInstalled && !result.updated && !result.activated; });
 						finishInstallButton(btn, updated ? 'Updated' : (alreadyInstalled ? 'Up to date' : 'Installed'), outcome.install);
 						if (updated) {
-							showToast(outcome.added ? 'Updated and added to My Apps' : 'Updated');
+							showToast('Updated');
 						} else if (alreadyInstalled) {
-							showToast(outcome.added ? 'Added to My Apps' : 'Already up to date');
+							showToast('Already up to date');
 						} else {
-							showToast(outcome.added ? 'Installed and added to My Apps' : 'Installed');
+							showToast('Installed');
 						}
 						return true;
 					});
@@ -5054,13 +4979,13 @@
 				options: { targetFolderName: 'my-apps' }
 			} ]
 		};
-		installResolvedBlueprintInPlayground({ title: 'My Apps', _landingPage: '/my-apps/' }, blueprint, '', '', null);
+		installResolvedBlueprintInPlayground({ title: 'My Apps', _landingPage: '/my-apps/' }, blueprint, '', null);
 	}
 
-	function installPluginApp(app, gradient, btn, infoEl) {
+	function installPluginApp(app, btn, infoEl) {
 		if (isPlayground) {
 			var blueprint = buildPluginBlueprint(app);
-			installResolvedBlueprintInPlayground(app, blueprint, '', gradient, btn);
+			installResolvedBlueprintInPlayground(app, blueprint, '', btn);
 			return;
 		}
 
@@ -5080,24 +5005,23 @@
 						var install = {
 							app: app,
 							blueprint: blueprint,
-							gradient: gradient,
 							btn: btn,
 							desktopMode: desktopMode,
 							landingUrl: getInstallLandingUrl(app, blueprint)
 						};
-						return completeInstalledBlueprint(install).then(function(added) {
-							return { result: result, added: added, install: install };
+						return completeInstalledBlueprint(install).then(function() {
+							return { result: result, install: install };
 						});
 					}
-					return { result: result, added: false };
+					return { result: result };
 				})
 				.then(function(outcome) {
 					if (outcome.result.updated) {
 						finishInstallButton(btn, 'Updated', outcome.install);
-						showToast(outcome.added ? 'Updated and added to My Apps' : 'Updated');
+						showToast('Updated');
 					} else if (outcome.result.alreadyInstalled && !outcome.result.activated) {
 						finishInstallButton(btn, 'Up to date', outcome.install);
-						showToast(outcome.added ? 'Added to My Apps' : 'Already up to date');
+						showToast('Already up to date');
 					} else {
 						finishInstallButton(btn, 'Installed', outcome.install);
 					}
@@ -5107,7 +5031,7 @@
 					}
 
 					if (outcome.result.activated || outcome.result.alreadyActive) {
-						showToast(outcome.added ? 'Installed and added to My Apps' : 'Installed and activated');
+						showToast('Installed and activated');
 					} else {
 						showToast('Installed. Activate it from Plugins.');
 					}
@@ -5857,28 +5781,28 @@
 				pluginInstallBtn.type = 'button';
 				pluginInstallBtn.className = 'app-store-install-btn';
 				prepareInstallButton(pluginInstallBtn, app);
-				(function(p, a, g) {
+				(function(p, a) {
 					pluginInstallBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
 						if (!isPlayground && a._source !== 'wp.org') {
 							openPluginDetail(p, a, { autoOpenInstallInfo: true });
 							return;
 						}
-						installPluginApp(a, g, e.currentTarget);
+						installPluginApp(a, e.currentTarget);
 					});
-				})(path, app, gradient);
+				})(path, app);
 				actionsEl.appendChild(pluginInstallBtn);
 			} else if (isPlayground) {
 				var installBtn = document.createElement('button');
 				installBtn.type = 'button';
 				installBtn.className = 'app-store-install-btn';
 				prepareInstallButton(installBtn, app);
-				(function(a, bUrl, g) {
+				(function(a, bUrl) {
 					installBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
-						installBlueprintInPlayground(a, bUrl, g, e.currentTarget);
+						installBlueprintInPlayground(a, bUrl, e.currentTarget);
 					});
-				})(app, blueprintUrl, gradient);
+				})(app, blueprintUrl);
 				actionsEl.appendChild(installBtn);
 			} else {
 				var hostedInstallBtn = document.createElement('button');
@@ -6382,28 +6306,28 @@
 			pluginBtn.type = 'button';
 			pluginBtn.className = 'app-store-install-btn';
 			prepareInstallButton(pluginBtn, app);
-			(function(p, a, g) {
+			(function(p, a) {
 				pluginBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
 					if (!isPlayground && a._source !== 'wp.org') {
 						openPluginDetail(p, a);
 						return;
 					}
-					installPluginApp(a, g, e.currentTarget);
+					installPluginApp(a, e.currentTarget);
 				});
-			})(path, app, gradient);
+			})(path, app);
 			actions.appendChild(pluginBtn);
 		} else if (isPlayground) {
 			var installBtn = document.createElement('button');
 			installBtn.type = 'button';
 			installBtn.className = 'app-store-install-btn';
 			prepareInstallButton(installBtn, app);
-			(function(a, bUrl, g) {
+			(function(a, bUrl) {
 				installBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
-					installBlueprintInPlayground(a, bUrl, g, e.currentTarget);
+					installBlueprintInPlayground(a, bUrl, e.currentTarget);
 				});
-			})(app, blueprintUrl, gradient);
+			})(app, blueprintUrl);
 			actions.appendChild(installBtn);
 		} else {
 			var hostedInstallBtn = document.createElement('button');
@@ -6549,7 +6473,7 @@
 		installBtn.className = 'app-store-install-btn app-detail-install-btn';
 		prepareInstallButton(installBtn, plugin);
 		installBtn.addEventListener('click', function() {
-			installPluginApp(plugin, gradient, installBtn, pluginInstallInfoEl);
+			installPluginApp(plugin, installBtn, pluginInstallInfoEl);
 		});
 
 		var shareBtn = document.createElement('button');
@@ -6770,7 +6694,7 @@
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
 			prepareInstallButton(installBtn, app);
 			installBtn.addEventListener('click', function() {
-				installBlueprintInPlayground(app, blueprintUrl, gradient, installBtn);
+				installBlueprintInPlayground(app, blueprintUrl, installBtn);
 			});
 		} else {
 			installBtn = document.createElement('button');
@@ -6778,7 +6702,7 @@
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
 			prepareInstallButton(installBtn, app);
 			installBtn.addEventListener('click', function() {
-				installBlueprintOnHost(app, blueprintUrl, gradient, blueprintInfoEl, installBtn);
+				installBlueprintOnHost(app, blueprintUrl, blueprintInfoEl, installBtn);
 			});
 		}
 

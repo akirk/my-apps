@@ -55,7 +55,7 @@
 				"string",
 				"number"
 			],
-			"description": "Playground-only setting for whether requests to the site root should redirect to /my-apps/."
+			"description": "Playground-only per-user setting for whether requests to the site root should redirect to /my-apps/."
 		},
 		"hide_wp_admin_links": {
 			"type": [

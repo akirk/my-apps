@@ -12,7 +12,7 @@ class My_Apps {
 	const DEFAULT_RECIPES_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/recipes.json';
 	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
-	const ROOT_REDIRECT_OPTION = 'my_apps_redirect_root';
+	const ROOT_REDIRECT_USER_OPTION = 'my_apps_redirect_root';
 	const HIDE_WP_ADMIN_LINKS_OPTION = 'my_apps_hide_wp_admin_links';
 	const PRESET_BACKGROUNDS = array(
 		'gradient-dawn',
@@ -2000,7 +2000,7 @@ class My_Apps {
 	}
 
 	/**
-	 * Determine whether the root redirect setting is enabled.
+	 * Determine whether the current user's root redirect setting is enabled.
 	 *
 	 * @return bool
 	 */
@@ -2009,7 +2009,17 @@ class My_Apps {
 			return false;
 		}
 
-		return '1' === get_option( self::ROOT_REDIRECT_OPTION, '1' );
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return false;
+		}
+
+		$enabled = get_user_option( self::ROOT_REDIRECT_USER_OPTION, $user_id );
+		if ( false === $enabled ) {
+			return true;
+		}
+
+		return '1' === (string) $enabled;
 	}
 
 	/**
@@ -2053,10 +2063,10 @@ class My_Apps {
 	}
 
 	/**
-	 * Redirect the site root to the My Apps launcher when enabled.
+	 * Redirect logged-in users from the site root to the My Apps launcher when enabled.
 	 */
 	public function redirect_root_to_my_apps() {
-		if ( ! self::is_root_redirect_enabled() || is_admin() || wp_doing_ajax() ) {
+		if ( ! self::is_root_redirect_enabled() || ! is_user_logged_in() || is_admin() || wp_doing_ajax() ) {
 			return;
 		}
 
@@ -2646,14 +2656,18 @@ class My_Apps {
 	public function ajax_save_root_redirect() {
 		check_ajax_referer( 'my_apps_launcher', 'nonce' );
 
-		if ( ! self::is_playground() || ! current_user_can( 'manage_options' ) ) {
+		if ( ! self::is_playground() || ! is_user_logged_in() ) {
 			wp_send_json_error( 'Not allowed' );
 		}
 
 		$enabled_raw = isset( $_POST['enabled'] ) ? sanitize_text_field( wp_unslash( $_POST['enabled'] ) ) : '0';
 		$enabled     = wp_validate_boolean( $enabled_raw );
 
-		update_option( self::ROOT_REDIRECT_OPTION, $enabled ? '1' : '0' );
+		update_user_option(
+			get_current_user_id(),
+			self::ROOT_REDIRECT_USER_OPTION,
+			$enabled ? '1' : '0'
+		);
 
 		wp_send_json_success(
 			array(
@@ -3066,7 +3080,11 @@ class My_Apps {
 			update_option( self::APP_ICON_OVERRIDES_OPTION, $data['app_icon_overrides'] );
 		}
 		if ( self::is_playground() && isset( $data['redirect_root'] ) && is_scalar( $data['redirect_root'] ) ) {
-			update_option( self::ROOT_REDIRECT_OPTION, wp_validate_boolean( $data['redirect_root'] ) ? '1' : '0' );
+			update_user_option(
+				get_current_user_id(),
+				self::ROOT_REDIRECT_USER_OPTION,
+				wp_validate_boolean( $data['redirect_root'] ) ? '1' : '0'
+			);
 		}
 		if ( isset( $data['hide_wp_admin_links'] ) && is_scalar( $data['hide_wp_admin_links'] ) ) {
 			update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, wp_validate_boolean( $data['hide_wp_admin_links'] ) ? '1' : '0' );

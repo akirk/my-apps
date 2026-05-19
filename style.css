@@ -1982,6 +1982,130 @@ body.my-apps-launcher .bg-picker-popup .bg-option {
 	color: #333;
 }
 
+.settings-modal {
+	max-width: 560px;
+}
+
+.settings-modal-body {
+	padding: 6px 20px 20px;
+}
+
+.settings-setting {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	padding: 18px 0;
+	border-bottom: 1px solid #eee;
+}
+
+.settings-setting:last-child {
+	border-bottom: 0;
+}
+
+.settings-setting-stacked {
+	align-items: stretch;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.settings-setting-copy {
+	min-width: 0;
+}
+
+.settings-setting-copy h3 {
+	margin: 0 0 6px;
+	color: var(--ma-fg);
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.settings-setting-copy p {
+	margin: 0;
+	color: #555;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.settings-switch {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	flex: 0 0 auto;
+	padding: 4px;
+	border: 0;
+	background: transparent;
+	color: #555;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.settings-switch-track {
+	position: relative;
+	display: inline-flex;
+	width: 42px;
+	height: 24px;
+	border-radius: 999px;
+	background: #c8c8c8;
+	transition: background 0.16s ease;
+}
+
+.settings-switch-thumb {
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+	transition: transform 0.16s ease;
+}
+
+.settings-switch.active {
+	color: #3858e9;
+}
+
+.settings-switch.active .settings-switch-track {
+	background: #3858e9;
+}
+
+.settings-switch.active .settings-switch-thumb {
+	transform: translateX(18px);
+}
+
+.settings-action-row {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.settings-action-button {
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+	background: #fff;
+	color: var(--ma-fg);
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+	padding: 8px 12px;
+}
+
+.settings-action-button:hover,
+.settings-action-button:focus {
+	border-color: #3858e9;
+	color: #3858e9;
+}
+
+@media (max-width: 520px) {
+	.settings-setting {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 12px;
+	}
+}
+
 #add-app-form {
 	padding: 0;
 }

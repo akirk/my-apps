@@ -1019,8 +1019,9 @@
 
 		return addPromise
 			.then(function(added) {
+				var launcherRefresh = reloadApps();
 				var shellRefresh = install.desktopMode ? refreshDesktopModeShell() : Promise.resolve();
-				return shellRefresh.then(function() {
+				return Promise.all([launcherRefresh, shellRefresh]).then(function() {
 					return added;
 				});
 			});

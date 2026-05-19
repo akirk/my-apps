@@ -1350,12 +1350,26 @@
 
 	function openSettingsModal() {
 		if (!settingsModal) return;
+		if (settingsDropdown) {
+			settingsDropdown.classList.remove('active');
+		}
+		if (isEditMode) {
+			exitEditMode();
+		}
 		updateSettingsControls();
+		if (typeof settingsModal.showModal === 'function') {
+			if (!settingsModal.open) {
+				settingsModal.showModal();
+			}
+		}
 		settingsModal.classList.add('active');
 	}
 
 	function closeSettingsModal() {
 		if (!settingsModal) return;
+		if (typeof settingsModal.close === 'function' && settingsModal.open) {
+			settingsModal.close();
+		}
 		settingsModal.classList.remove('active');
 	}
 
@@ -2351,6 +2365,9 @@
 
 		if (settingsModal) {
 			settingsModal.querySelector('.modal-close').addEventListener('click', closeSettingsModal);
+			settingsModal.addEventListener('close', function() {
+				settingsModal.classList.remove('active');
+			});
 			settingsModal.addEventListener('click', function(e) {
 				if (e.target === settingsModal) {
 					closeSettingsModal();

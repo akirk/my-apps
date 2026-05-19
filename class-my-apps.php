@@ -1984,6 +1984,8 @@ class My_Apps {
 					'support-forums',
 					'feedback',
 					'site-name',
+					'comments',
+					'new-content',
 					'dashboard',
 					'themes',
 					'customize',

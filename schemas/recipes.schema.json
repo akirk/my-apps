@@ -39,6 +39,9 @@
 					"type": "string",
 					"format": "uri"
 				},
+				"core_wordpress": {
+					"type": "boolean"
+				},
 				"steps": {
 					"type": "array",
 					"items": {

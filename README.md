@@ -18,7 +18,7 @@ Apps can be plugins that register their own icon, custom links you add yourself,
 ### Features
 
 - **Launcher** at `/my-apps/` with grid or flow layouts, drag-to-reorder, and an edit mode for customization.
-- **Display settings** live in the launcher itself (no admin page): icon size, spacing, grid columns, layout toggle, background color/image, optional personalized greeting, and, in WordPress Playground, a default-on per-user redirect from `/` to `/my-apps/` plus a default-on simplified masterbar/app store that hides wp-admin links, plugin recommendations, and manual add links. Device-specific display settings are stored per-device while in edit mode, and app-level options live in a dedicated My Apps Settings window.
+- **Display settings** live in the launcher itself (no admin page): icon size, spacing, grid columns, layout toggle, background color/image, optional personalized greeting, and, in WordPress Playground, a default-on per-user redirect from `/` to `/my-apps/` plus a default-on simplified WordPress mode that hides legacy admin shortcuts, plugin recommendations, manual add links, and core WordPress guides behind a reveal button. Device-specific display settings are stored per-device while in edit mode, and app-level options live in a dedicated My Apps Settings window.
 - **App Store** for installing new apps: browse a curated catalog, view app detail pages, and install via WordPress Playground blueprints. Paste a custom blueprint JSON from the clipboard to install anything.
 - **Plugin-provided launcher icons**: installed apps appear in My Apps when the plugin registers through `my_apps_plugins`.
 - **Mobile-friendly**: full-screen app store, three icons per row, and a My Apps link in the admin bar on the frontend.

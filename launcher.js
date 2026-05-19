@@ -1409,7 +1409,7 @@
 
 	function applyWpAdminLinksPreference() {
 		if (!wpAdminLinksHidden) return;
-		['wp-admin-bar-wp-logo', 'wp-admin-bar-site-name'].forEach(function(id) {
+		['wp-admin-bar-wp-logo', 'wp-admin-bar-site-name', 'wp-admin-bar-comments', 'wp-admin-bar-new-content'].forEach(function(id) {
 			var node = document.getElementById(id);
 			if (node && node.parentNode) {
 				node.parentNode.removeChild(node);

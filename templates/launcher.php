@@ -163,10 +163,10 @@ $is_app_store = isset( $_GET['app-store'] );
 	</div>
 
 	<?php if ( $can_manage ) : ?>
-	<div class="modal-overlay" id="my-apps-settings-modal">
+	<dialog class="modal-overlay" id="my-apps-settings-modal" aria-labelledby="my-apps-settings-title">
 		<div class="modal settings-modal">
 			<div class="modal-header">
-				<h2><?php esc_html_e( 'My Apps Settings', 'my-apps' ); ?></h2>
+				<h2 id="my-apps-settings-title"><?php esc_html_e( 'My Apps Settings', 'my-apps' ); ?></h2>
 				<button type="button" class="modal-close" aria-label="<?php esc_attr_e( 'Close', 'my-apps' ); ?>">&times;</button>
 			</div>
 			<div class="settings-modal-body">
@@ -218,7 +218,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				</div>
 			</div>
 		</div>
-	</div>
+	</dialog>
 	<?php endif; ?>
 <?php endif; ?>
 

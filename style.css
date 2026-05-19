@@ -1945,6 +1945,25 @@ body.my-apps-launcher .bg-picker-popup .bg-option {
 	display: flex;
 }
 
+dialog.modal-overlay {
+	border: 0;
+	box-sizing: border-box;
+	color: inherit;
+	height: 100vh;
+	margin: 0;
+	max-height: none;
+	max-width: none;
+	width: 100vw;
+}
+
+dialog.modal-overlay[open] {
+	display: flex;
+}
+
+dialog.modal-overlay::backdrop {
+	background: transparent;
+}
+
 .modal {
 	background: var(--ma-bg);
 	border-radius: 12px;
@@ -1968,9 +1987,15 @@ body.my-apps-launcher .bg-picker-popup .bg-option {
 	font-weight: 600;
 }
 
-.modal-close {
-	background: none;
+body.my-apps-launcher .modal-close,
+body.my-apps-launcher .modal-close:hover,
+body.my-apps-launcher .modal-close:focus,
+body.my-apps-launcher .modal-close:active {
+	appearance: none;
+	-webkit-appearance: none;
+	background: transparent !important;
 	border: none;
+	box-shadow: none;
 	font-size: 24px;
 	cursor: pointer;
 	color: #999;
@@ -1978,7 +2003,9 @@ body.my-apps-launcher .bg-picker-popup .bg-option {
 	line-height: 1;
 }
 
-.modal-close:hover {
+body.my-apps-launcher .modal-close:hover,
+body.my-apps-launcher .modal-close:focus,
+body.my-apps-launcher .modal-close:active {
 	color: #333;
 }
 
@@ -2039,6 +2066,17 @@ body.my-apps-launcher .bg-picker-popup .bg-option {
 	cursor: pointer;
 	font-size: 13px;
 	font-weight: 600;
+}
+
+body.my-apps-launcher .settings-switch,
+body.my-apps-launcher .settings-switch:hover,
+body.my-apps-launcher .settings-switch:focus,
+body.my-apps-launcher .settings-switch:active {
+	appearance: none;
+	-webkit-appearance: none;
+	background: transparent !important;
+	border: 0 !important;
+	box-shadow: none !important;
 }
 
 .settings-switch-track {

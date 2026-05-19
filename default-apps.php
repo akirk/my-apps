@@ -18,18 +18,6 @@ function seed_default_apps() {
 		),
 	);
 
-	$welcome = get_page_by_path( 'welcome-to-your-wordpress', OBJECT, 'post' );
-	if ( $welcome && 'publish' === $welcome->post_status ) {
-		$defaults['about'] = array(
-			'name'     => $welcome->post_title,
-			'url'      => get_permalink( $welcome ),
-			'dashicon' => 'dashicons-info-outline',
-			'icon_url' => false,
-			'emoji'    => false,
-			'gradient' => false,
-		);
-	}
-
 	foreach ( $defaults as $slug => $data ) {
 		if ( ! isset( $additional_apps[ $slug ] ) ) {
 			$additional_apps[ $slug ] = $data;

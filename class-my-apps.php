@@ -2930,6 +2930,7 @@ class My_Apps {
 			$icon_url = ! empty( $app['icon_url'] ) ? $app['icon_url'] : null;
 			$dashicon = ! empty( $app['dashicon'] ) ? $app['dashicon'] : null;
 			$emoji    = ! empty( $app['emoji'] ) ? $app['emoji'] : null;
+			$gradient = ! empty( $app['gradient'] ) ? $app['gradient'] : null;
 			$payload  = array(
 				'slug'     => $slug,
 				'name'     => $app['name'],
@@ -2937,8 +2938,9 @@ class My_Apps {
 				'icon_url' => $icon_url,
 				'dashicon' => $dashicon,
 				'emoji'    => $emoji,
+				'gradient' => $gradient,
 			);
-			if ( ! $icon_url && ! $dashicon && ! $emoji ) {
+			if ( ! $icon_url && ! $dashicon && ! $emoji && ! $gradient ) {
 				$payload['letter_icon'] = self::letter_icon_data( $app['name'] );
 			}
 			wp_send_json_success( $payload );
@@ -3853,6 +3855,38 @@ class My_Apps {
 			esc_attr( $data['background'] ),
 			$font_size,
 			esc_html( $data['letters'] )
+		);
+	}
+
+	/**
+	 * Derive the single letter shown inside a supplied gradient icon.
+	 *
+	 * @param string $name App display name.
+	 * @return string
+	 */
+	public static function gradient_icon_letter( $name ) {
+		$data = self::letter_icon_data( $name );
+		return mb_substr( $data['letters'], 0, 1 );
+	}
+
+	/**
+	 * Render a gradient icon with a letter overlay.
+	 *
+	 * @param string $name       App display name.
+	 * @param string $background CSS background value.
+	 * @param string $modifiers  Extra CSS classes (e.g. 'app-gradient-icon-small').
+	 * @param string $tag_name   HTML tag to use. Supports div and span.
+	 * @return string
+	 */
+	public static function gradient_icon_html( $name, $background, $modifiers = '', $tag_name = 'div' ) {
+		$tag_name = 'span' === $tag_name ? 'span' : 'div';
+		$classes  = trim( 'app-gradient-icon ' . $modifiers );
+		return sprintf(
+			'<%1$s class="%2$s" style="background: %3$s"><span class="app-gradient-icon-letter" aria-hidden="true">%4$s</span></%1$s>',
+			$tag_name,
+			esc_attr( $classes ),
+			esc_attr( $background ),
+			esc_html( self::gradient_icon_letter( $name ) )
 		);
 	}
 

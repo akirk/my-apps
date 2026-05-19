@@ -6120,7 +6120,6 @@
 					linkEl.target = '_blank';
 					linkEl.rel = 'noopener noreferrer';
 				} else {
-					linkEl.target = '_top';
 					if (shouldUseDesktopModeAppStoreInstallFlow()) {
 						(function(url, title) {
 							linkEl.addEventListener('click', function(e) {

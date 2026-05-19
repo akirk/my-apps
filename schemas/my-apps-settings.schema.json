@@ -57,6 +57,14 @@
 			],
 			"description": "Playground-only setting for whether requests to the site root should redirect to /my-apps/."
 		},
+		"hide_wp_admin_links": {
+			"type": [
+				"boolean",
+				"string",
+				"number"
+			],
+			"description": "Setting for whether the WordPress logo menu and site name shortcuts should be hidden from the masterbar. Defaults on in Playground."
+		},
 		"background": {
 			"type": "string"
 		},

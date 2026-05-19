@@ -23,6 +23,7 @@ $additional_apps = get_option( 'my_apps_additional_apps', array() );
 $can_manage = current_user_can( 'manage_options' );
 $is_playground = My_Apps::is_playground();
 $redirect_root_enabled = My_Apps::is_root_redirect_enabled();
+$hide_wp_admin_links = My_Apps::are_wp_admin_links_hidden();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -191,6 +192,16 @@ $is_app_store = isset( $_GET['app-store'] );
 					</button>
 				</div>
 				<?php endif; ?>
+				<div class="settings-setting">
+					<div class="settings-setting-copy">
+						<h3><?php esc_html_e( 'Hide wp-admin links', 'my-apps' ); ?></h3>
+						<p><?php esc_html_e( 'Remove the WordPress logo menu and site name shortcuts from the masterbar.', 'my-apps' ); ?></p>
+					</div>
+					<button type="button" class="settings-switch<?php if ( $hide_wp_admin_links ) : ?> active<?php endif; ?>" id="setting-wp-admin-links-toggle" data-action="toggle-wp-admin-links" role="switch" aria-checked="<?php echo esc_attr( $hide_wp_admin_links ? 'true' : 'false' ); ?>">
+						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>
+						<span class="settings-switch-label"><?php echo esc_html( $hide_wp_admin_links ? __( 'On', 'my-apps' ) : __( 'Off', 'my-apps' ) ); ?></span>
+					</button>
+				</div>
 				<div class="settings-setting settings-setting-stacked">
 					<div class="settings-setting-copy">
 						<h3><?php esc_html_e( 'My Apps settings file', 'my-apps' ); ?></h3>

@@ -63,7 +63,7 @@
 				"string",
 				"number"
 			],
-			"description": "Setting for whether the WordPress logo menu, site name shortcuts, App Store plugin recommendations, and manual add links should be hidden. Defaults on in Playground."
+			"description": "Setting for whether legacy WordPress admin shortcuts, App Store plugin recommendations, manual add links, and core WordPress guides should be hidden. Defaults on in Playground."
 		},
 		"background": {
 			"type": "string"

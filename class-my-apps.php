@@ -2023,7 +2023,7 @@ class My_Apps {
 	}
 
 	/**
-	 * Determine whether wp-admin links should be hidden in the masterbar.
+	 * Determine whether legacy WordPress complexity should be hidden.
 	 *
 	 * @return bool
 	 */
@@ -2677,7 +2677,7 @@ class My_Apps {
 	}
 
 	/**
-	 * AJAX: Save wp-admin links visibility setting.
+	 * AJAX: Save WordPress complexity visibility setting.
 	 */
 	public function ajax_save_wp_admin_links() {
 		check_ajax_referer( 'my_apps_launcher', 'nonce' );
@@ -3203,6 +3203,10 @@ class My_Apps {
 					'type'        => 'string',
 					'description' => __( 'A URL with more information about the guide.', 'my-apps' ),
 				),
+				'core_wordpress' => array(
+					'type'        => 'boolean',
+					'description' => __( 'Whether the guide primarily uses core WordPress features.', 'my-apps' ),
+				),
 				'steps'       => array(
 					'type'        => 'array',
 					'description' => __( 'Guide steps.', 'my-apps' ),
@@ -3433,6 +3437,10 @@ class My_Apps {
 			if ( '' !== $learn_more ) {
 				$payload['learn_more'] = $learn_more;
 			}
+		}
+
+		if ( isset( $recipe['core_wordpress'] ) && is_scalar( $recipe['core_wordpress'] ) ) {
+			$payload['core_wordpress'] = wp_validate_boolean( $recipe['core_wordpress'] );
 		}
 
 		if ( isset( $recipe['steps'] ) && is_array( $recipe['steps'] ) ) {

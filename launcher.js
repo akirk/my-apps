@@ -298,6 +298,12 @@
 	let recipes = {};
 	let hasRecipes = false;
 	let recipesLoadState = 'idle'; // idle | loading | loaded | failed
+	let coreWordPressRecipesExpanded = false;
+	const CORE_WORDPRESS_RECIPE_KEYS = {
+		'family-blog': true,
+		'family-history': true,
+		'bring-your-data': true
+	};
 	// Stash a recipe slug picked up from ?recipe= so we can render the
 	// detail once recipes finish fetching.
 	let pendingRecipe = null;
@@ -1369,6 +1375,7 @@
 			updateWpAdminLinksToggleLabel();
 
 			if (wpAdminLinksHidden) {
+				coreWordPressRecipesExpanded = false;
 				applyWpAdminLinksPreference();
 				if (activeCategory === '__plugins__' || activeView === 'admin-link' || activeView === 'web-link') {
 					navigateToAppStoreCategory(DEFAULT_APP_STORE_CATEGORY);
@@ -1377,16 +1384,16 @@
 					buildAppStoreNav(appStoreData);
 					filterAppStore();
 				}
-				showToast('wp-admin links hidden');
+				showToast('WordPress complexity hidden');
 			} else {
-				showToast('wp-admin links restored');
+				showToast('WordPress complexity restored');
 				setTimeout(function() { window.location.reload(); }, 500);
 			}
 		})
 		.catch(function() {
 			wpAdminLinksHidden = previous;
 			updateWpAdminLinksToggleLabel();
-			showToast('Could not save wp-admin links setting');
+			showToast('Could not save WordPress complexity setting');
 		});
 	}
 
@@ -5951,6 +5958,7 @@
 
 		return Object.keys(recipes)
 			.filter(function(key) {
+				if (areCoreWordPressRecipesHidden() && isCoreWordPressRecipe(key, recipes[key])) return false;
 				return recipeSearchHaystack(recipes[key], key).indexOf(search) !== -1;
 			})
 			.sort(function(a, b) {
@@ -6026,6 +6034,18 @@
 		return itemEl;
 	}
 
+	function isCoreWordPressRecipe(recipeKey, recipe) {
+		if (!recipe) return false;
+		if (recipe.core_wordpress === true || recipe.core_wordpress === '1' || recipe.core_wordpress === 1) {
+			return true;
+		}
+		return !!CORE_WORDPRESS_RECIPE_KEYS[recipeKey];
+	}
+
+	function areCoreWordPressRecipesHidden() {
+		return wpAdminLinksHidden && !coreWordPressRecipesExpanded;
+	}
+
 	function renderRecipesGrid(search) {
 		appStoreContent.innerHTML = '';
 
@@ -6052,14 +6072,23 @@
 		var grid = document.createElement('div');
 		grid.className = 'recipe-grid';
 
-		var hasResults = false;
+		var visibleRecipeKeys = [];
+		var hiddenCoreCount = 0;
+
 		Object.keys(recipes).forEach(function(key) {
 			var r = recipes[key];
 			if (search) {
 				if (recipeSearchHaystack(r, key).indexOf(search) === -1) return;
 			}
-			hasResults = true;
+			if (areCoreWordPressRecipesHidden() && isCoreWordPressRecipe(key, r)) {
+				hiddenCoreCount++;
+				return;
+			}
+			visibleRecipeKeys.push(key);
+		});
 
+		visibleRecipeKeys.forEach(function(key) {
+			var r = recipes[key];
 			var card = document.createElement('button');
 			card.type = 'button';
 			card.className = 'recipe-card';
@@ -6093,9 +6122,30 @@
 			grid.appendChild(card);
 		});
 
-		if (hasResults) {
+		if (visibleRecipeKeys.length > 0) {
 			appStoreContent.appendChild(grid);
-		} else {
+		}
+
+		if (hiddenCoreCount > 0) {
+			var revealWrap = document.createElement('div');
+			revealWrap.className = 'recipe-core-toggle';
+
+			var revealButton = document.createElement('button');
+			revealButton.type = 'button';
+			revealButton.className = 'recipe-core-toggle-button';
+			revealButton.textContent = hiddenCoreCount === 1
+				? 'Show 1 more use that involves core WordPress'
+				: 'Show ' + hiddenCoreCount + ' more uses that involve core WordPress';
+			revealButton.addEventListener('click', function() {
+				coreWordPressRecipesExpanded = true;
+				renderRecipesGrid(search);
+			});
+
+			revealWrap.appendChild(revealButton);
+			appStoreContent.appendChild(revealWrap);
+		}
+
+		if (visibleRecipeKeys.length === 0 && hiddenCoreCount === 0) {
 			var emptyEl = document.createElement('div');
 			emptyEl.className = 'app-store-error';
 			emptyEl.textContent = 'No guides match your search.';

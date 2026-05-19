@@ -194,8 +194,8 @@ $is_app_store = isset( $_GET['app-store'] );
 				<?php endif; ?>
 				<div class="settings-setting">
 					<div class="settings-setting-copy">
-						<h3><?php esc_html_e( 'Hide wp-admin links', 'my-apps' ); ?></h3>
-						<p><?php esc_html_e( 'Remove the WordPress logo menu, site name, comments, + New shortcuts, plugin recommendations, and manual add links from the App Store.', 'my-apps' ); ?></p>
+						<h3><?php esc_html_e( 'Hide WordPress complexity', 'my-apps' ); ?></h3>
+						<p><?php esc_html_e( 'Keep My Apps focused by hiding legacy WordPress admin shortcuts, plugin recommendations, manual add links, and core WordPress guides until you ask for them.', 'my-apps' ); ?></p>
 					</div>
 					<button type="button" class="settings-switch<?php if ( $hide_wp_admin_links ) : ?> active<?php endif; ?>" id="setting-wp-admin-links-toggle" data-action="toggle-wp-admin-links" role="switch" aria-checked="<?php echo esc_attr( $hide_wp_admin_links ? 'true' : 'false' ); ?>">
 						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>

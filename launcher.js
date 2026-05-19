@@ -772,6 +772,36 @@
 		}
 	}
 
+	function openDesktopModeUrl(url, options) {
+		options = options || {};
+		var shell = getDesktopModeShell();
+		var desktop = shell && shell.wp && shell.wp.desktop;
+		var windowManager = desktop && desktop.windowManager;
+		var windowUrl = getDesktopModeWindowUrl(url);
+		if (!windowUrl || !windowManager || typeof windowManager.open !== 'function') {
+			return false;
+		}
+
+		try {
+			var windowId = typeof desktop.deriveWindowId === 'function' ? desktop.deriveWindowId(windowUrl) : '';
+			if (!windowId) {
+				windowId = 'my-apps-link-' + String(windowUrl).replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 64);
+			}
+			windowManager.open({
+				id: windowId,
+				baseId: windowId,
+				url: windowUrl,
+				title: options.title || 'Open',
+				icon: options.icon || 'dashicons-admin-generic',
+				width: options.width || 900,
+				height: options.height || 640
+			});
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
 	function getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl) {
 		if (blueprint && blueprint.landingPage) {
 			// Keep Playground from navigating during install; show an Open link after success.
@@ -5952,12 +5982,26 @@
 				linkWrap.className = 'recipe-step-actions';
 				var linkEl = document.createElement('a');
 				linkEl.className = 'recipe-step-link';
-				linkEl.href = step.url;
-				if (step.url.indexOf('http') === 0) {
+				var stepUrl = toAbsoluteUrl(step.url) || step.url;
+				linkEl.href = stepUrl;
+				var isExternalStepUrl = false;
+				try {
+					isExternalStepUrl = (new URL(stepUrl, window.location.href)).origin !== window.location.origin;
+				} catch (e) {}
+				if (isExternalStepUrl) {
 					linkEl.target = '_blank';
 					linkEl.rel = 'noopener noreferrer';
 				} else {
 					linkEl.target = '_top';
+					if (shouldUseDesktopModeAppStoreInstallFlow()) {
+						(function(url, title) {
+							linkEl.addEventListener('click', function(e) {
+								if (openDesktopModeUrl(url, { title: title })) {
+									e.preventDefault();
+								}
+							});
+						})(stepUrl, step.url_label || step.title || 'Open');
+					}
 				}
 				linkEl.textContent = (step.url_label || 'Open') + ' →';
 				linkWrap.appendChild(linkEl);

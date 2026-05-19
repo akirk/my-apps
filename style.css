@@ -2077,6 +2077,7 @@ body.my-apps-launcher .settings-switch:active {
 	background: transparent !important;
 	border: 0 !important;
 	box-shadow: none !important;
+	color: #555 !important;
 }
 
 .settings-switch-track {
@@ -2103,6 +2104,13 @@ body.my-apps-launcher .settings-switch:active {
 
 .settings-switch.active {
 	color: #3858e9;
+}
+
+body.my-apps-launcher .settings-switch.active,
+body.my-apps-launcher .settings-switch.active:hover,
+body.my-apps-launcher .settings-switch.active:focus,
+body.my-apps-launcher .settings-switch.active:active {
+	color: #3858e9 !important;
 }
 
 .settings-switch.active .settings-switch-track {

@@ -195,7 +195,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				<div class="settings-setting">
 					<div class="settings-setting-copy">
 						<h3><?php esc_html_e( 'Hide wp-admin links', 'my-apps' ); ?></h3>
-						<p><?php esc_html_e( 'Remove the WordPress logo menu, site name shortcuts, and plugin recommendations from the App Store.', 'my-apps' ); ?></p>
+						<p><?php esc_html_e( 'Remove the WordPress logo menu, site name shortcuts, plugin recommendations, and manual add links from the App Store.', 'my-apps' ); ?></p>
 					</div>
 					<button type="button" class="settings-switch<?php if ( $hide_wp_admin_links ) : ?> active<?php endif; ?>" id="setting-wp-admin-links-toggle" data-action="toggle-wp-admin-links" role="switch" aria-checked="<?php echo esc_attr( $hide_wp_admin_links ? 'true' : 'false' ); ?>">
 						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>
@@ -371,9 +371,11 @@ $is_app_store = isset( $_GET['app-store'] );
 					</div>
 					<ul class="app-store-nav" id="app-store-nav">
 						<li class="app-store-nav-item active" data-category="Apps"><?php esc_html_e( 'Apps', 'my-apps' ); ?></li>
+						<?php if ( ! $hide_wp_admin_links ) : ?>
 						<li class="app-store-nav-divider"></li>
 						<li class="app-store-nav-item" data-view="admin-link"><?php esc_html_e( 'Add Admin Link', 'my-apps' ); ?></li>
 						<li class="app-store-nav-item" data-view="web-link"><?php esc_html_e( 'Add Web Link', 'my-apps' ); ?></li>
+						<?php endif; ?>
 					</ul>
 				</nav>
 				<div class="app-store-main">

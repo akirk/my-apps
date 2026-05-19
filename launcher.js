@@ -1338,6 +1338,10 @@
 		return !!wpAdminLinksHidden;
 	}
 
+	function areAppStoreManualLinksHidden() {
+		return !!wpAdminLinksHidden;
+	}
+
 	function updateSettingsControls() {
 		updateGreetingToggleLabel();
 		updateRootRedirectToggleLabel();
@@ -1427,7 +1431,7 @@
 
 			if (wpAdminLinksHidden) {
 				applyWpAdminLinksPreference();
-				if (activeCategory === '__plugins__') {
+				if (activeCategory === '__plugins__' || activeView === 'admin-link' || activeView === 'web-link') {
 					navigateToAppStoreCategory(DEFAULT_APP_STORE_CATEGORY);
 				}
 				if (appStoreData) {
@@ -4138,6 +4142,10 @@
 	}
 
 	function showAppStoreView(view) {
+		if ((view === 'admin-link' || view === 'web-link') && areAppStoreManualLinksHidden()) {
+			view = 'apps';
+		}
+
 		activeView = view;
 		appStoreContent.hidden = (view !== 'apps');
 		adminLinkView.hidden = (view !== 'admin-link');
@@ -5259,21 +5267,23 @@
 			appStoreNav.appendChild(pluginsLi);
 		}
 
-		var addDivider = document.createElement('li');
-		addDivider.className = 'app-store-nav-divider';
-		appStoreNav.appendChild(addDivider);
+		if (!areAppStoreManualLinksHidden()) {
+			var addDivider = document.createElement('li');
+			addDivider.className = 'app-store-nav-divider';
+			appStoreNav.appendChild(addDivider);
 
-		var addAdminLi = document.createElement('li');
-		addAdminLi.className = 'app-store-nav-item';
-		addAdminLi.dataset.view = 'admin-link';
-		addAdminLi.textContent = 'Add Admin Link';
-		appStoreNav.appendChild(addAdminLi);
+			var addAdminLi = document.createElement('li');
+			addAdminLi.className = 'app-store-nav-item';
+			addAdminLi.dataset.view = 'admin-link';
+			addAdminLi.textContent = 'Add Admin Link';
+			appStoreNav.appendChild(addAdminLi);
 
-		var addWebLi = document.createElement('li');
-		addWebLi.className = 'app-store-nav-item';
-		addWebLi.dataset.view = 'web-link';
-		addWebLi.textContent = 'Add Web Link';
-		appStoreNav.appendChild(addWebLi);
+			var addWebLi = document.createElement('li');
+			addWebLi.className = 'app-store-nav-item';
+			addWebLi.dataset.view = 'web-link';
+			addWebLi.textContent = 'Add Web Link';
+			appStoreNav.appendChild(addWebLi);
+		}
 
 		if (!areAppStorePluginsHidden()) {
 			// Plugin directory link
@@ -5290,6 +5300,10 @@
 			pluginDirLi.appendChild(pluginDirLink);
 			appStoreNav.appendChild(pluginDirLi);
 		}
+
+		var submitDivider = document.createElement('li');
+		submitDivider.className = 'app-store-nav-divider';
+		appStoreNav.appendChild(submitDivider);
 
 		var submitLi = document.createElement('li');
 		submitLi.className = 'app-store-nav-item app-store-nav-external';
@@ -7227,7 +7241,16 @@
 			openRecipesRoute(true);
 			return;
 		}
-		if (addParam === 'web-link' || addParam === 'admin-link' || addParam === 'apps') {
+		if (addParam === 'web-link' || addParam === 'admin-link') {
+			url.searchParams.delete('add');
+			history.replaceState({}, '', url.toString());
+			if (!areAppStoreManualLinksHidden()) {
+				openInstallSoftwareModal();
+				showAppStoreView(addParam);
+			}
+			return;
+		}
+		if (addParam === 'apps') {
 			openInstallSoftwareModal();
 			showAppStoreView(addParam);
 			url.searchParams.delete('add');

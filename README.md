@@ -47,7 +47,7 @@ You can add your own app to the App Store by pasting a complete WordPress Playgr
 
 My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author` fields to create the app-store entry. If the title matches an existing app, you can temporarily override that app with your pasted blueprint. Custom and modified blueprint entries are stored in this browser, appear in the Custom section, and can be removed or reverted from their badge in the App Store.
 
-To test App Store catalog, recipe, or plugin recommendation changes from another blueprints source without changing this plugin, paste a `WordPress/blueprints` PR number, a PR URL, or a GitHub fork branch URL anywhere in the App Store. On mobile, paste it into Search. Use the x next to the source indicator to return to the default catalog.
+To test App Store catalog, What can I do? guide, or plugin recommendation changes from another blueprints source without changing this plugin, paste a `WordPress/blueprints` PR number, a PR URL, or a GitHub fork branch URL anywhere in the App Store. On mobile, paste it into Search. Use the x next to the source indicator to return to the default catalog.
 
 Example:
 
@@ -74,9 +74,10 @@ Example:
 
 ### Abilities API
 
-When the WordPress Abilities API is available, My Apps registers a `my-apps` category with launcher customization abilities:
+When the WordPress Abilities API is available, My Apps registers a `my-apps` category with What can I do? guide discovery and launcher customization abilities:
 
 - `my-apps/get-all` returns the full launcher state, including grouped background metadata, visible apps in display order, and app customization metadata.
+- `my-apps/get-what-can-i-do` returns the default My Apps What can I do? guide catalog for questions like "what can I do?". It intentionally excludes browser-local custom blueprints and alternate App Store catalog sources; the backing catalog file remains `recipes.json`.
 - `my-apps/set-background` updates the launcher background using a preset slug, an image attachment ID, a remote image URL to sideload or use directly if sideloading fails, or a safe CSS color/gradient value.
 - `my-apps/add-app` creates a custom app icon with a name, URL, and optional icon. Icons can be an image URL, Dashicon, emoji, gradient, generated letter tile, or the app URL's conventional `/favicon.ico`.
 - `my-apps/set-app-details` renames an existing launcher app, changes its URL, or reverts those name/URL overrides.
@@ -84,7 +85,7 @@ When the WordPress Abilities API is available, My Apps registers a `my-apps` cat
 - `my-apps/set-visible-ordered` sets the complete `visible_ordered` launcher app list; apps omitted from this list are hidden.
 - `my-apps/set-app-visibility` hides or restores a launcher app by slug.
 
-When the AI Assistant plugin is available, My Apps also registers domain hints so questions about the launcher, app icons, hidden apps, app order, and launcher backgrounds are routed to these abilities.
+When the AI Assistant plugin is available, My Apps also registers domain hints so questions about What can I do? guides, what WordPress can do, the launcher, app icons, hidden apps, app order, and launcher backgrounds are routed to these abilities.
 
 ## Screenshots
 
@@ -94,12 +95,12 @@ When the AI Assistant plugin is available, My Apps also registers domain hints s
    ![Launcher settings](https://ps.w.org/my-apps/assets/screenshot-2.png)
 3. The App Store
    ![The App Store](https://ps.w.org/my-apps/assets/screenshot-3.png)
-4. The Recipes overview — curated multi-step guides for getting the most out of WordPress
-   ![The Recipes overview](https://ps.w.org/my-apps/assets/screenshot-4.png)
-5. A Recipe detail with numbered steps and one-click installs
-   ![A Recipe detail](https://ps.w.org/my-apps/assets/screenshot-5.png)
-6. Another Recipe detail — Bring Your Data In
-   ![Another Recipe detail](https://ps.w.org/my-apps/assets/screenshot-6.png)
+4. The What can I do? overview — curated multi-step guides for getting the most out of WordPress
+   ![The What can I do? overview](https://ps.w.org/my-apps/assets/screenshot-4.png)
+5. A What can I do? detail with numbered steps and one-click installs
+   ![A What can I do? detail](https://ps.w.org/my-apps/assets/screenshot-5.png)
+6. Another What can I do? detail — Bring Your Data In
+   ![Another What can I do? detail](https://ps.w.org/my-apps/assets/screenshot-6.png)
 7. Adding an admin link — browse and search all wp-admin menu items
    ![Adding an admin link](https://ps.w.org/my-apps/assets/screenshot-7.png)
 8. Adding a web link with a custom emoji, image URL, or Dashicon

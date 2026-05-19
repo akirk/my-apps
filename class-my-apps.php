@@ -9,6 +9,7 @@ defined( 'ABSPATH' ) || exit;
 class My_Apps {
 	const ICON_PATH = 'M6 5.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM4 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm11-.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM13 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V6zm5 8.5h-3a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5zM15 13a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2h-3zm-9 1.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM4 15a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3z';
 	const CUSTOM_BACKGROUND = 'custom';
+	const DEFAULT_RECIPES_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/recipes.json';
 	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const ROOT_REDIRECT_OPTION = 'my_apps_redirect_root';
@@ -586,7 +587,7 @@ class My_Apps {
 			$domains = array();
 		}
 
-		$domains['my-apps'] = 'My Apps launcher/home screen customization, shortcut names/icons/links/visibility/order, background state/changes';
+		$domains['my-apps'] = 'My Apps launcher/home screen customization, shortcut names/icons/links/visibility/order, background state/changes, What can I do? guides, available WordPress activities';
 
 		return $domains;
 	}
@@ -603,7 +604,7 @@ class My_Apps {
 			'my-apps',
 			array(
 				'label'       => __( 'My Apps', 'my-apps' ),
-				'description' => __( 'Abilities for reading and customizing the My Apps launcher.', 'my-apps' ),
+				'description' => __( 'Abilities for reading What can I do? guides and customizing the My Apps launcher.', 'my-apps' ),
 			)
 		);
 	}
@@ -628,6 +629,46 @@ class My_Apps {
 				'meta'                => array(
 					'annotations'  => array(
 						'instructions' => __( 'Use this before answering questions about the user\'s My Apps launcher, launcher apps, visible app order, hidden apps, app icons, app links, or background. The result is the full current launcher state; use visible_ordered for display order and each app\'s hidden field for visibility.', 'my-apps' ),
+						'readonly'     => true,
+						'destructive'  => false,
+						'idempotent'   => true,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+
+		wp_register_ability(
+			'my-apps/get-what-can-i-do',
+			array(
+				'label'               => __( 'Get What Can I Do Guides', 'my-apps' ),
+				'description'         => __( 'Returns the default My Apps What can I do? guide catalog for answering what users can do with WordPress.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'slug'  => array(
+							'type'        => 'string',
+							'description' => __( 'Optional guide slug to return one guide.', 'my-apps' ),
+						),
+						'query' => array(
+							'type'        => 'string',
+							'description' => __( 'Optional search query matched against guide titles, descriptions, and steps.', 'my-apps' ),
+						),
+						'limit' => array(
+							'type'        => 'integer',
+							'description' => __( 'Optional maximum number of matching guides to return.', 'my-apps' ),
+							'minimum'     => 1,
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => self::recipes_output_schema(),
+				'execute_callback'    => array( $this, 'ability_get_recipes' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'instructions' => __( 'Use this when the user asks what they can do with WordPress, asks for activity ideas, or asks for What can I do? guide steps. This returns only the default recipes.json catalog; it does not include browser-local custom blueprints or alternate App Store catalog sources.', 'my-apps' ),
 						'readonly'     => true,
 						'destructive'  => false,
 						'idempotent'   => true,
@@ -926,6 +967,16 @@ class My_Apps {
 	 */
 	public function ability_get_all() {
 		return self::customization_payload();
+	}
+
+	/**
+	 * Ability: get default What can I do? guide catalog.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function ability_get_recipes( $input = array() ) {
+		return self::recipes_payload( $input );
 	}
 
 	/**
@@ -2990,6 +3041,435 @@ class My_Apps {
 		}
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * Build the output schema for recipe guide responses.
+	 *
+	 * @return array
+	 */
+	private static function recipes_output_schema() {
+		return array(
+			'type'                 => 'object',
+			'required'             => array( 'source', 'count', 'guides' ),
+			'properties'           => array(
+				'source'  => array(
+					'type'                 => 'object',
+					'required'             => array( 'url', 'default_only', 'custom_overrides_included' ),
+					'properties'           => array(
+						'url'                       => array(
+							'type'        => 'string',
+							'description' => __( 'The default recipes.json URL used for this response.', 'my-apps' ),
+						),
+						'default_only'              => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether the response is limited to the default published guide catalog.', 'my-apps' ),
+						),
+						'custom_overrides_included' => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether browser-local custom blueprints or alternate catalog source overrides are included.', 'my-apps' ),
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'count'   => array(
+					'type'        => 'integer',
+					'description' => __( 'The number of guides returned.', 'my-apps' ),
+				),
+				'guides'  => array(
+					'type'                 => 'object',
+					'description'          => __( 'Default What can I do? guide entries keyed by guide slug.', 'my-apps' ),
+					'additionalProperties' => self::recipe_output_schema(),
+				),
+			),
+			'additionalProperties' => false,
+		);
+	}
+
+	/**
+	 * Build the output schema for one recipe guide entry.
+	 *
+	 * @return array
+	 */
+	private static function recipe_output_schema() {
+		return array(
+			'type'                 => 'object',
+			'required'             => array( 'title', 'steps' ),
+			'properties'           => array(
+				'title'       => array(
+					'type'        => 'string',
+					'description' => __( 'The guide title.', 'my-apps' ),
+				),
+				'tagline'     => array(
+					'type'        => 'string',
+					'description' => __( 'A short guide summary.', 'my-apps' ),
+				),
+				'description' => array(
+					'type'        => 'string',
+					'description' => __( 'The guide description.', 'my-apps' ),
+				),
+				'icon'        => array(
+					'type'        => 'string',
+					'description' => __( 'The guide icon.', 'my-apps' ),
+				),
+				'gradient'    => array(
+					'type'        => 'string',
+					'description' => __( 'The guide display gradient.', 'my-apps' ),
+				),
+				'learn_more'  => array(
+					'type'        => 'string',
+					'description' => __( 'A URL with more information about the guide.', 'my-apps' ),
+				),
+				'steps'       => array(
+					'type'        => 'array',
+					'description' => __( 'Guide steps.', 'my-apps' ),
+					'items'       => self::recipe_step_output_schema(),
+				),
+			),
+			'additionalProperties' => false,
+		);
+	}
+
+	/**
+	 * Build the output schema for one recipe step.
+	 *
+	 * @return array
+	 */
+	private static function recipe_step_output_schema() {
+		return array(
+			'type'                 => 'object',
+			'required'             => array( 'type', 'title' ),
+			'properties'           => array(
+				'type'        => array(
+					'type'        => 'string',
+					'enum'        => array( 'app', 'plugin', 'github', 'note' ),
+					'description' => __( 'The guide step type.', 'my-apps' ),
+				),
+				'title'       => array(
+					'type'        => 'string',
+					'description' => __( 'The guide step title.', 'my-apps' ),
+				),
+				'description' => array(
+					'type'        => 'string',
+					'description' => __( 'The guide step description.', 'my-apps' ),
+				),
+				'optional'    => array(
+					'type'        => 'boolean',
+					'description' => __( 'Whether the guide step is optional.', 'my-apps' ),
+				),
+				'context'     => array(
+					'type'        => 'string',
+					'enum'        => array( 'self-hosted', 'playground' ),
+					'description' => __( 'The environment where the step applies.', 'my-apps' ),
+				),
+				'path'        => array(
+					'type'        => 'string',
+					'description' => __( 'The app blueprint path for app steps.', 'my-apps' ),
+				),
+				'slug'        => array(
+					'type'        => 'string',
+					'description' => __( 'The WordPress.org plugin slug for plugin steps.', 'my-apps' ),
+				),
+				'repo'        => array(
+					'type'        => 'string',
+					'description' => __( 'The GitHub repository for GitHub plugin steps.', 'my-apps' ),
+				),
+				'url'         => array(
+					'type'        => 'string',
+					'description' => __( 'A supporting URL for the step.', 'my-apps' ),
+				),
+				'url_label'   => array(
+					'type'        => 'string',
+					'description' => __( 'The label for the supporting URL.', 'my-apps' ),
+				),
+			),
+			'additionalProperties' => false,
+		);
+	}
+
+	/**
+	 * Build the recipe guide ability payload.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	private static function recipes_payload( $input = array() ) {
+		$input   = is_array( $input ) ? wp_unslash( $input ) : array();
+		$recipes = self::default_recipes_catalog();
+
+		if ( is_wp_error( $recipes ) ) {
+			return $recipes;
+		}
+
+		if ( isset( $input['slug'] ) && is_scalar( $input['slug'] ) && '' !== trim( (string) $input['slug'] ) ) {
+			$slug = self::normalize_recipe_slug( $input['slug'] );
+			if ( '' === $slug || ! isset( $recipes[ $slug ] ) ) {
+				return new \WP_Error( 'my_apps_unknown_recipe', __( 'Guide not found.', 'my-apps' ) );
+			}
+			$recipes = array(
+				$slug => $recipes[ $slug ],
+			);
+		} elseif ( isset( $input['query'] ) && is_scalar( $input['query'] ) ) {
+			$query = sanitize_text_field( (string) $input['query'] );
+			if ( '' !== $query ) {
+				$recipes = array_filter(
+					$recipes,
+					function ( $recipe, $slug ) use ( $query ) {
+						return self::recipe_matches_query( $slug, $recipe, $query );
+					},
+					ARRAY_FILTER_USE_BOTH
+				);
+			}
+		}
+
+		if ( isset( $input['limit'] ) && is_scalar( $input['limit'] ) ) {
+			$limit = absint( $input['limit'] );
+			if ( $limit > 0 ) {
+				$recipes = array_slice( $recipes, 0, $limit, true );
+			}
+		}
+
+		return array(
+			'source'  => array(
+				'url'                       => self::DEFAULT_RECIPES_URL,
+				'default_only'              => true,
+				'custom_overrides_included' => false,
+			),
+			'count'   => count( $recipes ),
+			'guides'  => (object) $recipes,
+		);
+	}
+
+	/**
+	 * Fetch and cache the default recipes catalog.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function default_recipes_catalog() {
+		$cached = get_transient( 'my_apps_default_recipes_catalog' );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$response = wp_remote_get(
+			self::DEFAULT_RECIPES_URL,
+			array(
+				'timeout' => 10,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error( 'my_apps_recipes_unavailable', $response->get_error_message() );
+		}
+
+		$status = wp_remote_retrieve_response_code( $response );
+		if ( $status < 200 || $status >= 300 ) {
+			return new \WP_Error( 'my_apps_recipes_unavailable', __( 'Unable to load guides.', 'my-apps' ) );
+		}
+
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) ) {
+			return new \WP_Error( 'my_apps_invalid_recipes_catalog', __( 'Invalid guide catalog.', 'my-apps' ) );
+		}
+
+		$recipes = self::sanitize_recipes_catalog( $data );
+		set_transient( 'my_apps_default_recipes_catalog', $recipes, HOUR_IN_SECONDS );
+
+		return $recipes;
+	}
+
+	/**
+	 * Sanitize recipes loaded from the default catalog.
+	 *
+	 * @param array $data Raw recipes catalog.
+	 * @return array
+	 */
+	private static function sanitize_recipes_catalog( $data ) {
+		$recipes = array();
+
+		foreach ( $data as $slug => $recipe ) {
+			$slug = self::normalize_recipe_slug( $slug );
+			if ( '' === $slug || ! is_array( $recipe ) ) {
+				continue;
+			}
+
+			$recipe = self::sanitize_recipe_payload( $recipe );
+			if ( ! empty( $recipe['title'] ) ) {
+				$recipes[ $slug ] = $recipe;
+			}
+		}
+
+		return $recipes;
+	}
+
+	/**
+	 * Normalize a recipe slug.
+	 *
+	 * @param mixed $slug Recipe slug.
+	 * @return string
+	 */
+	private static function normalize_recipe_slug( $slug ) {
+		return is_scalar( $slug ) ? sanitize_key( (string) $slug ) : '';
+	}
+
+	/**
+	 * Sanitize one recipe payload.
+	 *
+	 * @param array $recipe Raw recipe.
+	 * @return array
+	 */
+	private static function sanitize_recipe_payload( $recipe ) {
+		$title = isset( $recipe['title'] ) && is_scalar( $recipe['title'] ) ? sanitize_text_field( (string) $recipe['title'] ) : '';
+		if ( '' === $title ) {
+			return array();
+		}
+
+		$payload = array(
+			'title' => $title,
+			'steps' => array(),
+		);
+
+		foreach ( array( 'tagline', 'icon', 'gradient' ) as $key ) {
+			if ( isset( $recipe[ $key ] ) && is_scalar( $recipe[ $key ] ) ) {
+				$value = sanitize_text_field( (string) $recipe[ $key ] );
+				if ( '' !== $value ) {
+					$payload[ $key ] = $value;
+				}
+			}
+		}
+
+		if ( isset( $recipe['description'] ) && is_scalar( $recipe['description'] ) ) {
+			$description = sanitize_textarea_field( (string) $recipe['description'] );
+			if ( '' !== $description ) {
+				$payload['description'] = $description;
+			}
+		}
+
+		if ( isset( $recipe['learn_more'] ) && is_scalar( $recipe['learn_more'] ) ) {
+			$learn_more = esc_url_raw( (string) $recipe['learn_more'] );
+			if ( '' !== $learn_more ) {
+				$payload['learn_more'] = $learn_more;
+			}
+		}
+
+		if ( isset( $recipe['steps'] ) && is_array( $recipe['steps'] ) ) {
+			foreach ( $recipe['steps'] as $step ) {
+				$step = self::sanitize_recipe_step_payload( $step );
+				if ( ! empty( $step ) ) {
+					$payload['steps'][] = $step;
+				}
+			}
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * Sanitize one recipe step payload.
+	 *
+	 * @param mixed $step Raw recipe step.
+	 * @return array
+	 */
+	private static function sanitize_recipe_step_payload( $step ) {
+		if ( ! is_array( $step ) ) {
+			return array();
+		}
+
+		$type  = isset( $step['type'] ) && is_scalar( $step['type'] ) ? sanitize_key( (string) $step['type'] ) : '';
+		$title = isset( $step['title'] ) && is_scalar( $step['title'] ) ? sanitize_text_field( (string) $step['title'] ) : '';
+		if ( '' === $title || ! in_array( $type, array( 'app', 'plugin', 'github', 'note' ), true ) ) {
+			return array();
+		}
+
+		$payload = array(
+			'type'  => $type,
+			'title' => $title,
+		);
+
+		if ( isset( $step['description'] ) && is_scalar( $step['description'] ) ) {
+			$description = sanitize_textarea_field( (string) $step['description'] );
+			if ( '' !== $description ) {
+				$payload['description'] = $description;
+			}
+		}
+
+		if ( array_key_exists( 'optional', $step ) ) {
+			$payload['optional'] = wp_validate_boolean( $step['optional'] );
+		}
+
+		if ( isset( $step['context'] ) && is_scalar( $step['context'] ) ) {
+			$context = sanitize_key( (string) $step['context'] );
+			if ( in_array( $context, array( 'self-hosted', 'playground' ), true ) ) {
+				$payload['context'] = $context;
+			}
+		}
+
+		if ( isset( $step['path'] ) && is_scalar( $step['path'] ) ) {
+			$path = sanitize_text_field( (string) $step['path'] );
+			if ( preg_match( '#^apps/[A-Za-z0-9._-]+\.json$#', $path ) ) {
+				$payload['path'] = $path;
+			}
+		}
+
+		if ( isset( $step['slug'] ) && is_scalar( $step['slug'] ) ) {
+			$slug = self::normalize_recipe_slug( $step['slug'] );
+			if ( '' !== $slug ) {
+				$payload['slug'] = $slug;
+			}
+		}
+
+		if ( isset( $step['repo'] ) && is_scalar( $step['repo'] ) ) {
+			$repo = sanitize_text_field( (string) $step['repo'] );
+			if ( preg_match( '#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $repo ) ) {
+				$payload['repo'] = $repo;
+			}
+		}
+
+		if ( isset( $step['url'] ) && is_scalar( $step['url'] ) ) {
+			$url = esc_url_raw( (string) $step['url'] );
+			if ( '' !== $url ) {
+				$payload['url'] = $url;
+			}
+		}
+
+		if ( isset( $step['url_label'] ) && is_scalar( $step['url_label'] ) ) {
+			$url_label = sanitize_text_field( (string) $step['url_label'] );
+			if ( '' !== $url_label ) {
+				$payload['url_label'] = $url_label;
+			}
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * Check whether a recipe matches a search query.
+	 *
+	 * @param string $slug Recipe slug.
+	 * @param array  $recipe Recipe payload.
+	 * @param string $query Search query.
+	 * @return bool
+	 */
+	private static function recipe_matches_query( $slug, $recipe, $query ) {
+		$parts = array( $slug );
+
+		foreach ( array( 'title', 'tagline', 'description', 'learn_more' ) as $key ) {
+			if ( isset( $recipe[ $key ] ) ) {
+				$parts[] = $recipe[ $key ];
+			}
+		}
+
+		if ( isset( $recipe['steps'] ) && is_array( $recipe['steps'] ) ) {
+			foreach ( $recipe['steps'] as $step ) {
+				foreach ( array( 'type', 'title', 'description', 'context', 'path', 'slug', 'repo', 'url', 'url_label' ) as $key ) {
+					if ( isset( $step[ $key ] ) ) {
+						$parts[] = $step[ $key ];
+					}
+				}
+			}
+		}
+
+		return false !== stripos( implode( ' ', $parts ), $query );
 	}
 
 	/**

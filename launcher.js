@@ -670,7 +670,81 @@
 		return toAbsoluteUrl(openUrl);
 	}
 
+	function getAiAssistantLatchButton() {
+		return document.getElementById('ai-assistant-link') ||
+			document.querySelector('#ai-assistant-standalone-trigger button');
+	}
+
+	function focusAiAssistantInput() {
+		setTimeout(function() {
+			var input = document.getElementById('ai-assistant-input');
+			if (input) {
+				input.focus();
+			}
+			if (window.aiAssistant && typeof window.aiAssistant.scrollToBottom === 'function') {
+				window.aiAssistant.scrollToBottom(true);
+			}
+		}, 50);
+	}
+
+	function openAiAssistantLatch() {
+		return bootstrapAiAssistantAfterInstall(
+			'ai-assistant',
+			{ plugin: 'ai-assistant/ai-assistant.php' }
+		).then(function() {
+			var latchButton = getAiAssistantLatchButton();
+			if (!latchButton) {
+				return false;
+			}
+
+			if (latchButton.getAttribute('aria-expanded') === 'true') {
+				focusAiAssistantInput();
+			} else {
+				latchButton.click();
+			}
+			return true;
+		});
+	}
+
+	function replaceInstallButtonWithAiAssistantOpenButton(btn, install) {
+		if (!btn || !btn.parentNode || !install || !isAiAssistantApp(install.app)) {
+			return false;
+		}
+
+		var openBtn = document.createElement('button');
+		openBtn.type = 'button';
+		openBtn.className = btn.className;
+		openBtn.classList.remove('is-busy', 'is-update');
+		openBtn.classList.add('is-open-link');
+		openBtn.textContent = 'Open';
+
+		if (install.app && install.app.title) {
+			openBtn.setAttribute('aria-label', 'Open ' + install.app.title);
+		}
+
+		openBtn.addEventListener('click', function(e) {
+			e.preventDefault();
+			setInstallButtonState(openBtn, 'Opening...', true);
+			openAiAssistantLatch().then(function(opened) {
+				setInstallButtonState(openBtn, 'Open', false);
+				if (!opened) {
+					showToast('Could not open AI Assistant.');
+				}
+			}, function() {
+				setInstallButtonState(openBtn, 'Open', false);
+				showToast('Could not open AI Assistant.');
+			});
+		});
+
+		btn.replaceWith(openBtn);
+		return true;
+	}
+
 	function replaceInstallButtonWithOpenLink(btn, install) {
+		if (replaceInstallButtonWithAiAssistantOpenButton(btn, install)) {
+			return true;
+		}
+
 		var openUrl = getInstallOpenUrl(install);
 		if (!btn || !btn.parentNode || !openUrl) return false;
 

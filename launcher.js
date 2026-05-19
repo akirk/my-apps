@@ -20,6 +20,7 @@
 	const bgCustomCssPreview = document.getElementById('bg-custom-css-preview');
 	const settingsBtn = document.querySelector('.settings-btn');
 	const settingsDropdown = document.getElementById('settings-dropdown');
+	const settingsModal = document.getElementById('my-apps-settings-modal');
 	const hiddenPopup = document.getElementById('hidden-popup');
 	const hiddenBtn = document.querySelector('.hidden-btn');
 	const hiddenAppsList = document.getElementById('hidden-apps-list');
@@ -1300,7 +1301,7 @@
 		var stored = localStorage.getItem(HIDE_GREETING_KEY);
 		if (stored === '1') return true;
 		if (stored === '0') return false;
-		return !isPlayground;
+		return false;
 	}
 
 	function toggleGreeting() {
@@ -1311,20 +1312,37 @@
 	}
 
 	function updateGreetingToggleLabel() {
-		var label = document.querySelector('.toggle-greeting-label');
-		if (!label) return;
-		label.textContent = isGreetingHidden() ? 'Show greeting' : 'Hide greeting';
+		updateSwitchControl(document.getElementById('setting-greeting-toggle'), !isGreetingHidden());
 	}
 
 	function updateRootRedirectToggleLabel() {
-		var item = settingsDropdown ? settingsDropdown.querySelector('[data-action="toggle-root-redirect"]') : null;
-		if (!item) return;
+		updateSwitchControl(document.getElementById('setting-root-redirect-toggle'), rootRedirectEnabled);
+	}
 
-		item.classList.toggle('active', rootRedirectEnabled);
-		var label = item.querySelector('.toggle-root-redirect-label');
+	function updateSwitchControl(button, checked) {
+		if (!button) return;
+		button.classList.toggle('active', checked);
+		button.setAttribute('aria-checked', checked ? 'true' : 'false');
+		var label = button.querySelector('.settings-switch-label');
 		if (label) {
-			label.textContent = rootRedirectEnabled ? 'Stop opening at /' : 'Open My Apps at /';
+			label.textContent = checked ? 'On' : 'Off';
 		}
+	}
+
+	function updateSettingsControls() {
+		updateGreetingToggleLabel();
+		updateRootRedirectToggleLabel();
+	}
+
+	function openSettingsModal() {
+		if (!settingsModal) return;
+		updateSettingsControls();
+		settingsModal.classList.add('active');
+	}
+
+	function closeSettingsModal() {
+		if (!settingsModal) return;
+		settingsModal.classList.remove('active');
 	}
 
 	function toggleRootRedirect() {
@@ -2259,10 +2277,36 @@
 			document.getElementById('icon-edit-revert').addEventListener('click', handleRevertAppIcon);
 		}
 
+		if (settingsModal) {
+			settingsModal.querySelector('.modal-close').addEventListener('click', closeSettingsModal);
+			settingsModal.addEventListener('click', function(e) {
+				if (e.target === settingsModal) {
+					closeSettingsModal();
+					return;
+				}
+
+				var item = e.target.closest('[data-action]');
+				if (!item || !settingsModal.contains(item)) return;
+
+				if (item.dataset.action === 'toggle-greeting') {
+					toggleGreeting();
+				} else if (item.dataset.action === 'toggle-root-redirect') {
+					toggleRootRedirect();
+				} else if (item.dataset.action === 'export') {
+					handleExport();
+				} else if (item.dataset.action === 'import') {
+					handleImport();
+				}
+			});
+			updateSettingsControls();
+		}
+
 		document.addEventListener('keydown', function(e) {
 			if (e.key === 'Escape') {
 				if (iconEditModal && iconEditModal.classList.contains('active')) {
 					closeIconEditModal();
+				} else if (settingsModal && settingsModal.classList.contains('active')) {
+					closeSettingsModal();
 				} else if (installSoftwareModal.classList.contains('active')) {
 					// If on a detail page (app, plugin, or recipe), go back
 					// to the list one level first instead of closing the modal.
@@ -2329,8 +2373,7 @@
 				settingsDropdown.classList.toggle('active');
 				if (settingsDropdown.classList.contains('active')) {
 					updateLayoutButtons();
-					updateGreetingToggleLabel();
-					updateRootRedirectToggleLabel();
+					updateSettingsControls();
 				}
 			});
 			settingsDropdown.addEventListener('click', function(e) {
@@ -2341,14 +2384,8 @@
 					setLayout(action === 'layout-grid' ? 'grid' : 'flow');
 				} else {
 					settingsDropdown.classList.remove('active');
-					if (action === 'export') {
-						handleExport();
-					} else if (action === 'import') {
-						handleImport();
-					} else if (action === 'toggle-greeting') {
-						toggleGreeting();
-					} else if (action === 'toggle-root-redirect') {
-						toggleRootRedirect();
+					if (action === 'open-settings') {
+						openSettingsModal();
 					} else if (action === 'update-my-apps') {
 						updateMyApps();
 					}
@@ -2388,7 +2425,7 @@
 
 			// Set initial visibility of grid-only settings
 			updateLayoutButtons();
-			updateRootRedirectToggleLabel();
+			updateSettingsControls();
 		}
 
 		// Hidden apps popup

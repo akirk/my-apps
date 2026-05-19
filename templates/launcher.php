@@ -88,24 +88,9 @@ $is_app_store = isset( $_GET['app-store'] );
 					<input type="range" id="setting-spacing" min="4" max="40" step="2" value="16">
 				</div>
 				<div class="settings-dropdown-divider"></div>
-				<button type="button" class="settings-dropdown-item" data-action="toggle-greeting">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>
-					<span class="toggle-greeting-label"></span>
-				</button>
-				<?php if ( $is_playground ) : ?>
-				<button type="button" class="settings-dropdown-item<?php if ( $redirect_root_enabled ) : ?> active<?php endif; ?>" data-action="toggle-root-redirect">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-					<span class="toggle-root-redirect-label"><?php echo esc_html( $redirect_root_enabled ? __( 'Stop opening at /', 'my-apps' ) : __( 'Open My Apps at /', 'my-apps' ) ); ?></span>
-				</button>
-				<?php endif; ?>
-				<div class="settings-dropdown-divider"></div>
-				<button type="button" class="settings-dropdown-item" data-action="export">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-					<?php esc_html_e( 'Export', 'my-apps' ); ?>
-				</button>
-				<button type="button" class="settings-dropdown-item" data-action="import">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
-					<?php esc_html_e( 'Import', 'my-apps' ); ?>
+				<button type="button" class="settings-dropdown-item" data-action="open-settings">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+					<?php esc_html_e( 'My Apps Settings', 'my-apps' ); ?>
 				</button>
 				<?php if ( $is_playground ) : ?>
 				<div class="settings-dropdown-divider"></div>
@@ -175,6 +160,55 @@ $is_app_store = isset( $_GET['app-store'] );
 			hidden
 		></button>
 	</div>
+
+	<?php if ( $can_manage ) : ?>
+	<div class="modal-overlay" id="my-apps-settings-modal">
+		<div class="modal settings-modal">
+			<div class="modal-header">
+				<h2><?php esc_html_e( 'My Apps Settings', 'my-apps' ); ?></h2>
+				<button type="button" class="modal-close" aria-label="<?php esc_attr_e( 'Close', 'my-apps' ); ?>">&times;</button>
+			</div>
+			<div class="settings-modal-body">
+				<div class="settings-setting">
+					<div class="settings-setting-copy">
+						<h3><?php esc_html_e( 'Greeting', 'my-apps' ); ?></h3>
+						<p><?php esc_html_e( 'Show a personalized greeting above your apps. Click the greeting itself to change the displayed name.', 'my-apps' ); ?></p>
+					</div>
+					<button type="button" class="settings-switch" id="setting-greeting-toggle" data-action="toggle-greeting" role="switch" aria-checked="true">
+						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>
+						<span class="settings-switch-label"><?php esc_html_e( 'On', 'my-apps' ); ?></span>
+					</button>
+				</div>
+				<?php if ( $is_playground ) : ?>
+				<div class="settings-setting">
+					<div class="settings-setting-copy">
+						<h3><?php esc_html_e( 'Start at My Apps', 'my-apps' ); ?></h3>
+						<p><?php esc_html_e( 'When someone opens this Playground at /, send them straight to /my-apps/. Turn this off if / should show the WordPress front page instead.', 'my-apps' ); ?></p>
+					</div>
+					<button type="button" class="settings-switch<?php if ( $redirect_root_enabled ) : ?> active<?php endif; ?>" id="setting-root-redirect-toggle" data-action="toggle-root-redirect" role="switch" aria-checked="<?php echo esc_attr( $redirect_root_enabled ? 'true' : 'false' ); ?>">
+						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>
+						<span class="settings-switch-label"><?php echo esc_html( $redirect_root_enabled ? __( 'On', 'my-apps' ) : __( 'Off', 'my-apps' ) ); ?></span>
+					</button>
+				</div>
+				<?php endif; ?>
+				<div class="settings-setting settings-setting-stacked">
+					<div class="settings-setting-copy">
+						<h3><?php esc_html_e( 'My Apps settings file', 'my-apps' ); ?></h3>
+						<p><?php esc_html_e( 'Import or export this launcher setup, including app order, hidden apps, custom apps, icons, backgrounds, display preferences, and custom App Store entries. This does not include WordPress posts, pages, media, users, or other site content.', 'my-apps' ); ?></p>
+					</div>
+					<div class="settings-action-row">
+						<button type="button" class="settings-action-button" data-action="export">
+							<?php esc_html_e( 'Export My Apps Settings', 'my-apps' ); ?>
+						</button>
+						<button type="button" class="settings-action-button" data-action="import">
+							<?php esc_html_e( 'Import My Apps Settings', 'my-apps' ); ?>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<?php endif; ?>
 <?php endif; ?>
 
 	<div class="hidden-popup" id="hidden-popup">

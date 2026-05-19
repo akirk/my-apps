@@ -2138,6 +2138,19 @@
 		};
 	}
 
+	function gradientIconLetterForName(name) {
+		var letters = letterIconDataForName(name).letters || '?';
+		return String(letters).charAt(0) || '?';
+	}
+
+	function appendGradientIconLetter(parent, name) {
+		var letter = document.createElement('span');
+		letter.className = 'app-gradient-icon-letter';
+		letter.setAttribute('aria-hidden', 'true');
+		letter.textContent = gradientIconLetterForName(name);
+		parent.appendChild(letter);
+	}
+
 	function updateIconEditPreview() {
 		var preview = document.getElementById('icon-edit-preview');
 		if (!preview) return;
@@ -4031,7 +4044,7 @@
 			var gradient = document.createElement(tagName);
 			gradient.className = 'app-gradient-icon' + (options.small ? ' app-gradient-icon-small' : '');
 			gradient.style.background = app.gradient;
-			gradient.innerHTML = WP_ICON_SVG || '';
+			appendGradientIconLetter(gradient, app.name);
 			parent.appendChild(gradient);
 		}
 	}
@@ -5710,8 +5723,6 @@
 		var listEl = document.createElement('div');
 		listEl.className = 'app-store-list';
 
-		var wpIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/></svg>';
-
 		var hasResults = false;
 		var matchingRecipeKeys = (search && category !== '__plugins__')
 			? getMatchingRecipeKeys(search)
@@ -5760,8 +5771,8 @@
 				pluginIcon.loading = 'lazy';
 				iconEl.appendChild(pluginIcon);
 			} else {
-				iconEl.innerHTML = wpIconSvg;
 				iconEl.style.background = gradient;
+				appendGradientIconLetter(iconEl, app.title);
 			}
 
 			var infoEl = document.createElement('div');
@@ -5963,7 +5974,6 @@
 	// ── Recipes ──────────────────────────────────────────────
 
 	var BACK_ARROW_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>';
-	var WP_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/></svg>';
 
 	function findStoreEntryForStep(step) {
 		if (!appStoreData || !step) return null;
@@ -6039,7 +6049,7 @@
 			iconEl.style.fontSize = '24px';
 			iconEl.style.lineHeight = '1';
 		} else {
-			iconEl.innerHTML = WP_ICON_SVG;
+			appendGradientIconLetter(iconEl, recipe.title || recipeKey);
 		}
 
 		var infoEl = document.createElement('div');
@@ -6343,8 +6353,8 @@
 			img.loading = 'lazy';
 			iconEl.appendChild(img);
 		} else {
-			iconEl.innerHTML = WP_ICON_SVG;
 			iconEl.style.background = gradient;
+			appendGradientIconLetter(iconEl, app.title);
 		}
 		card.appendChild(iconEl);
 
@@ -6496,8 +6506,8 @@
 			img.alt = '';
 			iconEl.appendChild(img);
 		} else {
-			iconEl.innerHTML = WP_ICON_SVG;
 			iconEl.style.background = gradient;
+			appendGradientIconLetter(iconEl, plugin.title);
 		}
 
 		var headerInfo = document.createElement('div');
@@ -6661,7 +6671,6 @@
 
 	function renderAppDetail(appPath, app, blueprintUrl, gradient) {
 		app._path = appPath;
-		var wpIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 1.5c4.687 0 8.5 3.813 8.5 8.5 0 4.687-3.813 8.5-8.5 8.5-4.687 0-8.5-3.813-8.5-8.5 0-4.687 3.813-8.5 8.5-8.5zM4.146 12L7.09 19.6a8.476 8.476 0 01-2.944-7.6zm14.023 3.533L14.89 6.178c.563-.03 1.07-.088 1.07-.088.502-.06.443-.797-.06-.769 0 0-1.51.119-2.485.119-.918 0-2.458-.119-2.458-.119-.503-.028-.563.739-.06.769 0 0 .478.058.982.088l1.46 4-2.048 6.14L7.96 6.178c.564-.03 1.07-.088 1.07-.088.503-.06.443-.797-.06-.769 0 0-1.508.119-2.484.119-.175 0-.38-.005-.596-.013A8.467 8.467 0 0112 3.5c3.161 0 5.946 1.725 7.426 4.286-.048-.003-.094-.01-.144-.01-1.243 0-2.125.91-2.125 1.893 0 .878.507 1.622 1.048 2.502.406.706.88 1.612.88 2.92 0 .907-.348 1.958-.81 3.422l-1.106 3.52zm-6.187 1.085L15.5 7.653l1.666 4.573c.16.454.282.826.282 1.274 0 1.072-.28 1.818-.6 2.832l-.877 2.765a8.473 8.473 0 01-4.002 1.559z"/></svg>';
 
 		// Hide sidebar — detail page is full-width in the main area
 		var sidebar = document.getElementById('app-store-sidebar');
@@ -6692,8 +6701,8 @@
 
 		var iconEl = document.createElement('div');
 		iconEl.className = 'app-detail-icon';
-		iconEl.innerHTML = wpIconSvg;
 		iconEl.style.background = gradient;
+		appendGradientIconLetter(iconEl, app.title);
 
 		var headerInfo = document.createElement('div');
 		headerInfo.className = 'app-detail-header-info';

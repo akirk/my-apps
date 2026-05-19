@@ -21,6 +21,8 @@ $hidden_apps = array_filter( $apps, function( $app ) {
 } );
 $additional_apps = get_option( 'my_apps_additional_apps', array() );
 $can_manage = current_user_can( 'manage_options' );
+$is_playground = My_Apps::is_playground();
+$redirect_root_enabled = My_Apps::is_root_redirect_enabled();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -90,6 +92,12 @@ $is_app_store = isset( $_GET['app-store'] );
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>
 					<span class="toggle-greeting-label"></span>
 				</button>
+				<?php if ( $is_playground ) : ?>
+				<button type="button" class="settings-dropdown-item<?php if ( $redirect_root_enabled ) : ?> active<?php endif; ?>" data-action="toggle-root-redirect">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+					<span class="toggle-root-redirect-label"><?php echo esc_html( $redirect_root_enabled ? __( 'Stop opening at /', 'my-apps' ) : __( 'Open My Apps at /', 'my-apps' ) ); ?></span>
+				</button>
+				<?php endif; ?>
 				<div class="settings-dropdown-divider"></div>
 				<button type="button" class="settings-dropdown-item" data-action="export">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
@@ -99,7 +107,7 @@ $is_app_store = isset( $_GET['app-store'] );
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
 					<?php esc_html_e( 'Import', 'my-apps' ); ?>
 				</button>
-				<?php if ( defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ) ) : ?>
+				<?php if ( $is_playground ) : ?>
 				<div class="settings-dropdown-divider"></div>
 				<button type="button" class="settings-dropdown-item" data-action="update-my-apps">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>

@@ -60,6 +60,7 @@
 	let PLUGINS_URL = '';
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
+	let rootRedirectEnabled = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.redirectRoot);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
 	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
@@ -1314,6 +1315,51 @@
 		label.textContent = isGreetingHidden() ? 'Show greeting' : 'Hide greeting';
 	}
 
+	function updateRootRedirectToggleLabel() {
+		var item = settingsDropdown ? settingsDropdown.querySelector('[data-action="toggle-root-redirect"]') : null;
+		if (!item) return;
+
+		item.classList.toggle('active', rootRedirectEnabled);
+		var label = item.querySelector('.toggle-root-redirect-label');
+		if (label) {
+			label.textContent = rootRedirectEnabled ? 'Stop opening at /' : 'Open My Apps at /';
+		}
+	}
+
+	function toggleRootRedirect() {
+		var previous = rootRedirectEnabled;
+		var next = !rootRedirectEnabled;
+		rootRedirectEnabled = next;
+		updateRootRedirectToggleLabel();
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_save_root_redirect');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('enabled', next ? '1' : '0');
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: formData,
+		})
+		.then(function(r) { return r.json(); })
+		.then(function(resp) {
+			if (!resp.success) {
+				throw new Error('Save failed');
+			}
+
+			rootRedirectEnabled = !!(resp.data && resp.data.redirect_root);
+			myAppsConfig.redirectRoot = rootRedirectEnabled;
+			updateRootRedirectToggleLabel();
+			showToast(rootRedirectEnabled ? 'Root redirect enabled' : 'Root redirect disabled');
+		})
+		.catch(function() {
+			rootRedirectEnabled = previous;
+			updateRootRedirectToggleLabel();
+			showToast('Could not save root redirect setting');
+		});
+	}
+
 	function initGreeting() {
 		var greeting = document.getElementById('greeting');
 		if ( ! greeting ) {
@@ -2283,6 +2329,7 @@
 				if (settingsDropdown.classList.contains('active')) {
 					updateLayoutButtons();
 					updateGreetingToggleLabel();
+					updateRootRedirectToggleLabel();
 				}
 			});
 			settingsDropdown.addEventListener('click', function(e) {
@@ -2299,6 +2346,8 @@
 						handleImport();
 					} else if (action === 'toggle-greeting') {
 						toggleGreeting();
+					} else if (action === 'toggle-root-redirect') {
+						toggleRootRedirect();
 					} else if (action === 'update-my-apps') {
 						updateMyApps();
 					}
@@ -2338,6 +2387,7 @@
 
 			// Set initial visibility of grid-only settings
 			updateLayoutButtons();
+			updateRootRedirectToggleLabel();
 		}
 
 		// Hidden apps popup

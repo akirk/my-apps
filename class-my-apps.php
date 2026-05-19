@@ -11,6 +11,7 @@ class My_Apps {
 	const CUSTOM_BACKGROUND = 'custom';
 	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
+	const ROOT_REDIRECT_OPTION = 'my_apps_redirect_root';
 	const PRESET_BACKGROUNDS = array(
 		'gradient-dawn',
 		'gradient-coral',
@@ -314,6 +315,15 @@ class My_Apps {
 	}
 
 	/**
+	 * Determine whether My Apps is running in WordPress Playground.
+	 *
+	 * @return bool
+	 */
+	public static function is_playground() {
+		return defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' );
+	}
+
+	/**
 	 * Get launcher CSS variables for light preset backgrounds.
 	 *
 	 * @return string
@@ -514,6 +524,7 @@ class My_Apps {
 
 	public function __construct() {
 		add_action( 'init', array( $this, 'my_apps_endpoint' ) );
+		add_action( 'template_redirect', array( $this, 'redirect_root_to_my_apps' ) );
 		add_filter( 'query_vars', array( $this, 'my_apps_query_vars' ) );
 		add_filter( 'template_include', array( $this, 'my_apps_template' ) );
 		add_action( 'wp_head', array( $this, 'admin_bar_css' ), 50 );
@@ -546,6 +557,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
 		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
+		add_action( 'wp_ajax_my_apps_save_root_redirect', array( $this, 'ajax_save_root_redirect' ) );
 		add_action( 'wp_ajax_my_apps_install_plugin', array( $this, 'ajax_install_plugin' ) );
 	}
 
@@ -1912,6 +1924,68 @@ class My_Apps {
 	}
 
 	/**
+	 * Determine whether the root redirect setting is enabled.
+	 *
+	 * @return bool
+	 */
+	public static function is_root_redirect_enabled() {
+		if ( ! self::is_playground() ) {
+			return false;
+		}
+
+		return '1' === get_option( self::ROOT_REDIRECT_OPTION, '1' );
+	}
+
+	/**
+	 * Determine whether the current request is the exact site home path.
+	 *
+	 * @return bool
+	 */
+	private static function is_current_request_home_path() {
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] )
+			? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) )
+			: 'GET';
+		if ( ! in_array( $request_method, array( 'GET', 'HEAD' ), true ) ) {
+			return false;
+		}
+
+		$request_uri = isset( $_SERVER['REQUEST_URI'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+			: '';
+		if ( '' === $request_uri || null !== wp_parse_url( $request_uri, PHP_URL_QUERY ) ) {
+			return false;
+		}
+
+		$request_path = wp_parse_url( $request_uri, PHP_URL_PATH );
+		$home_path    = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+
+		$request_path = '/' . trim( (string) $request_path, '/' );
+		$home_path    = '/' . trim( (string) $home_path, '/' );
+
+		return $request_path === $home_path;
+	}
+
+	/**
+	 * Redirect the site root to the My Apps launcher when enabled.
+	 */
+	public function redirect_root_to_my_apps() {
+		if ( ! self::is_root_redirect_enabled() || is_admin() || wp_doing_ajax() ) {
+			return;
+		}
+
+		if ( function_exists( 'wp_is_json_request' ) && wp_is_json_request() ) {
+			return;
+		}
+
+		if ( is_feed() || is_trackback() || is_preview() || ! is_front_page() || ! self::is_current_request_home_path() ) {
+			return;
+		}
+
+		wp_safe_redirect( home_url( '/my-apps/' ), 302 );
+		exit;
+	}
+
+	/**
 	 * Add the my-apps endpoint.
 	 */
 	public function my_apps_endpoint() {
@@ -2012,7 +2086,7 @@ class My_Apps {
 			array(
 				'ajaxUrl'                   => admin_url( 'admin-ajax.php' ),
 				'nonce'                     => wp_create_nonce( 'my_apps_launcher' ),
-				'isPlayground'              => defined( 'PLAYGROUND_AUTO_LOGIN_AS_USER' ),
+				'isPlayground'              => self::is_playground(),
 				'canInstallPlugins'         => current_user_can( 'install_plugins' ),
 				'canUpdatePlugins'          => current_user_can( 'update_plugins' ),
 				'canUploadMedia'            => $can_upload_media,
@@ -2023,6 +2097,7 @@ class My_Apps {
 				'appUrls'                   => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'          => self::get_installed_plugin_statuses(),
 				'background'                => $background_state['slug'],
+				'redirectRoot'              => self::is_root_redirect_enabled(),
 				'hasCustomizedWallpaper'    => $has_customized_wallpaper,
 				'customBackground'          => isset( $background_state['custom'] ) ? $background_state['custom'] : '',
 				'backgroundImageUrl'        => isset( $background_state['image_url'] ) ? $background_state['image_url'] : '',
@@ -2478,6 +2553,28 @@ class My_Apps {
 	}
 
 	/**
+	 * AJAX: Save root redirect setting.
+	 */
+	public function ajax_save_root_redirect() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! self::is_playground() || ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Not allowed' );
+		}
+
+		$enabled_raw = isset( $_POST['enabled'] ) ? sanitize_text_field( wp_unslash( $_POST['enabled'] ) ) : '0';
+		$enabled     = wp_validate_boolean( $enabled_raw );
+
+		update_option( self::ROOT_REDIRECT_OPTION, $enabled ? '1' : '0' );
+
+		wp_send_json_success(
+			array(
+				'redirect_root' => $enabled,
+			)
+		);
+	}
+
+	/**
 	 * AJAX: Save an app icon override.
 	 */
 	public function ajax_save_app_icon() {
@@ -2806,15 +2903,20 @@ class My_Apps {
 			$background_export['attachment_id'] = $background_state['attachment_id'];
 		}
 
+		$settings_export = array(
+			'sort'               => get_option( 'my_apps_sort', array() ),
+			'hide_plugins'       => get_option( 'my_apps_hide_plugins', array() ),
+			'additional_apps'    => get_option( 'my_apps_additional_apps', array() ),
+			'app_overrides'      => self::get_app_overrides(),
+			'app_icon_overrides' => self::get_app_icon_overrides(),
+		);
+		if ( self::is_playground() ) {
+			$settings_export['redirect_root'] = self::is_root_redirect_enabled();
+		}
+
 		wp_send_json_success(
 			array_merge(
-				array(
-					'sort'               => get_option( 'my_apps_sort', array() ),
-					'hide_plugins'       => get_option( 'my_apps_hide_plugins', array() ),
-					'additional_apps'    => get_option( 'my_apps_additional_apps', array() ),
-					'app_overrides'      => self::get_app_overrides(),
-					'app_icon_overrides' => self::get_app_icon_overrides(),
-				),
+				$settings_export,
 				$background_export
 			)
 		);
@@ -2851,6 +2953,9 @@ class My_Apps {
 		}
 		if ( isset( $data['app_icon_overrides'] ) && is_array( $data['app_icon_overrides'] ) ) {
 			update_option( self::APP_ICON_OVERRIDES_OPTION, $data['app_icon_overrides'] );
+		}
+		if ( self::is_playground() && isset( $data['redirect_root'] ) && is_scalar( $data['redirect_root'] ) ) {
+			update_option( self::ROOT_REDIRECT_OPTION, wp_validate_boolean( $data['redirect_root'] ) ? '1' : '0' );
 		}
 		if ( isset( $data['background'] ) && is_scalar( $data['background'] ) ) {
 			$background = trim( (string) $data['background'] );

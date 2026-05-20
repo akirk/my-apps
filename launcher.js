@@ -1252,7 +1252,7 @@
 	}
 
 	function updateWpAdminLinksToggleLabel() {
-		updateSwitchControl(document.getElementById('setting-wp-admin-links-toggle'), wpAdminLinksHidden);
+		updateSwitchControl(document.getElementById('setting-wp-admin-links-toggle'), !wpAdminLinksHidden);
 	}
 
 	function updateSwitchControl(button, checked) {
@@ -6133,9 +6133,7 @@
 			var revealButton = document.createElement('button');
 			revealButton.type = 'button';
 			revealButton.className = 'recipe-core-toggle-button';
-			revealButton.textContent = hiddenCoreCount === 1
-				? 'Show 1 more use that involves core WordPress'
-				: 'Show ' + hiddenCoreCount + ' more uses that involve core WordPress';
+			revealButton.textContent = 'Show guides that use WordPress directly';
 			revealButton.addEventListener('click', function() {
 				coreWordPressRecipesExpanded = true;
 				renderRecipesGrid(search);

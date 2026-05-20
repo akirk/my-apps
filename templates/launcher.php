@@ -173,7 +173,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				<div class="settings-setting">
 					<div class="settings-setting-copy">
 						<h3><?php esc_html_e( 'Greeting', 'my-apps' ); ?></h3>
-						<p><?php esc_html_e( 'Show a personalized greeting above your apps. Click the greeting itself to change the displayed name.', 'my-apps' ); ?></p>
+						<p><?php esc_html_e( 'Show a personalized greeting above your apps.', 'my-apps' ); ?></p>
 					</div>
 					<button type="button" class="settings-switch" id="setting-greeting-toggle" data-action="toggle-greeting" role="switch" aria-checked="true">
 						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>
@@ -194,12 +194,12 @@ $is_app_store = isset( $_GET['app-store'] );
 				<?php endif; ?>
 				<div class="settings-setting">
 					<div class="settings-setting-copy">
-						<h3><?php esc_html_e( 'Hide WordPress complexity', 'my-apps' ); ?></h3>
-						<p><?php esc_html_e( 'Keep My Apps focused by hiding legacy WordPress admin shortcuts, plugin recommendations, manual add links, and core WordPress guides until you ask for them.', 'my-apps' ); ?></p>
+						<h3><?php esc_html_e( 'Full WordPress mode', 'my-apps' ); ?></h3>
+						<p><?php esc_html_e( 'Show WordPress admin shortcuts, plugin recommendations, manual app links, and core WordPress guides.', 'my-apps' ); ?></p>
 					</div>
-					<button type="button" class="settings-switch<?php if ( $hide_wp_admin_links ) : ?> active<?php endif; ?>" id="setting-wp-admin-links-toggle" data-action="toggle-wp-admin-links" role="switch" aria-checked="<?php echo esc_attr( $hide_wp_admin_links ? 'true' : 'false' ); ?>">
+					<button type="button" class="settings-switch<?php if ( ! $hide_wp_admin_links ) : ?> active<?php endif; ?>" id="setting-wp-admin-links-toggle" data-action="toggle-wp-admin-links" role="switch" aria-checked="<?php echo esc_attr( ! $hide_wp_admin_links ? 'true' : 'false' ); ?>">
 						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>
-						<span class="settings-switch-label"><?php echo esc_html( $hide_wp_admin_links ? __( 'On', 'my-apps' ) : __( 'Off', 'my-apps' ) ); ?></span>
+						<span class="settings-switch-label"><?php echo esc_html( ! $hide_wp_admin_links ? __( 'On', 'my-apps' ) : __( 'Off', 'my-apps' ) ); ?></span>
 					</button>
 				</div>
 				<div class="settings-setting settings-setting-stacked">

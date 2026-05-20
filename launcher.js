@@ -1252,7 +1252,7 @@
 	}
 
 	function updateWpAdminLinksToggleLabel() {
-		updateSwitchControl(document.getElementById('setting-wp-admin-links-toggle'), wpAdminLinksHidden);
+		updateSwitchControl(document.getElementById('setting-wp-admin-links-toggle'), !wpAdminLinksHidden);
 	}
 
 	function updateSwitchControl(button, checked) {

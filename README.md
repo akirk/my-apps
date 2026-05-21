@@ -75,10 +75,11 @@ Example:
 
 ### Abilities API
 
-When the WordPress Abilities API is available, My Apps registers a `my-apps` category with What can I do? guide discovery and launcher customization abilities:
+When the WordPress Abilities API is available, My Apps registers a `my-apps` category with App Store search, What can I do? guide discovery, and launcher customization abilities:
 
 - `my-apps/get-all` returns the full launcher state, including grouped background metadata, visible apps in display order, and app customization metadata.
 - `my-apps/get-what-can-i-do` returns the default My Apps What can I do? guide catalog for questions like "what can I do?". It intentionally excludes browser-local custom blueprints and alternate App Store catalog sources; the backing catalog file remains `recipes.json`.
+- `my-apps/search-app-store` searches or browses the default My Apps App Store catalog, including curated installable apps and optional curated plugin recommendations. It intentionally excludes browser-local custom blueprints and alternate App Store catalog sources.
 - `my-apps/set-background` updates the launcher background using a preset slug, an image attachment ID, a remote image URL to sideload or use directly if sideloading fails, or a safe CSS color/gradient value.
 - `my-apps/add-app` creates a custom app icon with a name, URL, and optional icon. Icons can be an image URL, Dashicon, emoji, gradient, generated letter tile, or the app URL's conventional `/favicon.ico`.
 - `my-apps/set-app-details` renames an existing launcher app, changes its URL, or reverts those name/URL overrides.
@@ -86,7 +87,7 @@ When the WordPress Abilities API is available, My Apps registers a `my-apps` cat
 - `my-apps/set-visible-ordered` sets the complete `visible_ordered` launcher app list; apps omitted from this list are hidden.
 - `my-apps/set-app-visibility` hides or restores a launcher app by slug.
 
-When the AI Assistant plugin is available, My Apps also registers domain hints so questions about What can I do? guides, what WordPress can do, the launcher, app icons, hidden apps, app order, and launcher backgrounds are routed to these abilities.
+When the AI Assistant plugin is available, My Apps also registers domain hints so questions about the My Apps App Store, app catalog search/browsing, installable apps/plugins, What can I do? guides, what WordPress can do, the launcher, app icons, hidden apps, app order, and launcher backgrounds are routed to these abilities.
 
 ## Screenshots
 

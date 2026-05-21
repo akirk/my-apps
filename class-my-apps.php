@@ -9,7 +9,10 @@ defined( 'ABSPATH' ) || exit;
 class My_Apps {
 	const ICON_PATH = 'M6 5.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM4 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm11-.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM13 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V6zm5 8.5h-3a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5zM15 13a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2h-3zm-9 1.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM4 15a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3z';
 	const CUSTOM_BACKGROUND = 'custom';
+	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
+	const DEFAULT_APPS_INDEX_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/apps.json';
 	const DEFAULT_RECIPES_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/recipes.json';
+	const DEFAULT_PLUGINS_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/plugins.json';
 	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const ROOT_REDIRECT_USER_OPTION = 'my_apps_redirect_root';
@@ -589,7 +592,7 @@ class My_Apps {
 			$domains = array();
 		}
 
-		$domains['my-apps'] = 'My Apps launcher/home screen customization, shortcut names/icons/links/visibility/order, background state/changes, What can I do? guides, available WordPress activities';
+		$domains['my-apps'] = 'My Apps launcher/home screen customization, shortcut names/icons/links/visibility/order, background state/changes, built-in App Store app catalog search/browsing/install guidance, curated apps/plugins, What can I do? guides, available WordPress activities';
 
 		return $domains;
 	}
@@ -606,7 +609,7 @@ class My_Apps {
 			'my-apps',
 			array(
 				'label'       => __( 'My Apps', 'my-apps' ),
-				'description' => __( 'Abilities for reading What can I do? guides and customizing the My Apps launcher.', 'my-apps' ),
+				'description' => __( 'Abilities for searching the My Apps App Store, reading What can I do? guides, and customizing the My Apps launcher.', 'my-apps' ),
 			)
 		);
 	}
@@ -671,6 +674,55 @@ class My_Apps {
 				'meta'                => array(
 					'annotations'  => array(
 						'instructions' => __( 'Use this when the user asks what they can do with WordPress, asks for activity ideas, or asks for What can I do? guide steps. This returns only the default recipes.json catalog; it does not include browser-local custom blueprints or alternate App Store catalog sources.', 'my-apps' ),
+						'readonly'     => true,
+						'destructive'  => false,
+						'idempotent'   => true,
+					),
+					'show_in_rest' => true,
+				),
+			)
+		);
+
+		wp_register_ability(
+			'my-apps/search-app-store',
+			array(
+				'label'               => __( 'Search My Apps App Store', 'my-apps' ),
+				'description'         => __( 'Searches or browses the built-in My Apps App Store catalog of installable apps and curated plugin recommendations.', 'my-apps' ),
+				'category'            => 'my-apps',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'query'           => array(
+							'type'        => 'string',
+							'description' => __( 'Optional search query matched against app titles, descriptions, authors, categories, paths, plugin slugs, and GitHub repositories.', 'my-apps' ),
+						),
+						'category'        => array(
+							'type'        => 'string',
+							'description' => __( 'Optional App Store category to return, such as Apps, AI, Media, Productivity, Social, Utility, Custom, or Other Plugins.', 'my-apps' ),
+						),
+						'type'            => array(
+							'type'        => 'string',
+							'enum'        => array( 'all', 'app', 'plugin' ),
+							'description' => __( 'Optional entry type filter. Use app for blueprint apps, plugin for curated plugin recommendations, or all.', 'my-apps' ),
+						),
+						'include_plugins' => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether to include curated plugin recommendations. Defaults to the current My Apps simplified WordPress mode setting.', 'my-apps' ),
+						),
+						'limit'           => array(
+							'type'        => 'integer',
+							'description' => __( 'Optional maximum number of matching App Store entries to return.', 'my-apps' ),
+							'minimum'     => 1,
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => self::app_store_output_schema(),
+				'execute_callback'    => array( $this, 'ability_search_app_store' ),
+				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
+				'meta'                => array(
+					'annotations'  => array(
+						'instructions' => __( 'Use this when the user asks whether My Apps has an app store, asks to search or browse the app store, asks what apps can be installed from My Apps, or asks about curated app/plugin recommendations. This reads the default published catalog and cannot include browser-local custom blueprints or alternate catalog source overrides.', 'my-apps' ),
 						'readonly'     => true,
 						'destructive'  => false,
 						'idempotent'   => true,
@@ -979,6 +1031,16 @@ class My_Apps {
 	 */
 	public function ability_get_recipes( $input = array() ) {
 		return self::recipes_payload( $input );
+	}
+
+	/**
+	 * Ability: search the default App Store catalog.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	public function ability_search_app_store( $input = array() ) {
+		return self::app_store_payload( $input );
 	}
 
 	/**
@@ -3124,6 +3186,784 @@ class My_Apps {
 		}
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * Build the output schema for App Store search responses.
+	 *
+	 * @return array
+	 */
+	private static function app_store_output_schema() {
+		return array(
+			'type'                 => 'object',
+			'required'             => array( 'source', 'count', 'categories', 'entries' ),
+			'properties'           => array(
+				'source'     => array(
+					'type'                 => 'object',
+					'required'             => array( 'app_store_url', 'apps_url', 'plugins_url', 'default_only', 'custom_overrides_included', 'alternate_sources_included', 'plugin_recommendations_included', 'plugin_recommendations_hidden_by_setting' ),
+					'properties'           => array(
+						'app_store_url'                            => array(
+							'type'        => 'string',
+							'description' => __( 'The My Apps App Store URL.', 'my-apps' ),
+						),
+						'apps_url'                                 => array(
+							'type'        => 'string',
+							'description' => __( 'The default apps.json URL used for this response.', 'my-apps' ),
+						),
+						'plugins_url'                              => array(
+							'type'        => 'string',
+							'description' => __( 'The default plugins.json URL used for plugin recommendations.', 'my-apps' ),
+						),
+						'default_only'                             => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether the response is limited to the default published App Store catalog.', 'my-apps' ),
+						),
+						'custom_overrides_included'                => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether browser-local custom blueprints are included.', 'my-apps' ),
+						),
+						'alternate_sources_included'               => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether browser-local alternate App Store catalog sources are included.', 'my-apps' ),
+						),
+						'plugin_recommendations_included'          => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether curated plugin recommendations are included in entries.', 'my-apps' ),
+						),
+						'plugin_recommendations_hidden_by_setting' => array(
+							'type'        => 'boolean',
+							'description' => __( 'Whether My Apps simplified WordPress mode currently hides plugin recommendations in the UI by default.', 'my-apps' ),
+						),
+					),
+					'additionalProperties' => false,
+				),
+				'count'      => array(
+					'type'        => 'integer',
+					'description' => __( 'The number of App Store entries returned.', 'my-apps' ),
+				),
+				'categories' => array(
+					'type'        => 'array',
+					'description' => __( 'Categories available in the returned App Store catalog.', 'my-apps' ),
+					'items'       => array(
+						'type' => 'string',
+					),
+				),
+				'entries'    => array(
+					'type'                 => 'object',
+					'description'          => __( 'App Store entries keyed by App Store path.', 'my-apps' ),
+					'additionalProperties' => self::app_store_entry_output_schema(),
+				),
+				'warnings'   => array(
+					'type'        => 'array',
+					'description' => __( 'Non-fatal catalog loading warnings.', 'my-apps' ),
+					'items'       => array(
+						'type' => 'string',
+					),
+				),
+			),
+			'additionalProperties' => false,
+		);
+	}
+
+	/**
+	 * Build the output schema for one App Store entry.
+	 *
+	 * @return array
+	 */
+	private static function app_store_entry_output_schema() {
+		return array(
+			'type'                 => 'object',
+			'required'             => array( 'type', 'source', 'path', 'title', 'description', 'categories', 'detail_url' ),
+			'properties'           => array(
+				'type'         => array(
+					'type'        => 'string',
+					'enum'        => array( 'app', 'plugin' ),
+					'description' => __( 'Whether this entry is a blueprint app or curated plugin recommendation.', 'my-apps' ),
+				),
+				'source'       => array(
+					'type'        => 'string',
+					'enum'        => array( 'app-store', 'wp.org', 'github', 'url' ),
+					'description' => __( 'The catalog source for this entry.', 'my-apps' ),
+				),
+				'path'         => array(
+					'type'        => 'string',
+					'description' => __( 'The App Store path used for deep links.', 'my-apps' ),
+				),
+				'title'        => array(
+					'type'        => 'string',
+					'description' => __( 'The App Store entry title.', 'my-apps' ),
+				),
+				'description'  => array(
+					'type'        => 'string',
+					'description' => __( 'The App Store entry description.', 'my-apps' ),
+				),
+				'author'       => array(
+					'type'        => 'string',
+					'description' => __( 'The App Store entry author.', 'my-apps' ),
+				),
+				'categories'   => array(
+					'type'        => 'array',
+					'description' => __( 'The App Store entry categories.', 'my-apps' ),
+					'items'       => array(
+						'type' => 'string',
+					),
+				),
+				'blueprint_url' => array(
+					'type'        => 'string',
+					'description' => __( 'The WordPress Playground blueprint URL for app entries.', 'my-apps' ),
+				),
+				'detail_url'    => array(
+					'type'        => 'string',
+					'description' => __( 'The My Apps App Store detail URL.', 'my-apps' ),
+				),
+				'slug'         => array(
+					'type'        => 'string',
+					'description' => __( 'The WordPress.org plugin slug for wp.org plugin entries.', 'my-apps' ),
+				),
+				'repo'         => array(
+					'type'        => 'string',
+					'description' => __( 'The GitHub repository for GitHub plugin entries.', 'my-apps' ),
+				),
+				'ref'          => array(
+					'type'        => 'string',
+					'description' => __( 'The Git ref for GitHub plugin entries.', 'my-apps' ),
+				),
+				'ref_type'     => array(
+					'type'        => 'string',
+					'enum'        => array( 'branch', 'tag', 'commit' ),
+					'description' => __( 'The Git ref type for GitHub plugin entries.', 'my-apps' ),
+				),
+				'source_url'   => array(
+					'type'        => 'string',
+					'description' => __( 'The public source URL for plugin entries.', 'my-apps' ),
+				),
+				'install_url'  => array(
+					'type'        => 'string',
+					'description' => __( 'The install or plugin-information URL for plugin entries.', 'my-apps' ),
+				),
+				'landing_page' => array(
+					'type'        => 'string',
+					'description' => __( 'The suggested site-relative landing page after installation.', 'my-apps' ),
+				),
+				'launcher_url' => array(
+					'type'        => 'string',
+					'description' => __( 'The launcher URL used to detect or open an installed plugin-provided app.', 'my-apps' ),
+				),
+			),
+			'additionalProperties' => false,
+		);
+	}
+
+	/**
+	 * Build the App Store ability payload.
+	 *
+	 * @param array $input Ability input.
+	 * @return array|\WP_Error
+	 */
+	private static function app_store_payload( $input = array() ) {
+		$input           = is_array( $input ) ? wp_unslash( $input ) : array();
+		$include_plugins = ! self::are_wp_admin_links_hidden();
+		$warnings        = array();
+
+		if ( array_key_exists( 'include_plugins', $input ) ) {
+			$include_plugins = wp_validate_boolean( $input['include_plugins'] );
+		}
+
+		$type = isset( $input['type'] ) && is_scalar( $input['type'] ) ? sanitize_key( (string) $input['type'] ) : 'all';
+		if ( ! in_array( $type, array( 'all', 'app', 'plugin' ), true ) ) {
+			$type = 'all';
+		}
+
+		$category = isset( $input['category'] ) && is_scalar( $input['category'] ) ? sanitize_text_field( (string) $input['category'] ) : '';
+		if ( 'plugin' === $type || self::is_app_store_plugins_category( $category ) ) {
+			$include_plugins = true;
+		}
+
+		$entries = self::default_app_store_apps_catalog();
+		if ( is_wp_error( $entries ) ) {
+			return $entries;
+		}
+
+		if ( $include_plugins ) {
+			$plugins = self::default_app_store_plugins_catalog();
+			if ( is_wp_error( $plugins ) ) {
+				$warnings[] = $plugins->get_error_message();
+			} else {
+				$entries = array_merge( $entries, $plugins );
+				$entries = self::dedupe_app_store_plugin_entries( $entries );
+			}
+		}
+
+		uasort(
+			$entries,
+			function ( $a, $b ) {
+				return strcasecmp( isset( $a['title'] ) ? $a['title'] : '', isset( $b['title'] ) ? $b['title'] : '' );
+			}
+		);
+
+		$query = isset( $input['query'] ) && is_scalar( $input['query'] ) ? sanitize_text_field( (string) $input['query'] ) : '';
+		if ( '' !== $query || '' !== $category || 'all' !== $type ) {
+			$entries = array_filter(
+				$entries,
+				function ( $entry ) use ( $query, $category, $type ) {
+					if ( 'all' !== $type && ( ! isset( $entry['type'] ) || $entry['type'] !== $type ) ) {
+						return false;
+					}
+
+					if ( '' !== $category && ! self::app_store_entry_matches_category( $entry, $category ) ) {
+						return false;
+					}
+
+					if ( '' !== $query && ! self::app_store_entry_matches_query( $entry, $query ) ) {
+						return false;
+					}
+
+					return true;
+				}
+			);
+		}
+
+		if ( isset( $input['limit'] ) && is_scalar( $input['limit'] ) ) {
+			$limit = absint( $input['limit'] );
+			if ( $limit > 0 ) {
+				$entries = array_slice( $entries, 0, $limit, true );
+			}
+		}
+
+		$payload = array(
+			'source'     => array(
+				'app_store_url'                            => home_url( '/my-apps/?app-store=1' ),
+				'apps_url'                                 => self::DEFAULT_APPS_INDEX_URL,
+				'plugins_url'                              => self::DEFAULT_PLUGINS_URL,
+				'default_only'                             => true,
+				'custom_overrides_included'                => false,
+				'alternate_sources_included'               => false,
+				'plugin_recommendations_included'          => (bool) $include_plugins,
+				'plugin_recommendations_hidden_by_setting' => self::are_wp_admin_links_hidden(),
+			),
+			'count'      => count( $entries ),
+			'categories' => self::app_store_categories( $entries, $include_plugins ),
+			'entries'    => (object) $entries,
+		);
+
+		if ( ! empty( $warnings ) ) {
+			$payload['warnings'] = $warnings;
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * Fetch and cache the default App Store apps catalog.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function default_app_store_apps_catalog() {
+		$cached = get_transient( 'my_apps_default_app_store_apps_catalog' );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$response = wp_remote_get(
+			self::DEFAULT_APPS_INDEX_URL,
+			array(
+				'timeout' => 10,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error( 'my_apps_app_store_unavailable', $response->get_error_message() );
+		}
+
+		$status = wp_remote_retrieve_response_code( $response );
+		if ( $status < 200 || $status >= 300 ) {
+			return new \WP_Error( 'my_apps_app_store_unavailable', __( 'Unable to load App Store catalog.', 'my-apps' ) );
+		}
+
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) ) {
+			return new \WP_Error( 'my_apps_invalid_app_store_catalog', __( 'Invalid App Store catalog.', 'my-apps' ) );
+		}
+
+		$entries = self::sanitize_app_store_apps_catalog( $data );
+		set_transient( 'my_apps_default_app_store_apps_catalog', $entries, HOUR_IN_SECONDS );
+
+		return $entries;
+	}
+
+	/**
+	 * Fetch and cache the default App Store plugin recommendations.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function default_app_store_plugins_catalog() {
+		$cached = get_transient( 'my_apps_default_app_store_plugins_catalog' );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$response = wp_remote_get(
+			self::DEFAULT_PLUGINS_URL,
+			array(
+				'timeout' => 10,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error( 'my_apps_app_store_plugins_unavailable', $response->get_error_message() );
+		}
+
+		$status = wp_remote_retrieve_response_code( $response );
+		if ( $status < 200 || $status >= 300 ) {
+			return new \WP_Error( 'my_apps_app_store_plugins_unavailable', __( 'Unable to load App Store plugin recommendations.', 'my-apps' ) );
+		}
+
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) ) {
+			return new \WP_Error( 'my_apps_invalid_app_store_plugins', __( 'Invalid App Store plugin recommendations.', 'my-apps' ) );
+		}
+
+		$entries = self::sanitize_app_store_plugins_catalog( $data );
+		set_transient( 'my_apps_default_app_store_plugins_catalog', $entries, HOUR_IN_SECONDS );
+
+		return $entries;
+	}
+
+	/**
+	 * Sanitize apps loaded from apps.json.
+	 *
+	 * @param array $data Raw app index.
+	 * @return array
+	 */
+	private static function sanitize_app_store_apps_catalog( $data ) {
+		$entries = array();
+
+		foreach ( $data as $path => $app ) {
+			if ( ! is_string( $path ) || ! preg_match( '#^apps/[A-Za-z0-9._-]+\.json$#', $path ) || ! is_array( $app ) ) {
+				continue;
+			}
+
+			$entry = self::sanitize_app_store_app_entry( $path, $app );
+			if ( ! empty( $entry ) ) {
+				$entries[ $path ] = $entry;
+			}
+		}
+
+		return $entries;
+	}
+
+	/**
+	 * Sanitize one apps.json entry.
+	 *
+	 * @param string $path App Store path.
+	 * @param array  $app Raw app entry.
+	 * @return array
+	 */
+	private static function sanitize_app_store_app_entry( $path, $app ) {
+		$title = isset( $app['title'] ) && is_scalar( $app['title'] ) ? sanitize_text_field( (string) $app['title'] ) : '';
+		if ( '' === $title ) {
+			return array();
+		}
+
+		$entry = array(
+			'type'          => 'app',
+			'source'        => 'app-store',
+			'path'          => $path,
+			'title'         => $title,
+			'description'   => isset( $app['description'] ) && is_scalar( $app['description'] ) ? sanitize_textarea_field( (string) $app['description'] ) : '',
+			'categories'    => self::sanitize_app_store_categories( isset( $app['categories'] ) ? $app['categories'] : array() ),
+			'blueprint_url' => self::DEFAULT_BLUEPRINTS_BASE_URL . $path,
+			'detail_url'    => self::app_store_detail_url( $path, 'app' ),
+		);
+
+		if ( isset( $app['author'] ) && is_scalar( $app['author'] ) ) {
+			$author = sanitize_text_field( (string) $app['author'] );
+			if ( '' !== $author ) {
+				$entry['author'] = $author;
+			}
+		}
+
+		return $entry;
+	}
+
+	/**
+	 * Sanitize plugin recommendations loaded from plugins.json.
+	 *
+	 * @param array $data Raw plugin recommendation map.
+	 * @return array
+	 */
+	private static function sanitize_app_store_plugins_catalog( $data ) {
+		$entries = array();
+
+		foreach ( $data as $key => $plugin ) {
+			if ( ! is_string( $key ) || ! is_array( $plugin ) ) {
+				continue;
+			}
+
+			$entry = self::sanitize_app_store_plugin_entry( $key, $plugin );
+			if ( ! empty( $entry ) ) {
+				$entries[ $entry['path'] ] = $entry;
+			}
+		}
+
+		return $entries;
+	}
+
+	/**
+	 * Sanitize one plugins.json recommendation.
+	 *
+	 * @param string $key Plugin recommendation key.
+	 * @param array  $plugin Raw plugin recommendation.
+	 * @return array
+	 */
+	private static function sanitize_app_store_plugin_entry( $key, $plugin ) {
+		$categories   = self::sanitize_app_store_categories( isset( $plugin['categories'] ) ? $plugin['categories'] : array() );
+		$description  = isset( $plugin['note'] ) && is_scalar( $plugin['note'] ) ? sanitize_textarea_field( (string) $plugin['note'] ) : '';
+		$author       = isset( $plugin['author'] ) && is_scalar( $plugin['author'] ) ? sanitize_text_field( (string) $plugin['author'] ) : '';
+		$landing_page = isset( $plugin['landing_page'] ) && is_scalar( $plugin['landing_page'] ) ? self::sanitize_site_relative_path( $plugin['landing_page'] ) : '';
+		$launcher_url = isset( $plugin['launcher_url'] ) && is_scalar( $plugin['launcher_url'] ) ? self::sanitize_launcher_url( $plugin['launcher_url'] ) : '';
+		$title        = isset( $plugin['title'] ) && is_scalar( $plugin['title'] ) ? sanitize_text_field( (string) $plugin['title'] ) : '';
+
+		if ( isset( $plugin['url'] ) && is_scalar( $plugin['url'] ) ) {
+			$url     = esc_url_raw( (string) $plugin['url'] );
+			$raw_key = strtolower( preg_replace( '/[^a-z0-9_-]/', '', $key ) );
+			if ( '' === $url || '' === $raw_key || ! preg_match( '#^https?://#i', $url ) ) {
+				return array();
+			}
+			$path = 'plugin/url/' . $raw_key;
+			if ( '' === $title ) {
+				$title = self::title_from_slug( $raw_key );
+			}
+			$entry = array(
+				'type'        => 'plugin',
+				'source'      => 'url',
+				'path'        => $path,
+				'title'       => $title,
+				'description' => $description,
+				'categories'  => $categories,
+				'source_url'  => $url,
+				'install_url' => $url,
+				'detail_url'  => self::app_store_detail_url( $path, 'plugin' ),
+			);
+		} elseif ( isset( $plugin['github'] ) && is_scalar( $plugin['github'] ) && preg_match( '#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', (string) $plugin['github'] ) ) {
+			$repo      = (string) $plugin['github'];
+			$repo_name = basename( $repo );
+			$path      = 'plugin/github/' . strtolower( str_replace( '/', '-', $repo ) );
+			if ( '' === $title ) {
+				$title = self::title_from_slug( $repo_name );
+			}
+			$entry = array(
+				'type'        => 'plugin',
+				'source'      => 'github',
+				'path'        => $path,
+				'title'       => $title,
+				'description' => $description,
+				'categories'  => $categories,
+				'repo'        => $repo,
+				'source_url'  => 'https://github.com/' . $repo,
+				'install_url' => 'https://github.com/' . $repo,
+				'detail_url'  => self::app_store_detail_url( $path, 'plugin' ),
+			);
+			$ref = '';
+			$ref_type = '';
+			if ( isset( $plugin['branch'] ) && is_scalar( $plugin['branch'] ) && self::is_safe_git_ref( (string) $plugin['branch'] ) ) {
+				$ref      = (string) $plugin['branch'];
+				$ref_type = 'branch';
+			} elseif ( isset( $plugin['ref'] ) && is_scalar( $plugin['ref'] ) && self::is_safe_git_ref( (string) $plugin['ref'] ) ) {
+				$ref = (string) $plugin['ref'];
+				if ( isset( $plugin['refType'] ) && in_array( $plugin['refType'], array( 'branch', 'tag', 'commit' ), true ) ) {
+					$ref_type = $plugin['refType'];
+				}
+			}
+			if ( '' !== $ref ) {
+				$entry['ref'] = $ref;
+			}
+			if ( '' !== $ref_type ) {
+				$entry['ref_type'] = $ref_type;
+			}
+		} else {
+			$slug = strtolower( preg_replace( '/[^a-z0-9_-]/', '', $key ) );
+			if ( '' === $slug ) {
+				return array();
+			}
+			$path = 'plugin/' . $slug;
+			if ( '' === $title ) {
+				$title = self::title_from_slug( $slug );
+			}
+			$entry = array(
+				'type'        => 'plugin',
+				'source'      => 'wp.org',
+				'path'        => $path,
+				'title'       => $title,
+				'description' => $description,
+				'categories'  => $categories,
+				'slug'        => $slug,
+				'source_url'  => 'https://wordpress.org/plugins/' . $slug . '/',
+				'install_url' => self_admin_url( 'plugin-install.php?tab=plugin-information&plugin=' . rawurlencode( $slug ) ),
+				'detail_url'  => self::app_store_detail_url( $path, 'plugin' ),
+			);
+		}
+
+		if ( '' !== $author ) {
+			$entry['author'] = $author;
+		}
+		if ( '' !== $landing_page ) {
+			$entry['landing_page'] = $landing_page;
+		}
+		if ( '' !== $launcher_url ) {
+			$entry['launcher_url'] = $launcher_url;
+		}
+
+		return $entry;
+	}
+
+	/**
+	 * Remove plugin recommendations that duplicate richer app entries.
+	 *
+	 * @param array $entries App Store entries keyed by path.
+	 * @return array
+	 */
+	private static function dedupe_app_store_plugin_entries( $entries ) {
+		$claimed_slugs  = array();
+		$claimed_titles = array();
+
+		foreach ( $entries as $path => $entry ) {
+			if ( ! is_array( $entry ) || ( isset( $entry['type'] ) && 'plugin' === $entry['type'] ) ) {
+				continue;
+			}
+			if ( preg_match( '#^apps/([^/]+)\.json$#', $path, $matches ) ) {
+				$claimed_slugs[ strtolower( $matches[1] ) ] = true;
+			}
+			if ( ! empty( $entry['title'] ) ) {
+				$claimed_titles[ strtolower( $entry['title'] ) ] = true;
+			}
+		}
+
+		foreach ( $entries as $path => $entry ) {
+			if ( ! is_array( $entry ) || ! isset( $entry['type'] ) || 'plugin' !== $entry['type'] ) {
+				continue;
+			}
+
+			if ( ! empty( $entry['title'] ) && isset( $claimed_titles[ strtolower( $entry['title'] ) ] ) ) {
+				unset( $entries[ $path ] );
+				continue;
+			}
+
+			$slugs = array();
+			if ( ! empty( $entry['slug'] ) ) {
+				$slugs[] = $entry['slug'];
+			}
+			if ( ! empty( $entry['repo'] ) ) {
+				$slugs[] = basename( $entry['repo'] );
+			}
+			if ( preg_match( '#^plugin/url/(.+)$#', $path, $matches ) ) {
+				$slugs[] = $matches[1];
+			}
+
+			foreach ( $slugs as $slug ) {
+				if ( isset( $claimed_slugs[ strtolower( $slug ) ] ) ) {
+					unset( $entries[ $path ] );
+					break;
+				}
+			}
+		}
+
+		return $entries;
+	}
+
+	/**
+	 * Sanitize App Store categories.
+	 *
+	 * @param mixed $categories Raw category list.
+	 * @return string[]
+	 */
+	private static function sanitize_app_store_categories( $categories ) {
+		$sanitized = array();
+
+		if ( ! is_array( $categories ) ) {
+			return $sanitized;
+		}
+
+		foreach ( $categories as $category ) {
+			if ( ! is_scalar( $category ) ) {
+				continue;
+			}
+
+			$category = sanitize_text_field( (string) $category );
+			if ( '' !== $category && ! in_array( $category, $sanitized, true ) ) {
+				$sanitized[] = $category;
+			}
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * Return the category list for the App Store payload.
+	 *
+	 * @param array $entries App Store entries.
+	 * @param bool  $include_plugins Whether plugin recommendations are included.
+	 * @return string[]
+	 */
+	private static function app_store_categories( $entries, $include_plugins ) {
+		$categories = array();
+
+		foreach ( $entries as $entry ) {
+			if ( empty( $entry['categories'] ) || ! is_array( $entry['categories'] ) ) {
+				continue;
+			}
+			foreach ( $entry['categories'] as $category ) {
+				$categories[ $category ] = true;
+			}
+		}
+
+		if ( $include_plugins ) {
+			$categories['Other Plugins'] = true;
+		}
+
+		$categories = array_keys( $categories );
+		natcasesort( $categories );
+
+		return array_values( $categories );
+	}
+
+	/**
+	 * Determine whether a category denotes the special plugin section.
+	 *
+	 * @param string $category Category.
+	 * @return bool
+	 */
+	private static function is_app_store_plugins_category( $category ) {
+		$category = strtolower( trim( (string) $category ) );
+		return in_array( $category, array( '__plugins__', 'plugins', 'plugin', 'other plugins', 'other plugin' ), true );
+	}
+
+	/**
+	 * Check whether an App Store entry matches a category filter.
+	 *
+	 * @param array  $entry App Store entry.
+	 * @param string $category Category filter.
+	 * @return bool
+	 */
+	private static function app_store_entry_matches_category( $entry, $category ) {
+		if ( self::is_app_store_plugins_category( $category ) ) {
+			return isset( $entry['type'] ) && 'plugin' === $entry['type'];
+		}
+
+		$category = strtolower( trim( (string) $category ) );
+		if ( '' === $category || 'all' === $category ) {
+			return true;
+		}
+
+		if ( empty( $entry['categories'] ) || ! is_array( $entry['categories'] ) ) {
+			return false;
+		}
+
+		foreach ( $entry['categories'] as $entry_category ) {
+			if ( strtolower( $entry_category ) === $category ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check whether an App Store entry matches a search query.
+	 *
+	 * @param array  $entry App Store entry.
+	 * @param string $query Search query.
+	 * @return bool
+	 */
+	private static function app_store_entry_matches_query( $entry, $query ) {
+		$parts = array();
+
+		foreach ( array( 'type', 'source', 'path', 'title', 'description', 'author', 'blueprint_url', 'slug', 'repo', 'ref', 'source_url', 'install_url', 'landing_page', 'launcher_url' ) as $key ) {
+			if ( isset( $entry[ $key ] ) && is_scalar( $entry[ $key ] ) ) {
+				$parts[] = $entry[ $key ];
+			}
+		}
+
+		if ( isset( $entry['categories'] ) && is_array( $entry['categories'] ) ) {
+			$parts = array_merge( $parts, $entry['categories'] );
+		}
+
+		return false !== stripos( implode( ' ', $parts ), $query );
+	}
+
+	/**
+	 * Build an App Store detail URL.
+	 *
+	 * @param string $path App Store path.
+	 * @param string $type Entry type.
+	 * @return string
+	 */
+	private static function app_store_detail_url( $path, $type ) {
+		$query_arg = 'plugin' === $type ? 'plugin' : 'app';
+
+		return add_query_arg(
+			array(
+				'app-store' => '1',
+				$query_arg   => $path,
+			),
+			home_url( '/my-apps/' )
+		);
+	}
+
+	/**
+	 * Build a readable title from a slug-like value.
+	 *
+	 * @param string $slug Slug.
+	 * @return string
+	 */
+	private static function title_from_slug( $slug ) {
+		$slug = preg_replace( '/[^A-Za-z0-9]+/', ' ', (string) $slug );
+		$slug = trim( preg_replace( '/\s+/', ' ', $slug ) );
+
+		return '' === $slug ? __( 'Plugin', 'my-apps' ) : ucwords( $slug );
+	}
+
+	/**
+	 * Sanitize a site-relative path.
+	 *
+	 * @param string $path Path.
+	 * @return string
+	 */
+	private static function sanitize_site_relative_path( $path ) {
+		$path = sanitize_text_field( (string) $path );
+		return 0 === strpos( $path, '/' ) ? $path : '';
+	}
+
+	/**
+	 * Sanitize a launcher URL accepted by plugins.json.
+	 *
+	 * @param string $url URL.
+	 * @return string
+	 */
+	private static function sanitize_launcher_url( $url ) {
+		$url = trim( (string) $url );
+		if ( 0 === strpos( $url, '/' ) ) {
+			return sanitize_text_field( $url );
+		}
+
+		$url = esc_url_raw( $url );
+		return preg_match( '#^https?://#i', $url ) ? $url : '';
+	}
+
+	/**
+	 * Determine whether a Git ref is safe for display and blueprint metadata.
+	 *
+	 * @param string $ref Git ref.
+	 * @return bool
+	 */
+	private static function is_safe_git_ref( $ref ) {
+		$ref = (string) $ref;
+
+		return '' !== $ref
+			&& preg_match( '#^[A-Za-z0-9_./-]+$#', $ref )
+			&& false === strpos( $ref, '..' )
+			&& '/' !== $ref[0]
+			&& '/' !== substr( $ref, -1 );
 	}
 
 	/**

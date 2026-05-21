@@ -48,6 +48,8 @@ My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author
 
 To test App Store catalog, What can I do? guide, or plugin recommendation changes from another blueprints source without changing this plugin, paste a `WordPress/blueprints` PR number, a PR URL, or a GitHub fork branch URL anywhere in the App Store. On mobile, paste it into Search. Use the x next to the source indicator to return to the default catalog.
 
+To test an app or plugin change from a GitHub pull request, paste a PR URL for the repository installed by an existing app blueprint, such as `https://github.com/akirk/ai-assistant/pull/117`. My Apps will clone the matching blueprint into a temporary Custom entry and point its GitHub install step at the PR branch.
+
 Example:
 
 ```json

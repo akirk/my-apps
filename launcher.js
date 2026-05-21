@@ -190,6 +190,97 @@
 		return null;
 	}
 
+	function parseGithubPullRequestUrl(value) {
+		value = (value || '').trim();
+		if (!value) return null;
+
+		var match = value.match(/^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)(?:[\/?#].*)?$/i);
+		if (!match) return null;
+
+		var baseRepo = match[1] + '/' + match[2].replace(/\.git$/i, '');
+		if (!isSafeGithubRepo(baseRepo)) return null;
+
+		return {
+			input: value,
+			owner: match[1],
+			repo: match[2].replace(/\.git$/i, ''),
+			baseRepo: baseRepo,
+			number: match[3],
+			fallbackRef: 'refs/pull/' + match[3] + '/head'
+		};
+	}
+
+	function isSafeGithubRepo(repo) {
+		return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(String(repo || ''));
+	}
+
+	function isSafeGitRef(ref) {
+		ref = String(ref || '');
+		return !!ref &&
+			/^[\w.\/-]+$/.test(ref) &&
+			ref.indexOf('..') === -1 &&
+			ref.charAt(0) !== '/' &&
+			ref.slice(-1) !== '/';
+	}
+
+	function normalizeGithubRepo(repo) {
+		return String(repo || '').replace(/^\/+|\/+$/g, '').replace(/\.git$/i, '').toLowerCase();
+	}
+
+	function githubReposMatch(a, b) {
+		return !!a && !!b && normalizeGithubRepo(a) === normalizeGithubRepo(b);
+	}
+
+	function githubRepoFromUrl(url) {
+		var match = String(url || '').match(/^https?:\/\/github\.com\/([^\/?#]+)\/([^\/?#]+?)(?:\.git)?(?:[\/?#]|$)/i);
+		if (match) {
+			return match[1] + '/' + match[2];
+		}
+
+		match = String(url || '').match(/^git@github\.com:([^\/]+)\/(.+?)(?:\.git)?$/i);
+		if (match) {
+			return match[1] + '/' + match[2];
+		}
+
+		return '';
+	}
+
+	function resolveGithubPullRequestTarget(pr) {
+		var fallback = {
+			repo: pr.baseRepo,
+			url: 'https://github.com/' + pr.baseRepo,
+			ref: pr.fallbackRef,
+			refType: '',
+			label: 'PR #' + pr.number
+		};
+
+		return fetch('https://api.github.com/repos/' + encodeURIComponent(pr.owner) + '/' + encodeURIComponent(pr.repo) + '/pulls/' + encodeURIComponent(pr.number))
+			.then(function(res) {
+				if (!res.ok) {
+					throw new Error('GitHub pull request lookup failed');
+				}
+				return res.json();
+			})
+			.then(function(data) {
+				var head = data && data.head ? data.head : {};
+				var repo = head.repo && head.repo.full_name ? head.repo.full_name : '';
+				var ref = head.ref || '';
+				if (!isSafeGithubRepo(repo) || !isSafeGitRef(ref)) {
+					return fallback;
+				}
+				return {
+					repo: repo,
+					url: 'https://github.com/' + repo,
+					ref: ref,
+					refType: 'branch',
+					label: repo + ' @ ' + ref
+				};
+			})
+			.catch(function() {
+				return fallback;
+			});
+	}
+
 	function getStoredBlueprintsSourceInput() {
 		try {
 			return localStorage.getItem(BLUEPRINTS_SOURCE_STORAGE_KEY) || '';
@@ -5369,6 +5460,226 @@
 		return true;
 	}
 
+	function blueprintGitResources(blueprint) {
+		var resources = [];
+		(blueprint && Array.isArray(blueprint.steps) ? blueprint.steps : []).forEach(function(step) {
+			if (!step) return;
+			['pluginData', 'themeData'].forEach(function(key) {
+				var data = step[key];
+				if (data && data.resource === 'git:directory' && data.url) {
+					resources.push({ step: step, data: data });
+				}
+			});
+		});
+		return resources;
+	}
+
+	function blueprintInstallsGithubRepo(blueprint, repo) {
+		return blueprintGitResources(blueprint).some(function(resource) {
+			return githubReposMatch(githubRepoFromUrl(resource.data.url), repo);
+		});
+	}
+
+	function setGithubPullRequestResource(step, data, target) {
+		step.options = step.options || {};
+		if (!step.options.targetFolderName) {
+			var folder = deriveTargetFolderName(data);
+			if (folder) {
+				step.options.targetFolderName = folder;
+			}
+		}
+
+		data.url = target.url;
+		data.ref = target.ref;
+		delete data.branch;
+		if (target.refType) {
+			data.refType = target.refType;
+		} else {
+			delete data.refType;
+		}
+	}
+
+	function applyGithubPullRequestToBlueprint(blueprint, pr, target) {
+		var clone;
+		try {
+			clone = JSON.parse(JSON.stringify(blueprint || {}));
+		} catch (e) {
+			return null;
+		}
+
+		var changed = false;
+		blueprintGitResources(clone).forEach(function(resource) {
+			if (!githubReposMatch(githubRepoFromUrl(resource.data.url), pr.baseRepo)) {
+				return;
+			}
+			setGithubPullRequestResource(resource.step, resource.data, target);
+			changed = true;
+		});
+
+		return changed ? retrofitGitTargetFolderName(clone) : null;
+	}
+
+	function findGithubPullRequestPluginMatch(pr) {
+		if (!appStoreData) return null;
+		var match = null;
+		Object.keys(appStoreData).some(function(path) {
+			var app = appStoreData[path];
+			if (
+				app &&
+				app._type === 'plugin' &&
+				app._source === 'github' &&
+				githubReposMatch(app._repo, pr.baseRepo)
+			) {
+				match = {
+					path: path,
+					app: app,
+					blueprint: buildPluginBlueprint(app),
+					isPluginFallback: true
+				};
+				return true;
+			}
+			return false;
+		});
+		return match;
+	}
+
+	function findGithubPullRequestBlueprintMatch(pr) {
+		if (!appStoreData) return Promise.resolve(null);
+
+		var paths = Object.keys(appStoreData).filter(function(path) {
+			var app = appStoreData[path];
+			return app && app._type !== 'plugin';
+		});
+
+		var lookups = paths.map(function(path) {
+			var app = appStoreData[path];
+			return resolveBlueprintFromUrl(getBlueprintUrl(path))
+				.then(function(blueprint) {
+					if (!blueprintInstallsGithubRepo(blueprint, pr.baseRepo)) {
+						return null;
+					}
+					return {
+						path: path,
+						app: app,
+						blueprint: blueprint,
+						isPluginFallback: false
+					};
+				})
+				.catch(function() {
+					return null;
+				});
+		});
+
+		return Promise.all(lookups).then(function(results) {
+			for (var i = 0; i < results.length; i++) {
+				if (results[i]) {
+					return results[i];
+				}
+			}
+			return findGithubPullRequestPluginMatch(pr);
+		});
+	}
+
+	function customCategoryList(categories) {
+		var list = Array.isArray(categories) ? categories.slice() : [];
+		if (list.indexOf('Custom') === -1) {
+			list.push('Custom');
+		}
+		return list;
+	}
+
+	function customPathSlug(value) {
+		return String(value || 'app').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'app';
+	}
+
+	function githubPullRequestCustomPath(pr) {
+		return 'custom/' + customPathSlug(pr.baseRepo.replace('/', '-')) + '-pr-' + pr.number + '.json';
+	}
+
+	function saveGithubPullRequestBlueprint(match, pr, target, blueprint) {
+		var app = match.app || {};
+		var blueprintMeta = blueprint.meta || {};
+		var isPluginFallback = !!match.isPluginFallback;
+		var title = app.title || blueprintMeta.title || pr.repo;
+		if (isPluginFallback) {
+			title += ' (PR #' + pr.number + ')';
+		}
+
+		var appMeta = {
+			title: title,
+			description: app.description || blueprintMeta.description || '',
+			author: app.author || blueprintMeta.author || '',
+			categories: customCategoryList(app.categories || blueprintMeta.categories)
+		};
+
+		var customPath = '';
+		var overrides = '';
+		if (isPluginFallback || !match.path) {
+			customPath = githubPullRequestCustomPath(pr);
+		} else if (app._custom && !app._overrides && /^custom\//.test(match.path)) {
+			customPath = match.path;
+		} else {
+			overrides = app._overrides || match.path;
+			customPath = overrides;
+		}
+
+		if (match.path && match.path !== customPath) {
+			delete appStoreData[match.path];
+		}
+
+		saveCustomBlueprint(customPath, appMeta, blueprint, overrides);
+		appMeta._custom = true;
+		if (overrides) {
+			appMeta._overrides = overrides;
+		}
+		appStoreData[customPath] = appMeta;
+
+		buildAppStoreNav(appStoreData);
+		navigateToAppStoreCategory('Custom');
+		showToast('Using "' + title + '" from PR #' + pr.number);
+	}
+
+	function importGithubPullRequestText(text) {
+		var pr = parseGithubPullRequestUrl(text);
+		if (!pr) {
+			return false;
+		}
+
+		if (!appStoreData) {
+			showToast('Apps are still loading. Try again in a moment.');
+			return true;
+		}
+
+		showToast('Looking for ' + pr.baseRepo + ' in the App Store');
+		Promise.all([
+			resolveGithubPullRequestTarget(pr),
+			findGithubPullRequestBlueprintMatch(pr)
+		]).then(function(results) {
+			var target = results[0];
+			var match = results[1];
+			if (!match) {
+				showToast(
+					pluginsLoadState === 'loading'
+						? 'Recommendations are still loading. Try again in a moment.'
+						: 'No app or blueprint found for ' + pr.baseRepo
+				);
+				return;
+			}
+
+			var blueprint = applyGithubPullRequestToBlueprint(match.blueprint, pr, target);
+			if (!blueprint) {
+				showToast('No GitHub install step found for ' + pr.baseRepo);
+				return;
+			}
+
+			saveGithubPullRequestBlueprint(match, pr, target, blueprint);
+		}).catch(function(error) {
+			showToast(error && error.message ? error.message : 'Could not import PR URL');
+		});
+
+		return true;
+	}
+
 	function importBlueprintText(text, options) {
 		options = options || {};
 		if (!isJsonTextCandidate(text)) {
@@ -5408,6 +5719,12 @@
 			return;
 		}
 
+		if (importGithubPullRequestText(text)) {
+			e.preventDefault();
+			e.stopPropagation();
+			return;
+		}
+
 		if (importBlueprintText(text, { showErrors: true, consumeInvalid: true })) {
 			e.preventDefault();
 			e.stopPropagation();
@@ -5420,6 +5737,13 @@
 		if (!text) return;
 
 		if (importBlueprintsSourceText(text)) {
+			appStoreSearchInput.value = '';
+			e.preventDefault();
+			e.stopPropagation();
+			return;
+		}
+
+		if (importGithubPullRequestText(text)) {
 			appStoreSearchInput.value = '';
 			e.preventDefault();
 			e.stopPropagation();
@@ -5441,6 +5765,10 @@
 	function handleBlueprintSearchInput(e) {
 		var value = appStoreSearchInput.value || '';
 		if (e && e.inputType === 'insertFromPaste' && importBlueprintsSourceText(value)) {
+			appStoreSearchInput.value = '';
+			return true;
+		}
+		if (e && e.inputType === 'insertFromPaste' && importGithubPullRequestText(value)) {
 			appStoreSearchInput.value = '';
 			return true;
 		}

@@ -388,143 +388,277 @@ class My_Apps {
 	}
 
 	/**
-	 * Get the current user's admin colour scheme as CSS tokens.
+	 * Get CSS custom properties for the current user's admin colour scheme.
 	 *
+	 * @param string $selector CSS selector for the variables.
+	 * @param int    $user_id  Optional user ID. Defaults to the current user.
+	 * @return string
+	 */
+	private static function admin_color_scheme_css( $selector = 'body.my-apps-launcher', $user_id = 0 ) {
+		if ( function_exists( 'wp_app_get_admin_color_scheme_css' ) ) {
+			return \wp_app_get_admin_color_scheme_css( $selector, $user_id );
+		}
+
+		$scheme   = self::admin_color_scheme( $user_id );
+		$selector = trim( preg_replace( '/[^a-zA-Z0-9\-_#\.\:\[\]=~\*"\'\(\), >\+]/', '', $selector ) );
+
+		if ( '' === $selector ) {
+			$selector = ':root, body.wp-app-body';
+		}
+
+		$mode = function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_color_mode', 'auto', $user_id, $scheme ) : 'auto';
+
+		if ( ! in_array( $mode, array( 'auto', 'light', 'dark' ), true ) ) {
+			$mode = 'auto';
+		}
+
+		if ( 'dark' === $mode ) {
+			return self::color_scheme_css_block( $selector, self::color_scheme_variables( $scheme, 'dark' ) );
+		}
+
+		$css = self::color_scheme_css_block( $selector, self::color_scheme_variables( $scheme, 'light' ) );
+
+		if ( 'auto' === $mode ) {
+			$css .= "@media (prefers-color-scheme: dark) {\n";
+			$css .= self::color_scheme_css_block( $selector, self::color_scheme_variables( $scheme, 'dark' ), "\t" );
+			$css .= "}\n";
+		}
+
+		return $css;
+	}
+
+	/**
+	 * Get the current user's WordPress admin colour scheme as normalized tokens.
+	 *
+	 * @param int $user_id Optional user ID. Defaults to the current user.
 	 * @return array
 	 */
-	private static function admin_color_tokens() {
+	private static function admin_color_scheme( $user_id = 0 ) {
 		$fallback = array(
-			'background' => '#1d2327',
-			'subtle'     => '#2c3338',
-			'primary'    => '#2271b1',
-			'accent'     => '#72aee6',
-			'icon'       => '#a7aaad',
-			'text'       => '#f0f0f1',
+			'slug'        => 'fresh',
+			'name'        => 'Default',
+			'colors'      => array( '#23282d', '#32373c', '#0073aa', '#00a0d2' ),
+			'icon_colors' => array(
+				'base'    => '#a7aaad',
+				'focus'   => '#72aee6',
+				'current' => '#fff',
+			),
 		);
 
-		$slug = get_user_option( 'admin_color' );
+		if ( ! function_exists( 'get_user_option' ) ) {
+			return $fallback;
+		}
+
+		$user_id = $user_id ? $user_id : ( function_exists( 'get_current_user_id' ) ? get_current_user_id() : 0 );
+		$slug    = get_user_option( 'admin_color', $user_id );
+
 		if ( ! $slug ) {
 			$slug = 'fresh';
 		}
 
 		global $_wp_admin_css_colors;
 
-		if ( empty( $_wp_admin_css_colors ) ) {
+		if ( empty( $_wp_admin_css_colors ) && defined( 'ABSPATH' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/misc.php';
+
 			if ( function_exists( 'register_admin_color_schemes' ) ) {
 				register_admin_color_schemes();
 			}
 		}
 
 		if ( empty( $_wp_admin_css_colors[ $slug ] ) ) {
-			return $fallback;
+			$fallback['slug'] = $slug;
+			return function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_admin_color_scheme', $fallback, $user_id, $slug ) : $fallback;
 		}
 
 		$scheme      = $_wp_admin_css_colors[ $slug ];
-		$colors      = isset( $scheme->colors ) && is_array( $scheme->colors ) ? array_values( $scheme->colors ) : array();
-		$icon_colors = isset( $scheme->icon_colors ) && is_array( $scheme->icon_colors ) ? $scheme->icon_colors : array();
+		$colors      = isset( $scheme->colors ) && is_array( $scheme->colors ) ? array_values( $scheme->colors ) : $fallback['colors'];
+		$icon_colors = isset( $scheme->icon_colors ) && is_array( $scheme->icon_colors ) ? $scheme->icon_colors : $fallback['icon_colors'];
+		$colors      = self::normalize_admin_scheme_colors( $colors, $fallback['colors'] );
 
-		if ( empty( $colors ) ) {
-			$colors = array( $fallback['background'], $fallback['primary'], $fallback['accent'] );
+		$admin_color_scheme = array(
+			'slug'        => $slug,
+			'name'        => isset( $scheme->name ) ? $scheme->name : $fallback['name'],
+			'colors'      => array(
+				$colors[0],
+				$colors[1],
+				$colors[2],
+				$colors[3],
+			),
+			'icon_colors' => array(
+				'base'    => self::sanitize_css_color( isset( $icon_colors['base'] ) ? $icon_colors['base'] : '', $fallback['icon_colors']['base'] ),
+				'focus'   => self::sanitize_css_color( isset( $icon_colors['focus'] ) ? $icon_colors['focus'] : '', $fallback['icon_colors']['focus'] ),
+				'current' => self::sanitize_css_color( isset( $icon_colors['current'] ) ? $icon_colors['current'] : '', $fallback['icon_colors']['current'] ),
+			),
+		);
+
+		return function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_admin_color_scheme', $admin_color_scheme, $user_id, $slug ) : $admin_color_scheme;
+	}
+
+	/**
+	 * Normalize an admin colour palette into background, subtle, primary, and accent colours.
+	 *
+	 * @param array $colors   Admin scheme colours.
+	 * @param array $fallback Fallback colours.
+	 * @return array
+	 */
+	private static function normalize_admin_scheme_colors( $colors, $fallback ) {
+		$colors = is_array( $colors ) ? array_values( $colors ) : array();
+
+		if ( 3 === count( $colors ) ) {
+			$background = self::sanitize_css_color( $colors[0], $fallback[0] );
+
+			return array(
+				$background,
+				$background,
+				self::sanitize_css_color( $colors[1], $fallback[2] ),
+				self::sanitize_css_color( $colors[2], $fallback[3] ),
+			);
 		}
 
-		$last_color = end( $colors );
-		$colors     = array_pad( $colors, 4, $last_color );
-		$background = self::sanitize_css_hex_color( $colors[0], $fallback['background'] );
-		$subtle     = self::shift_hex_color( $background, self::is_light_hex_color( $background ) ? 18 : 12 );
+		$colors = array_pad( $colors, 4, end( $colors ) );
 
 		return array(
-			'background' => $background,
-			'subtle'     => $subtle,
-			'primary'    => self::sanitize_css_hex_color( $colors[2], $fallback['primary'] ),
-			'accent'     => self::sanitize_css_hex_color( $colors[3], $fallback['accent'] ),
-			'icon'       => self::sanitize_css_hex_color( isset( $icon_colors['base'] ) ? $icon_colors['base'] : '', $fallback['icon'] ),
-			'text'       => self::is_light_hex_color( $background ) ? '#1d2327' : '#f0f0f1',
+			self::sanitize_css_color( $colors[0], $fallback[0] ),
+			self::sanitize_css_color( $colors[1], $fallback[1] ),
+			self::sanitize_css_color( $colors[2], $fallback[2] ),
+			self::sanitize_css_color( $colors[3], $fallback[3] ),
 		);
 	}
 
 	/**
-	 * Sanitize and normalize a hex colour for inline CSS.
+	 * Get CSS custom property values for a light or dark app colour scheme.
+	 *
+	 * @param array  $scheme WordPress admin colour scheme data.
+	 * @param string $mode   App colour mode. Accepts 'light' or 'dark'.
+	 * @return array
+	 */
+	private static function color_scheme_variables( $scheme, $mode = 'light' ) {
+		$variables = array(
+			'--wp-app-admin-color-background'   => $scheme['colors'][0],
+			'--wp-app-admin-color-subtle'       => $scheme['colors'][1],
+			'--wp-app-admin-color-primary'      => $scheme['colors'][2],
+			'--wp-app-admin-color-accent'       => $scheme['colors'][3],
+			'--wp-app-admin-icon-color-base'    => $scheme['icon_colors']['base'],
+			'--wp-app-admin-icon-color-focus'   => $scheme['icon_colors']['focus'],
+			'--wp-app-admin-icon-color-current' => $scheme['icon_colors']['current'],
+			'--wp-app-color-primary'            => 'var(--wp-app-admin-color-primary)',
+			'--wp-app-color-primary-hover'      => self::darken_css_color( $scheme['colors'][2], 10 ),
+			'--wp-app-color-accent'             => 'var(--wp-app-admin-color-accent)',
+			'--wp-app-color-error'              => 'var(--wp-app-admin-color-accent)',
+			'--wp-app-color-on-primary'         => 'var(--wp-app-admin-icon-color-current)',
+			'--wp-app-color-link'               => 'var(--wp-app-admin-color-primary)',
+			'--wp-app-color-link-hover'         => self::darken_css_color( $scheme['colors'][2], 10 ),
+			'--wp-app-color-focus'              => 'var(--wp-app-admin-color-accent)',
+			'--wp-app-color-secondary'          => 'var(--wp-app-color-surface-alt)',
+			'--wp-app-color-secondary-hover'    => 'var(--wp-app-color-border)',
+			'--wp-app-color-secondary-text'     => 'var(--wp-app-color-text)',
+			'--wp-app-masterbar-background'     => 'var(--wp-app-admin-color-background)',
+			'--wp-app-masterbar-highlight'      => 'var(--wp-app-admin-color-accent)',
+			'--wp-app-masterbar-text'           => 'var(--wp-app-admin-icon-color-current)',
+		);
+
+		if ( 'dark' === $mode ) {
+			return array_merge(
+				$variables,
+				array(
+					'--wp-app-color-scheme'      => 'dark',
+					'--wp-app-color-background'  => '#101517',
+					'--wp-app-color-surface'     => '#1d2327',
+					'--wp-app-color-surface-alt' => '#2c3338',
+					'--wp-app-color-text'        => '#f0f0f1',
+					'--wp-app-color-muted'       => '#a7aaad',
+					'--wp-app-color-border'      => '#3c434a',
+				)
+			);
+		}
+
+		return array_merge(
+			$variables,
+			array(
+				'--wp-app-color-scheme'      => 'light',
+				'--wp-app-color-background'  => '#f6f7f7',
+				'--wp-app-color-surface'     => '#fff',
+				'--wp-app-color-surface-alt' => '#f0f0f1',
+				'--wp-app-color-text'        => '#1d2327',
+				'--wp-app-color-muted'       => '#646970',
+				'--wp-app-color-border'      => '#dcdcde',
+			)
+		);
+	}
+
+	/**
+	 * Render CSS custom properties in a selector block.
+	 *
+	 * @param string $selector  CSS selector.
+	 * @param array  $variables CSS custom properties and values.
+	 * @param string $indent    Optional block indentation.
+	 * @return string
+	 */
+	private static function color_scheme_css_block( $selector, $variables, $indent = '' ) {
+		$css = $indent . $selector . " {\n";
+
+		foreach ( $variables as $property => $value ) {
+			$css .= $indent . "\t" . $property . ': ' . $value . ";\n";
+		}
+
+		$css .= $indent . "}\n";
+
+		return $css;
+	}
+
+	/**
+	 * Sanitize a CSS colour value for inline custom properties.
 	 *
 	 * @param string $color    The colour to sanitize.
 	 * @param string $fallback Fallback colour.
 	 * @return string
 	 */
-	private static function sanitize_css_hex_color( $color, $fallback ) {
-		$color = is_string( $color ) ? trim( $color ) : '';
+	private static function sanitize_css_color( $color, $fallback ) {
 		if ( function_exists( 'sanitize_hex_color' ) ) {
 			$sanitized = sanitize_hex_color( $color );
+
 			if ( $sanitized ) {
-				$color = $sanitized;
+				return $sanitized;
 			}
-		}
-
-		if ( preg_match( '/^#[0-9a-fA-F]{3}$/', $color ) ) {
-			return strtolower(
-				sprintf(
-					'#%s%s%s%s%s%s',
-					$color[1],
-					$color[1],
-					$color[2],
-					$color[2],
-					$color[3],
-					$color[3]
-				)
-			);
-		}
-
-		if ( preg_match( '/^#[0-9a-fA-F]{6}$/', $color ) ) {
-			return strtolower( $color );
+		} elseif ( is_string( $color ) && preg_match( '/^#([A-Fa-f0-9]{3}){1,2}$/', $color ) ) {
+			return $color;
 		}
 
 		return $fallback;
 	}
 
 	/**
-	 * Shift a hex colour toward white.
+	 * Darken a sanitized hex colour by mixing it toward black.
 	 *
-	 * @param string $color   Hex colour.
-	 * @param int    $amount  Percent to mix with white.
+	 * @param string $color      Hex colour.
+	 * @param int    $percentage Percent to mix with black.
 	 * @return string
 	 */
-	private static function shift_hex_color( $color, $amount ) {
-		$rgb    = self::hex_to_rgb( $color );
-		$amount = max( 0, min( 100, (int) $amount ) ) / 100;
+	private static function darken_css_color( $color, $percentage ) {
+		if ( ! is_string( $color ) || ! preg_match( '/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/', $color ) ) {
+			return $color;
+		}
 
-		return sprintf(
-			'#%02x%02x%02x',
-			(int) round( $rgb[0] + ( 255 - $rgb[0] ) * $amount ),
-			(int) round( $rgb[1] + ( 255 - $rgb[1] ) * $amount ),
-			(int) round( $rgb[2] + ( 255 - $rgb[2] ) * $amount )
+		$hex = ltrim( $color, '#' );
+
+		if ( 3 === strlen( $hex ) ) {
+			$hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+		}
+
+		$percentage = max( 0, min( 100, (int) $percentage ) );
+		$factor     = ( 100 - $percentage ) / 100;
+		$channels   = array(
+			hexdec( substr( $hex, 0, 2 ) ),
+			hexdec( substr( $hex, 2, 2 ) ),
+			hexdec( substr( $hex, 4, 2 ) ),
 		);
-	}
 
-	/**
-	 * Convert a normalized hex colour to RGB components.
-	 *
-	 * @param string $color Hex colour.
-	 * @return int[]
-	 */
-	private static function hex_to_rgb( $color ) {
-		$color = ltrim( self::sanitize_css_hex_color( $color, '#000000' ), '#' );
+		foreach ( $channels as $index => $channel ) {
+			$channels[ $index ] = max( 0, min( 255, (int) round( $channel * $factor ) ) );
+		}
 
-		return array(
-			hexdec( substr( $color, 0, 2 ) ),
-			hexdec( substr( $color, 2, 2 ) ),
-			hexdec( substr( $color, 4, 2 ) ),
-		);
-	}
-
-	/**
-	 * Determine whether a hex colour is light.
-	 *
-	 * @param string $color Hex colour.
-	 * @return bool
-	 */
-	private static function is_light_hex_color( $color ) {
-		$rgb = self::hex_to_rgb( $color );
-
-		return ( ( 299 * $rgb[0] + 587 * $rgb[1] + 114 * $rgb[2] ) / 1000 ) >= 160;
+		return sprintf( '#%02x%02x%02x', $channels[0], $channels[1], $channels[2] );
 	}
 
 	public function __construct() {
@@ -1698,21 +1832,15 @@ class My_Apps {
 		if ( ! is_admin_bar_showing() ) {
 			return;
 		}
-		$is_launcher = ! is_admin() && get_query_var( 'my_apps' );
-		$tokens      = $is_launcher ? self::admin_color_tokens() : array();
+		$is_launcher     = ! is_admin() && get_query_var( 'my_apps' );
+		$admin_color_css = $is_launcher ? self::admin_color_scheme_css( 'body.my-apps-launcher' ) : '';
 		?>
 		<style>
 			<?php if ( $is_launcher ) : ?>
-			body.my-apps-launcher {
-				--wp-app-admin-color-background: <?php echo esc_html( $tokens['background'] ); ?>;
-				--wp-app-admin-color-subtle: <?php echo esc_html( $tokens['subtle'] ); ?>;
-				--wp-app-admin-color-primary: <?php echo esc_html( $tokens['primary'] ); ?>;
-				--wp-app-admin-color-accent: <?php echo esc_html( $tokens['accent'] ); ?>;
-				--wp-app-admin-icon-color-base: <?php echo esc_html( $tokens['icon'] ); ?>;
-				--wp-app-masterbar-background: var(--wp-app-admin-color-background);
-				--wp-app-masterbar-highlight: var(--wp-app-admin-color-accent);
-				--wp-app-masterbar-text: <?php echo esc_html( $tokens['text'] ); ?>;
-			}
+				<?php
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSS is generated from sanitized admin colour scheme values.
+				echo $admin_color_css;
+				?>
 			body.my-apps-launcher #wpadminbar {
 				background: var(--wp-app-masterbar-background, #1d2327);
 				color: var(--wp-app-masterbar-text, #f0f0f1);

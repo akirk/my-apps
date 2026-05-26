@@ -494,6 +494,7 @@
 	// ── Custom Blueprint Storage (localStorage) ─────────────
 	var CUSTOM_BLUEPRINTS_KEY = 'my_apps_custom_blueprints';
 	var CUSTOM_BLUEPRINT_VERSION_LIMIT = 12;
+	var CUSTOM_BLUEPRINT_ORIGINAL_VERSION_ID = 'original';
 
 	function getCustomBlueprints() {
 		try {
@@ -553,6 +554,10 @@
 		delete clean._activeCustomVersion;
 		delete clean._path;
 		return clean;
+	}
+
+	function isCustomBlueprintOriginalVersion(versionId) {
+		return versionId === CUSTOM_BLUEPRINT_ORIGINAL_VERSION_ID;
 	}
 
 	function customBlueprintHash(value) {
@@ -620,8 +625,12 @@
 		var meta = cleanCustomBlueprintMeta(entry.meta || {});
 		var blueprint = entry.blueprint && typeof entry.blueprint === 'object' ? entry.blueprint : {};
 		var overrides = entry.overrides || null;
+		var activeVersionId = entry.activeVersionId || '';
+		var fallbackVersionId = activeVersionId && !isCustomBlueprintOriginalVersion(activeVersionId)
+			? activeVersionId
+			: customBlueprintVersionId(blueprint);
 		var fallbackVersion = {
-			id: entry.activeVersionId || customBlueprintVersionId(blueprint),
+			id: fallbackVersionId,
 			label: entry.versionLabel || 'Current',
 			meta: meta,
 			blueprint: blueprint,
@@ -642,12 +651,17 @@
 			versions.push(normalizeCustomBlueprintVersion(fallbackVersion, fallbackVersion));
 		}
 
+		var normalizedActiveVersionId = activeVersionId;
+		if (!normalizedActiveVersionId || (isCustomBlueprintOriginalVersion(normalizedActiveVersionId) && !overrides)) {
+			normalizedActiveVersionId = versions[0] ? versions[0].id : '';
+		}
+
 		return {
 			meta: meta,
 			blueprint: blueprint,
 			overrides: overrides,
 			versions: versions,
-			activeVersionId: entry.activeVersionId || (versions[0] ? versions[0].id : '')
+			activeVersionId: normalizedActiveVersionId
 		};
 	}
 
@@ -659,19 +673,35 @@
 		entry = normalizeCustomBlueprintEntry(entry);
 		if (!entry || !entry.versions.length) return [];
 
-		return entry.versions.map(function(version) {
+		var versions = entry.versions.map(function(version) {
 			return {
 				id: version.id,
 				label: version.label
 			};
 		});
+
+		if (entry.overrides && !versions.some(function(version) {
+			return isCustomBlueprintOriginalVersion(version.id);
+		})) {
+			versions.push({
+				id: CUSTOM_BLUEPRINT_ORIGINAL_VERSION_ID,
+				label: 'Original'
+			});
+		}
+
+		return versions;
 	}
 
-	function customBlueprintAppMeta(entry) {
+	function customBlueprintAppMeta(entry, data) {
 		entry = normalizeCustomBlueprintEntry(entry);
 		if (!entry) return null;
 
-		var meta = cleanCustomBlueprintMeta(entry.meta);
+		var originalMeta = entry.overrides && data ? data[entry.overrides] : null;
+		var useOriginal = !!(originalMeta && entry.overrides && isCustomBlueprintOriginalVersion(entry.activeVersionId));
+		var meta = cleanCustomBlueprintMeta(useOriginal ? originalMeta : entry.meta);
+		if (useOriginal) {
+			meta.categories = customCategoryList(meta.categories);
+		}
 		meta._custom = true;
 		if (entry.overrides) {
 			meta._overrides = entry.overrides;
@@ -735,6 +765,18 @@
 		var entry = normalizeCustomBlueprintEntry(custom[path]);
 		if (!entry) return null;
 
+		if (entry.overrides && isCustomBlueprintOriginalVersion(versionId)) {
+			custom[path] = {
+				meta: cleanCustomBlueprintMeta(entry.meta),
+				blueprint: retrofitGitTargetFolderName(cloneCustomBlueprintValue(entry.blueprint || {})),
+				overrides: entry.overrides,
+				versions: entry.versions,
+				activeVersionId: CUSTOM_BLUEPRINT_ORIGINAL_VERSION_ID
+			};
+			localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
+			return normalizeCustomBlueprintEntry(custom[path]);
+		}
+
 		var selected = null;
 		entry.versions.some(function(version) {
 			if (version.id === versionId) {
@@ -760,7 +802,7 @@
 		var custom = getCustomBlueprints();
 		Object.keys(custom).forEach(function(path) {
 			var entry = normalizeCustomBlueprintEntry(custom[path]);
-			var meta = customBlueprintAppMeta(entry);
+			var meta = customBlueprintAppMeta(entry, data);
 			if (!entry || !meta) return;
 			// If this overrides an existing app, replace it
 			if (entry.overrides && data[entry.overrides]) {
@@ -774,6 +816,9 @@
 	function getBlueprintUrl(path) {
 		var entry = getCustomBlueprintEntry(path);
 		if (entry) {
+			if (entry.overrides && isCustomBlueprintOriginalVersion(entry.activeVersionId)) {
+				return BLUEPRINTS_BASE_URL + entry.overrides;
+			}
 			return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(entry.blueprint))));
 		}
 		return BLUEPRINTS_BASE_URL + path;
@@ -874,8 +919,8 @@
 
 		var select = document.createElement('select');
 		select.className = 'app-store-version-select';
-		select.title = 'Switch pasted version';
-		select.setAttribute('aria-label', 'Switch pasted version');
+		select.title = 'Switch version';
+		select.setAttribute('aria-label', 'Switch version');
 
 		versions.forEach(function(version) {
 			var option = document.createElement('option');
@@ -891,8 +936,27 @@
 		select.addEventListener('change', function(e) {
 			e.stopPropagation();
 			var entry = switchCustomBlueprintVersion(path, select.value);
-			var updated = customBlueprintAppMeta(entry);
-			if (!entry || !updated) return;
+			if (!entry) return;
+			var label = customVersionLabel(app, select.value);
+
+			if (isCustomBlueprintOriginalVersion(select.value)) {
+				refreshAppStoreDataFromSources()
+					.then(function() {
+						if (typeof afterSwitch === 'function') {
+							afterSwitch(appStoreData && appStoreData[path]);
+						} else {
+							renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+						}
+						showToast('Using ' + label);
+					})
+					.catch(function() {
+						showToast('Could not refresh the App Store');
+					});
+				return;
+			}
+
+			var updated = customBlueprintAppMeta(entry, appStoreData);
+			if (!updated) return;
 
 			if (appStoreData) {
 				appStoreData[path] = updated;
@@ -904,7 +968,7 @@
 			} else {
 				renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
 			}
-			showToast('Using ' + customVersionLabel(updated, select.value));
+			showToast('Using ' + label);
 		});
 
 		return select;
@@ -1083,7 +1147,10 @@
 			}
 		});
 		if (blueprintPath && customBlueprints[blueprintPath]) {
-			return Promise.resolve(customBlueprints[blueprintPath].blueprint);
+			var entry = normalizeCustomBlueprintEntry(customBlueprints[blueprintPath]);
+			if (entry && !isCustomBlueprintOriginalVersion(entry.activeVersionId)) {
+				return Promise.resolve(entry.blueprint);
+			}
 		}
 		return fetch(blueprintUrl).then(function(res) { return res.json(); });
 	}
@@ -4945,6 +5012,29 @@
 		} catch (e) { /* localStorage full or disabled — fine, we'll refetch */ }
 	}
 
+	function recommendedPluginAppMeta(plugin) {
+		return {
+			title: plugin.title,
+			description: plugin.note || plugin.short_description || '',
+			author: plugin.author || '',
+			categories: plugin.categories || [],
+			_type: 'plugin',
+			_source: plugin.source || 'wp.org',
+			_slug: plugin.slug || '',
+			_baseRepo: plugin.repo || '',
+			_repo: plugin.repo || '',
+			_url: plugin.url || '',
+			_ref: plugin.ref || '',
+			_refType: plugin.refType || '',
+			_icon: plugin.icon || '',
+			_shortDescription: plugin.short_description || '',
+			_note: plugin.note || '',
+			_installUrl: plugin.install_url || '',
+			_landingPage: plugin.landing_page || '',
+			_launcherUrl: plugin.launcher_url || ''
+		};
+	}
+
 	function mergeRecommendedPlugins(data, plugins) {
 		if (areAppStorePluginsHidden()) {
 			return;
@@ -4953,30 +5043,17 @@
 		Object.keys(plugins).forEach(function(key) {
 			var p = plugins[key];
 			var pluginPath = 'plugin/' + key;
+			var pluginMeta = recommendedPluginAppMeta(p);
 			if (data[pluginPath] && data[pluginPath]._custom) {
+				var entry = getCustomBlueprintEntry(pluginPath);
+				if (entry && entry.overrides === pluginPath) {
+					data[pluginPath] = pluginMeta;
+					data[pluginPath] = customBlueprintAppMeta(entry, data);
+				}
 				return;
 			}
 
-			data[pluginPath] = {
-				title: p.title,
-				description: p.note || p.short_description || '',
-				author: p.author || '',
-				categories: p.categories || [],
-				_type: 'plugin',
-				_source: p.source || 'wp.org',
-				_slug: p.slug || '',
-				_baseRepo: p.repo || '',
-				_repo: p.repo || '',
-				_url: p.url || '',
-				_ref: p.ref || '',
-				_refType: p.refType || '',
-				_icon: p.icon || '',
-				_shortDescription: p.short_description || '',
-				_note: p.note || '',
-				_installUrl: p.install_url || '',
-				_landingPage: p.landing_page || '',
-				_launcherUrl: p.launcher_url || ''
-			};
+			data[pluginPath] = pluginMeta;
 		});
 	}
 
@@ -5874,7 +5951,7 @@
 		saveCustomBlueprint(customPath, appMeta, blueprint, actualOverrides);
 
 		// Merge into current data
-		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath));
+		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath), appStoreData);
 
 		buildAppStoreNav(appStoreData);
 		navigateToAppStoreCategory('Custom');
@@ -6106,7 +6183,7 @@
 			versionLabel: refLabel,
 			source: githubReferenceVersionSource(ref, target)
 		});
-		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath));
+		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath), appStoreData);
 
 		buildAppStoreNav(appStoreData);
 		navigateToAppStoreCategory(isPluginFallback ? '__plugins__' : 'Custom');

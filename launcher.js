@@ -493,12 +493,22 @@
 
 	// ── Custom Blueprint Storage (localStorage) ─────────────
 	var CUSTOM_BLUEPRINTS_KEY = 'my_apps_custom_blueprints';
+	var CUSTOM_BLUEPRINT_VERSION_LIMIT = 12;
 
 	function getCustomBlueprints() {
 		try {
 			return JSON.parse(localStorage.getItem(CUSTOM_BLUEPRINTS_KEY)) || {};
 		} catch (e) {
 			return {};
+		}
+	}
+
+	function cloneCustomBlueprintValue(value) {
+		if (!value || typeof value !== 'object') return value;
+		try {
+			return JSON.parse(JSON.stringify(value));
+		} catch (e) {
+			return value;
 		}
 	}
 
@@ -535,9 +545,182 @@
 		return blueprint;
 	}
 
-	function saveCustomBlueprint(path, meta, blueprint, overrides) {
+	function cleanCustomBlueprintMeta(meta) {
+		var clean = cloneCustomBlueprintValue(meta || {}) || {};
+		delete clean._custom;
+		delete clean._overrides;
+		delete clean._customVersions;
+		delete clean._activeCustomVersion;
+		delete clean._path;
+		return clean;
+	}
+
+	function customBlueprintHash(value) {
+		value = String(value || '');
+		var hash = 0;
+		for (var i = 0; i < value.length; i++) {
+			hash = ((hash << 5) - hash) + value.charCodeAt(i);
+			hash |= 0;
+		}
+		return (hash >>> 0).toString(36);
+	}
+
+	function customBlueprintVersionId(blueprint) {
+		var serialized = '';
+		try {
+			serialized = JSON.stringify(blueprint || {});
+		} catch (e) {
+			serialized = String(Date.now());
+		}
+		return 'blueprint:' + customBlueprintHash(serialized);
+	}
+
+	function customBlueprintVersionDate(time) {
+		try {
+			return new Date(time).toLocaleString(undefined, {
+				month: 'short',
+				day: 'numeric',
+				hour: 'numeric',
+				minute: '2-digit'
+			});
+		} catch (e) {
+			return '';
+		}
+	}
+
+	function customBlueprintDefaultVersionLabel(time) {
+		var label = customBlueprintVersionDate(time);
+		return label ? 'Pasted ' + label : 'Pasted version';
+	}
+
+	function normalizeCustomBlueprintVersion(version, fallback) {
+		fallback = fallback || {};
+		if (!version || typeof version !== 'object') return null;
+
+		var blueprint = version.blueprint || fallback.blueprint;
+		if (!blueprint || typeof blueprint !== 'object') return null;
+
+		var createdAt = version.createdAt || fallback.createdAt || Date.now();
+		var id = version.id || fallback.id || customBlueprintVersionId(blueprint);
+
+		return {
+			id: id,
+			label: version.label || fallback.label || customBlueprintDefaultVersionLabel(createdAt),
+			meta: cleanCustomBlueprintMeta(version.meta || fallback.meta || {}),
+			blueprint: blueprint,
+			overrides: version.overrides || fallback.overrides || null,
+			createdAt: createdAt,
+			source: version.source || fallback.source || null
+		};
+	}
+
+	function normalizeCustomBlueprintEntry(entry) {
+		if (!entry || typeof entry !== 'object') return null;
+
+		var meta = cleanCustomBlueprintMeta(entry.meta || {});
+		var blueprint = entry.blueprint && typeof entry.blueprint === 'object' ? entry.blueprint : {};
+		var overrides = entry.overrides || null;
+		var fallbackVersion = {
+			id: entry.activeVersionId || customBlueprintVersionId(blueprint),
+			label: entry.versionLabel || 'Current',
+			meta: meta,
+			blueprint: blueprint,
+			overrides: overrides,
+			createdAt: entry.createdAt || Date.now(),
+			source: entry.source || null
+		};
+		var versions = [];
+
+		if (Array.isArray(entry.versions)) {
+			entry.versions.forEach(function(version) {
+				version = normalizeCustomBlueprintVersion(version, fallbackVersion);
+				if (version) versions.push(version);
+			});
+		}
+
+		if (!versions.length && blueprint) {
+			versions.push(normalizeCustomBlueprintVersion(fallbackVersion, fallbackVersion));
+		}
+
+		return {
+			meta: meta,
+			blueprint: blueprint,
+			overrides: overrides,
+			versions: versions,
+			activeVersionId: entry.activeVersionId || (versions[0] ? versions[0].id : '')
+		};
+	}
+
+	function getCustomBlueprintEntry(path) {
+		return normalizeCustomBlueprintEntry(getCustomBlueprints()[path]);
+	}
+
+	function customBlueprintVersionSummaries(entry) {
+		entry = normalizeCustomBlueprintEntry(entry);
+		if (!entry || !entry.versions.length) return [];
+
+		return entry.versions.map(function(version) {
+			return {
+				id: version.id,
+				label: version.label
+			};
+		});
+	}
+
+	function customBlueprintAppMeta(entry) {
+		entry = normalizeCustomBlueprintEntry(entry);
+		if (!entry) return null;
+
+		var meta = cleanCustomBlueprintMeta(entry.meta);
+		meta._custom = true;
+		if (entry.overrides) {
+			meta._overrides = entry.overrides;
+		}
+
+		var versions = customBlueprintVersionSummaries(entry);
+		if (versions.length > 1) {
+			meta._customVersions = versions;
+			meta._activeCustomVersion = entry.activeVersionId;
+		}
+
+		return meta;
+	}
+
+	function saveCustomBlueprint(path, meta, blueprint, overrides, options) {
+		options = options || {};
+		var now = Date.now();
 		var custom = getCustomBlueprints();
-		custom[path] = { meta: meta, blueprint: retrofitGitTargetFolderName(blueprint), overrides: overrides || null };
+		var currentEntry = normalizeCustomBlueprintEntry(custom[path]);
+		var storedMeta = cleanCustomBlueprintMeta(meta);
+		var storedBlueprint = retrofitGitTargetFolderName(cloneCustomBlueprintValue(blueprint || {}));
+		var versionId = options.versionId || customBlueprintVersionId(storedBlueprint);
+		var versions = currentEntry ? currentEntry.versions.slice() : [];
+		var version = {
+			id: versionId,
+			label: options.versionLabel || customBlueprintDefaultVersionLabel(now),
+			meta: storedMeta,
+			blueprint: storedBlueprint,
+			overrides: overrides || null,
+			createdAt: now
+		};
+
+		if (options.source) {
+			version.source = options.source;
+		}
+
+		versions = versions.filter(function(existing) {
+			return existing.id !== versionId;
+		});
+		versions.unshift(version);
+		versions = versions.slice(0, CUSTOM_BLUEPRINT_VERSION_LIMIT);
+
+		custom[path] = {
+			meta: storedMeta,
+			blueprint: storedBlueprint,
+			overrides: overrides || null,
+			versions: versions,
+			activeVersionId: versionId
+		};
 		localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
 	}
 
@@ -547,27 +730,51 @@
 		localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
 	}
 
+	function switchCustomBlueprintVersion(path, versionId) {
+		var custom = getCustomBlueprints();
+		var entry = normalizeCustomBlueprintEntry(custom[path]);
+		if (!entry) return null;
+
+		var selected = null;
+		entry.versions.some(function(version) {
+			if (version.id === versionId) {
+				selected = version;
+				return true;
+			}
+			return false;
+		});
+		if (!selected) return null;
+
+		custom[path] = {
+			meta: cleanCustomBlueprintMeta(selected.meta),
+			blueprint: retrofitGitTargetFolderName(cloneCustomBlueprintValue(selected.blueprint || {})),
+			overrides: selected.overrides || entry.overrides || null,
+			versions: entry.versions,
+			activeVersionId: selected.id
+		};
+		localStorage.setItem(CUSTOM_BLUEPRINTS_KEY, JSON.stringify(custom));
+		return normalizeCustomBlueprintEntry(custom[path]);
+	}
+
 	function mergeCustomBlueprints(data) {
 		var custom = getCustomBlueprints();
 		Object.keys(custom).forEach(function(path) {
-			var entry = custom[path];
+			var entry = normalizeCustomBlueprintEntry(custom[path]);
+			var meta = customBlueprintAppMeta(entry);
+			if (!entry || !meta) return;
 			// If this overrides an existing app, replace it
 			if (entry.overrides && data[entry.overrides]) {
 				delete data[entry.overrides];
 			}
-			data[path] = entry.meta;
-			data[path]._custom = true;
-			if (entry.overrides) {
-				data[path]._overrides = entry.overrides;
-			}
+			data[path] = meta;
 		});
 		return data;
 	}
 
 	function getBlueprintUrl(path) {
-		var custom = getCustomBlueprints();
-		if (custom[path]) {
-			return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(custom[path].blueprint))));
+		var entry = getCustomBlueprintEntry(path);
+		if (entry) {
+			return 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(entry.blueprint))));
 		}
 		return BLUEPRINTS_BASE_URL + path;
 	}
@@ -584,6 +791,123 @@
 			toast.classList.remove('visible');
 			setTimeout(function() { toast.remove(); }, 300);
 		}, 3000);
+	}
+
+	function currentAppStoreSearch() {
+		return (typeof appStoreSearchInput !== 'undefined' && appStoreSearchInput)
+			? (appStoreSearchInput.value || '').toLowerCase()
+			: '';
+	}
+
+	function refreshAppStoreDataFromSources() {
+		pluginsLoadState = 'loading';
+		var pluginsPromise = fetchRecommendedPlugins();
+
+		return fetch(APPS_INDEX_URL)
+			.then(function(res) { return res.json(); })
+			.then(function(data) {
+				var merged = mergeCustomBlueprints(data);
+				return pluginsPromise.then(function(plugins) {
+					if (!plugins || !Object.keys(plugins).length) {
+						pluginsLoadState = 'failed';
+					} else {
+						mergeRecommendedPlugins(merged, plugins);
+						pluginsLoadState = 'loaded';
+					}
+
+					appStoreData = merged;
+					buildAppStoreNav(appStoreData);
+					return appStoreData;
+				});
+			});
+	}
+
+	function refreshAfterCustomBlueprintRemoval(app, afterRefresh) {
+		var restoredOriginal = !!(app && app._overrides);
+		refreshAppStoreDataFromSources()
+			.then(function() {
+				if (typeof afterRefresh === 'function') {
+					afterRefresh();
+				} else {
+					renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+				}
+				showToast(restoredOriginal ? 'Original restored' : 'Custom app removed');
+			})
+			.catch(function() {
+				showToast('Could not refresh the App Store');
+			});
+	}
+
+	function createCustomStatusBadge(path, app, afterRemoval) {
+		var badge = document.createElement('span');
+		badge.className = 'app-store-badge app-store-badge-modified';
+		badge.dataset.label = app._overrides ? 'Modified' : 'Custom';
+		badge.dataset.hoverLabel = app._overrides ? 'Revert' : 'Remove';
+		badge.textContent = badge.dataset.label;
+		badge.addEventListener('mouseenter', function() {
+			badge.textContent = badge.dataset.hoverLabel;
+		});
+		badge.addEventListener('mouseleave', function() {
+			badge.textContent = badge.dataset.label;
+		});
+		badge.addEventListener('click', function(e) {
+			e.stopPropagation();
+			deleteCustomBlueprint(path);
+			refreshAfterCustomBlueprintRemoval(app, afterRemoval);
+		});
+		return badge;
+	}
+
+	function customVersionLabel(app, versionId) {
+		var versions = app && Array.isArray(app._customVersions) ? app._customVersions : [];
+		for (var i = 0; i < versions.length; i++) {
+			if (versions[i].id === versionId) {
+				return versions[i].label;
+			}
+		}
+		return 'selected version';
+	}
+
+	function createCustomVersionSwitcher(path, app, afterSwitch) {
+		var versions = app && Array.isArray(app._customVersions) ? app._customVersions : [];
+		if (versions.length < 2) return null;
+
+		var select = document.createElement('select');
+		select.className = 'app-store-version-select';
+		select.title = 'Switch pasted version';
+		select.setAttribute('aria-label', 'Switch pasted version');
+
+		versions.forEach(function(version) {
+			var option = document.createElement('option');
+			option.value = version.id;
+			option.textContent = version.label;
+			select.appendChild(option);
+		});
+		select.value = app._activeCustomVersion || versions[0].id;
+
+		select.addEventListener('click', function(e) {
+			e.stopPropagation();
+		});
+		select.addEventListener('change', function(e) {
+			e.stopPropagation();
+			var entry = switchCustomBlueprintVersion(path, select.value);
+			var updated = customBlueprintAppMeta(entry);
+			if (!entry || !updated) return;
+
+			if (appStoreData) {
+				appStoreData[path] = updated;
+				buildAppStoreNav(appStoreData);
+			}
+
+			if (typeof afterSwitch === 'function') {
+				afterSwitch(updated);
+			} else {
+				renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+			}
+			showToast('Using ' + customVersionLabel(updated, select.value));
+		});
+
+		return select;
 	}
 
 	function normalizeAppUrl(url) {
@@ -4628,7 +4952,12 @@
 
 		Object.keys(plugins).forEach(function(key) {
 			var p = plugins[key];
-			data['plugin/' + key] = {
+			var pluginPath = 'plugin/' + key;
+			if (data[pluginPath] && data[pluginPath]._custom) {
+				return;
+			}
+
+			data[pluginPath] = {
 				title: p.title,
 				description: p.note || p.short_description || '',
 				author: p.author || '',
@@ -4636,6 +4965,7 @@
 				_type: 'plugin',
 				_source: p.source || 'wp.org',
 				_slug: p.slug || '',
+				_baseRepo: p.repo || '',
 				_repo: p.repo || '',
 				_url: p.url || '',
 				_ref: p.ref || '',
@@ -5514,6 +5844,7 @@
 
 		// Use the original path as key for overrides, generate new key for custom apps
 		var customPath = overridesPath || ('custom/' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
+		var matchedApp = matchedPath ? appStoreData[matchedPath] : null;
 
 		if (matchedPath) {
 			if (!confirm('An app named "' + title + '" already exists. Override it with your pasted blueprint?')) {
@@ -5537,14 +5868,13 @@
 			categories: customCategories
 		};
 
-		// Only set overridesPath if this actually overrides a non-custom app
-		var actualOverrides = (overridesPath && overridesPath !== customPath) ? overridesPath : null;
+		var actualOverrides = matchedApp && matchedApp._overrides
+			? matchedApp._overrides
+			: (matchedApp && !matchedApp._custom ? overridesPath : null);
 		saveCustomBlueprint(customPath, appMeta, blueprint, actualOverrides);
 
 		// Merge into current data
-		appMeta._custom = true;
-		if (actualOverrides) appMeta._overrides = actualOverrides;
-		appStoreData[customPath] = appMeta;
+		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath));
 
 		buildAppStoreNav(appStoreData);
 		navigateToAppStoreCategory('Custom');
@@ -5620,12 +5950,19 @@
 				app &&
 				app._type === 'plugin' &&
 				app._source === 'github' &&
-				githubReposMatch(app._repo, ref.baseRepo)
+				githubReposMatch(app._baseRepo || app._repo, ref.baseRepo)
 			) {
+				var blueprintApp = app;
+				if (app._baseRepo && !githubReposMatch(app._repo, app._baseRepo)) {
+					blueprintApp = cleanCustomBlueprintMeta(app);
+					blueprintApp._repo = app._baseRepo;
+					blueprintApp._ref = '';
+					blueprintApp._refType = '';
+				}
 				match = {
 					path: path,
 					app: app,
-					blueprint: buildPluginBlueprint(app),
+					blueprint: buildPluginBlueprint(blueprintApp),
 					isPluginFallback: true
 				};
 				return true;
@@ -5691,15 +6028,52 @@
 		return 'custom/' + customPathSlug(ref.baseRepo.replace('/', '-') + '-' + suffix) + '.json';
 	}
 
+	function githubReferenceVersionId(ref) {
+		var suffix = ref.kind === 'commit' ? ref.sha : ref.number;
+		return 'github:' + normalizeGithubRepo(ref.baseRepo) + ':' + ref.kind + ':' + suffix;
+	}
+
+	function githubReferenceVersionSource(ref, target) {
+		return {
+			type: 'github',
+			kind: ref.kind,
+			input: ref.input || '',
+			repo: ref.baseRepo,
+			targetRepo: target.repo || ref.baseRepo,
+			ref: target.ref || '',
+			refType: target.refType || ''
+		};
+	}
+
+	function pluginMetaWithGithubReference(app, target) {
+		var meta = cleanCustomBlueprintMeta(app || {});
+		meta.title = app.title || meta.title || '';
+		meta.description = app.description || app._note || app._shortDescription || '';
+		meta.author = app.author || '';
+		meta.categories = app.categories || [];
+		meta._type = 'plugin';
+		meta._source = 'github';
+		meta._baseRepo = app._baseRepo || app._repo || target.repo || '';
+		meta._repo = target.repo || app._repo || '';
+		meta._url = '';
+		meta._ref = target.ref || '';
+		meta._refType = target.refType || '';
+		meta._slug = app._slug || '';
+		meta._icon = app._icon || '';
+		meta._shortDescription = app._shortDescription || '';
+		meta._note = app._note || '';
+		meta._installUrl = meta._repo ? 'https://github.com/' + meta._repo : (app._installUrl || '');
+		meta._landingPage = app._landingPage || '';
+		meta._launcherUrl = app._launcherUrl || '';
+		return meta;
+	}
+
 	function saveGithubReferenceBlueprint(match, ref, target, blueprint) {
 		var app = match.app || {};
 		var blueprintMeta = blueprint.meta || {};
 		var isPluginFallback = !!match.isPluginFallback;
 		var refLabel = githubReferenceLabel(ref);
 		var title = app.title || blueprintMeta.title || ref.repo;
-		if (isPluginFallback) {
-			title += ' (' + refLabel + ')';
-		}
 
 		var appMeta = {
 			title: title,
@@ -5710,7 +6084,11 @@
 
 		var customPath = '';
 		var overrides = '';
-		if (isPluginFallback || !match.path) {
+		if (isPluginFallback && match.path) {
+			customPath = match.path;
+			overrides = match.path;
+			appMeta = pluginMetaWithGithubReference(app, target);
+		} else if (!match.path) {
 			customPath = githubReferenceCustomPath(ref);
 		} else if (app._custom && !app._overrides && /^custom\//.test(match.path)) {
 			customPath = match.path;
@@ -5723,15 +6101,15 @@
 			delete appStoreData[match.path];
 		}
 
-		saveCustomBlueprint(customPath, appMeta, blueprint, overrides);
-		appMeta._custom = true;
-		if (overrides) {
-			appMeta._overrides = overrides;
-		}
-		appStoreData[customPath] = appMeta;
+		saveCustomBlueprint(customPath, appMeta, blueprint, overrides, {
+			versionId: githubReferenceVersionId(ref),
+			versionLabel: refLabel,
+			source: githubReferenceVersionSource(ref, target)
+		});
+		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath));
 
 		buildAppStoreNav(appStoreData);
-		navigateToAppStoreCategory('Custom');
+		navigateToAppStoreCategory(isPluginFallback ? '__plugins__' : 'Custom');
 		showToast('Using "' + title + '" from ' + refLabel);
 	}
 
@@ -6169,28 +6547,15 @@
 			metaEl.appendChild(badgeEl);
 
 			if (app._custom) {
-				var modBadge = document.createElement('span');
-				modBadge.className = 'app-store-badge app-store-badge-modified';
-				modBadge.dataset.label = app._overrides ? 'Modified' : 'Custom';
-				modBadge.dataset.hoverLabel = app._overrides ? 'Revert' : 'Remove';
-				modBadge.textContent = modBadge.dataset.label;
-				modBadge.addEventListener('mouseenter', function() { modBadge.textContent = modBadge.dataset.hoverLabel; });
-				modBadge.addEventListener('mouseleave', function() { modBadge.textContent = modBadge.dataset.label; });
-				(function(badgeEl, p) {
-					badgeEl.addEventListener('click', function(e) {
-						e.stopPropagation();
-						deleteCustomBlueprint(p);
-						fetch(APPS_INDEX_URL)
-							.then(function(res) { return res.json(); })
-							.then(function(data) {
-								appStoreData = mergeCustomBlueprints(data);
-								buildAppStoreNav(appStoreData);
-								renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
-								showToast(app._overrides ? 'Original restored' : 'Custom app removed');
-							});
-					});
-				})(modBadge, path);
-				metaEl.appendChild(modBadge);
+				metaEl.appendChild(createCustomStatusBadge(path, app, function() {
+					renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+				}));
+				var versionSwitcher = createCustomVersionSwitcher(path, app, function() {
+					renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+				});
+				if (versionSwitcher) {
+					metaEl.appendChild(versionSwitcher);
+				}
 			}
 
 			if (app.author) {
@@ -6923,6 +7288,18 @@
 		badge.className = 'app-store-badge';
 		badge.textContent = 'Free, open source';
 		metaRow.appendChild(badge);
+		if (plugin._custom) {
+			metaRow.appendChild(createCustomStatusBadge(pluginPath, plugin, function() {
+				closePluginDetail();
+				renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+			}));
+			var pluginVersionSwitcher = createCustomVersionSwitcher(pluginPath, plugin, function(updatedPlugin) {
+				renderPluginDetail(pluginPath, updatedPlugin, options);
+			});
+			if (pluginVersionSwitcher) {
+				metaRow.appendChild(pluginVersionSwitcher);
+			}
+		}
 		if (plugin.categories && plugin.categories.length) {
 			var catSpan = document.createElement('span');
 			catSpan.className = 'app-detail-categories';
@@ -7120,26 +7497,16 @@
 		metaRow.appendChild(badge);
 
 		if (app._custom) {
-			var detailModBadge = document.createElement('span');
-			detailModBadge.className = 'app-store-badge app-store-badge-modified';
-			detailModBadge.dataset.label = app._overrides ? 'Modified' : 'Custom';
-			detailModBadge.dataset.hoverLabel = app._overrides ? 'Revert' : 'Remove';
-			detailModBadge.textContent = detailModBadge.dataset.label;
-			detailModBadge.addEventListener('mouseenter', function() { detailModBadge.textContent = detailModBadge.dataset.hoverLabel; });
-			detailModBadge.addEventListener('mouseleave', function() { detailModBadge.textContent = detailModBadge.dataset.label; });
-			detailModBadge.addEventListener('click', function() {
-				deleteCustomBlueprint(appPath);
-				fetch(APPS_INDEX_URL)
-					.then(function(res) { return res.json(); })
-					.then(function(data) {
-						appStoreData = mergeCustomBlueprints(data);
-						buildAppStoreNav(appStoreData);
-						closeAppDetail();
-						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
-						showToast(app._overrides ? 'Original restored' : 'Custom app removed');
-					});
+			metaRow.appendChild(createCustomStatusBadge(appPath, app, function() {
+				closeAppDetail();
+				renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+			}));
+			var detailVersionSwitcher = createCustomVersionSwitcher(appPath, app, function(updatedApp) {
+				renderAppDetail(appPath, updatedApp, getBlueprintUrl(appPath), getCategoryGradient(updatedApp.categories));
 			});
-			metaRow.appendChild(detailModBadge);
+			if (detailVersionSwitcher) {
+				metaRow.appendChild(detailVersionSwitcher);
+			}
 		}
 
 		if (app.categories && app.categories.length) {

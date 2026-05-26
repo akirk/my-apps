@@ -1048,6 +1048,24 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	background: light-dark(#ffd8b5, #4a2f1a);
 }
 
+.app-store-version-select {
+	appearance: none;
+	max-width: 150px;
+	min-height: 20px;
+	border: 1px solid var(--ma-border);
+	border-radius: 10px;
+	background:
+		linear-gradient(45deg, transparent 50%, currentColor 50%) right 9px center / 5px 5px no-repeat,
+		linear-gradient(135deg, currentColor 50%, transparent 50%) right 5px center / 5px 5px no-repeat,
+		var(--ma-surface);
+	color: var(--ma-fg);
+	font-size: 10px;
+	font-weight: 500;
+	line-height: 1.2;
+	padding: 2px 18px 2px 8px;
+	white-space: nowrap;
+}
+
 .app-store-author {
 	font-size: 11px;
 	color: var(--ma-fg-subtle);

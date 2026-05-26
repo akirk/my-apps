@@ -202,12 +202,47 @@
 
 		return {
 			input: value,
+			kind: 'pull_request',
 			owner: match[1],
 			repo: match[2].replace(/\.git$/i, ''),
 			baseRepo: baseRepo,
 			number: match[3],
 			fallbackRef: 'refs/pull/' + match[3] + '/head'
 		};
+	}
+
+	function parseGithubCommitUrl(value) {
+		value = (value || '').trim();
+		if (!value) return null;
+
+		var match = value.match(/^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/commit\/([0-9a-f]{7,40})(?:[\/?#].*)?$/i);
+		var prNumber = '';
+		var sha = '';
+		if (match) {
+			sha = match[3].toLowerCase();
+		} else {
+			match = value.match(/^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)\/(?:changes|commits)\/([0-9a-f]{7,40})(?:[\/?#].*)?$/i);
+			if (!match) return null;
+			prNumber = match[3];
+			sha = match[4].toLowerCase();
+		}
+
+		var baseRepo = match[1] + '/' + match[2].replace(/\.git$/i, '');
+		if (!isSafeGithubRepo(baseRepo)) return null;
+
+		return {
+			input: value,
+			kind: 'commit',
+			owner: match[1],
+			repo: match[2].replace(/\.git$/i, ''),
+			baseRepo: baseRepo,
+			number: prNumber,
+			sha: sha
+		};
+	}
+
+	function parseGithubReferenceUrl(value) {
+		return parseGithubCommitUrl(value) || parseGithubPullRequestUrl(value);
 	}
 
 	function isSafeGithubRepo(repo) {
@@ -279,6 +314,63 @@
 			.catch(function() {
 				return fallback;
 			});
+	}
+
+	function githubShortSha(sha) {
+		return String(sha || '').slice(0, 7);
+	}
+
+	function githubReferenceLabel(ref) {
+		if (ref && ref.kind === 'commit') {
+			return 'commit ' + githubShortSha(ref.sha) + (ref.number ? ' from PR #' + ref.number : '');
+		}
+		return 'PR #' + ref.number;
+	}
+
+	function resolveGithubCommitTarget(commit) {
+		var fallback = {
+			repo: commit.baseRepo,
+			url: 'https://github.com/' + commit.baseRepo,
+			ref: commit.sha,
+			refType: 'commit',
+			label: githubReferenceLabel(commit)
+		};
+
+		if (!commit.number) {
+			return Promise.resolve(fallback);
+		}
+
+		return fetch('https://api.github.com/repos/' + encodeURIComponent(commit.owner) + '/' + encodeURIComponent(commit.repo) + '/pulls/' + encodeURIComponent(commit.number))
+			.then(function(res) {
+				if (!res.ok) {
+					throw new Error('GitHub pull request lookup failed');
+				}
+				return res.json();
+			})
+			.then(function(data) {
+				var head = data && data.head ? data.head : {};
+				var repo = head.repo && head.repo.full_name ? head.repo.full_name : '';
+				if (!isSafeGithubRepo(repo)) {
+					return fallback;
+				}
+				return {
+					repo: repo,
+					url: 'https://github.com/' + repo,
+					ref: commit.sha,
+					refType: 'commit',
+					label: repo + ' @ ' + githubShortSha(commit.sha)
+				};
+			})
+			.catch(function() {
+				return fallback;
+			});
+	}
+
+	function resolveGithubReferenceTarget(ref) {
+		if (ref && ref.kind === 'commit') {
+			return resolveGithubCommitTarget(ref);
+		}
+		return resolveGithubPullRequestTarget(ref);
 	}
 
 	function getStoredBlueprintsSourceInput() {
@@ -5480,7 +5572,7 @@
 		});
 	}
 
-	function setGithubPullRequestResource(step, data, target) {
+	function setGithubReferenceResource(step, data, target) {
 		step.options = step.options || {};
 		if (!step.options.targetFolderName) {
 			var folder = deriveTargetFolderName(data);
@@ -5499,7 +5591,7 @@
 		}
 	}
 
-	function applyGithubPullRequestToBlueprint(blueprint, pr, target) {
+	function applyGithubReferenceToBlueprint(blueprint, ref, target) {
 		var clone;
 		try {
 			clone = JSON.parse(JSON.stringify(blueprint || {}));
@@ -5509,17 +5601,17 @@
 
 		var changed = false;
 		blueprintGitResources(clone).forEach(function(resource) {
-			if (!githubReposMatch(githubRepoFromUrl(resource.data.url), pr.baseRepo)) {
+			if (!githubReposMatch(githubRepoFromUrl(resource.data.url), ref.baseRepo)) {
 				return;
 			}
-			setGithubPullRequestResource(resource.step, resource.data, target);
+			setGithubReferenceResource(resource.step, resource.data, target);
 			changed = true;
 		});
 
 		return changed ? retrofitGitTargetFolderName(clone) : null;
 	}
 
-	function findGithubPullRequestPluginMatch(pr) {
+	function findGithubReferencePluginMatch(ref) {
 		if (!appStoreData) return null;
 		var match = null;
 		Object.keys(appStoreData).some(function(path) {
@@ -5528,7 +5620,7 @@
 				app &&
 				app._type === 'plugin' &&
 				app._source === 'github' &&
-				githubReposMatch(app._repo, pr.baseRepo)
+				githubReposMatch(app._repo, ref.baseRepo)
 			) {
 				match = {
 					path: path,
@@ -5543,7 +5635,7 @@
 		return match;
 	}
 
-	function findGithubPullRequestBlueprintMatch(pr) {
+	function findGithubReferenceBlueprintMatch(ref) {
 		if (!appStoreData) return Promise.resolve(null);
 
 		var paths = Object.keys(appStoreData).filter(function(path) {
@@ -5555,7 +5647,7 @@
 			var app = appStoreData[path];
 			return resolveBlueprintFromUrl(getBlueprintUrl(path))
 				.then(function(blueprint) {
-					if (!blueprintInstallsGithubRepo(blueprint, pr.baseRepo)) {
+					if (!blueprintInstallsGithubRepo(blueprint, ref.baseRepo)) {
 						return null;
 					}
 					return {
@@ -5576,7 +5668,7 @@
 					return results[i];
 				}
 			}
-			return findGithubPullRequestPluginMatch(pr);
+			return findGithubReferencePluginMatch(ref);
 		});
 	}
 
@@ -5592,17 +5684,21 @@
 		return String(value || 'app').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'app';
 	}
 
-	function githubPullRequestCustomPath(pr) {
-		return 'custom/' + customPathSlug(pr.baseRepo.replace('/', '-')) + '-pr-' + pr.number + '.json';
+	function githubReferenceCustomPath(ref) {
+		var suffix = ref.kind === 'commit'
+			? 'commit-' + githubShortSha(ref.sha)
+			: 'pr-' + ref.number;
+		return 'custom/' + customPathSlug(ref.baseRepo.replace('/', '-') + '-' + suffix) + '.json';
 	}
 
-	function saveGithubPullRequestBlueprint(match, pr, target, blueprint) {
+	function saveGithubReferenceBlueprint(match, ref, target, blueprint) {
 		var app = match.app || {};
 		var blueprintMeta = blueprint.meta || {};
 		var isPluginFallback = !!match.isPluginFallback;
-		var title = app.title || blueprintMeta.title || pr.repo;
+		var refLabel = githubReferenceLabel(ref);
+		var title = app.title || blueprintMeta.title || ref.repo;
 		if (isPluginFallback) {
-			title += ' (PR #' + pr.number + ')';
+			title += ' (' + refLabel + ')';
 		}
 
 		var appMeta = {
@@ -5615,7 +5711,7 @@
 		var customPath = '';
 		var overrides = '';
 		if (isPluginFallback || !match.path) {
-			customPath = githubPullRequestCustomPath(pr);
+			customPath = githubReferenceCustomPath(ref);
 		} else if (app._custom && !app._overrides && /^custom\//.test(match.path)) {
 			customPath = match.path;
 		} else {
@@ -5636,12 +5732,12 @@
 
 		buildAppStoreNav(appStoreData);
 		navigateToAppStoreCategory('Custom');
-		showToast('Using "' + title + '" from PR #' + pr.number);
+		showToast('Using "' + title + '" from ' + refLabel);
 	}
 
-	function importGithubPullRequestText(text) {
-		var pr = parseGithubPullRequestUrl(text);
-		if (!pr) {
+	function importGithubReferenceText(text) {
+		var ref = parseGithubReferenceUrl(text);
+		if (!ref) {
 			return false;
 		}
 
@@ -5650,10 +5746,10 @@
 			return true;
 		}
 
-		showToast('Looking for ' + pr.baseRepo + ' in the App Store');
+		showToast('Looking for ' + ref.baseRepo + ' in the App Store');
 		Promise.all([
-			resolveGithubPullRequestTarget(pr),
-			findGithubPullRequestBlueprintMatch(pr)
+			resolveGithubReferenceTarget(ref),
+			findGithubReferenceBlueprintMatch(ref)
 		]).then(function(results) {
 			var target = results[0];
 			var match = results[1];
@@ -5661,20 +5757,20 @@
 				showToast(
 					pluginsLoadState === 'loading'
 						? 'Recommendations are still loading. Try again in a moment.'
-						: 'No app or blueprint found for ' + pr.baseRepo
+						: 'No app or blueprint found for ' + ref.baseRepo
 				);
 				return;
 			}
 
-			var blueprint = applyGithubPullRequestToBlueprint(match.blueprint, pr, target);
+			var blueprint = applyGithubReferenceToBlueprint(match.blueprint, ref, target);
 			if (!blueprint) {
-				showToast('No GitHub install step found for ' + pr.baseRepo);
+				showToast('No GitHub install step found for ' + ref.baseRepo);
 				return;
 			}
 
-			saveGithubPullRequestBlueprint(match, pr, target, blueprint);
+			saveGithubReferenceBlueprint(match, ref, target, blueprint);
 		}).catch(function(error) {
-			showToast(error && error.message ? error.message : 'Could not import PR URL');
+			showToast(error && error.message ? error.message : 'Could not import GitHub URL');
 		});
 
 		return true;
@@ -5719,7 +5815,7 @@
 			return;
 		}
 
-		if (importGithubPullRequestText(text)) {
+		if (importGithubReferenceText(text)) {
 			e.preventDefault();
 			e.stopPropagation();
 			return;
@@ -5743,7 +5839,7 @@
 			return;
 		}
 
-		if (importGithubPullRequestText(text)) {
+		if (importGithubReferenceText(text)) {
 			appStoreSearchInput.value = '';
 			e.preventDefault();
 			e.stopPropagation();
@@ -5768,7 +5864,7 @@
 			appStoreSearchInput.value = '';
 			return true;
 		}
-		if (e && e.inputType === 'insertFromPaste' && importGithubPullRequestText(value)) {
+		if (e && e.inputType === 'insertFromPaste' && importGithubReferenceText(value)) {
 			appStoreSearchInput.value = '';
 			return true;
 		}

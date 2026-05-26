@@ -44,11 +44,11 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
 
 You can add your own app to the App Store by pasting a complete WordPress Playground `blueprint.json`. Open My Apps, choose Add, then paste the blueprint anywhere in the App Store. On mobile, focus the Search field and paste the blueprint there.
 
-My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author` fields to create the app-store entry. If the title matches an existing app, you can temporarily override that app with your pasted blueprint. Custom and modified blueprint entries are stored in this browser, appear in the Custom section, and can be removed or reverted from their badge in the App Store.
+My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author` fields to create the app-store entry. If the title matches an existing app, you can temporarily override that app with your pasted blueprint. Custom and modified blueprint entries are stored in this browser, appear in the Custom section, and can be removed or reverted from their badge in the App Store. When you paste multiple versions for the same entry, My Apps keeps a short version list so you can switch between them from the App Store.
 
 To test App Store catalog, What can I do? guide, or plugin recommendation changes from another blueprints source without changing this plugin, paste a `WordPress/blueprints` PR number, a PR URL, or a GitHub fork branch URL anywhere in the App Store. On mobile, paste it into Search. Use the x next to the source indicator to return to the default catalog.
 
-To test an app or plugin change from GitHub, paste a PR URL, commit URL, or PR changes URL for the repository installed by an existing app blueprint, such as `https://github.com/example-user/example-plugin/pull/117`, `https://github.com/example-user/example-plugin/commit/0123456789abcdef0123456789abcdef01234567`, or `https://github.com/example-user/example-plugin/pull/144/changes/fedcba9876543210fedcba9876543210fedcba98`. My Apps will clone the matching blueprint into a temporary Custom entry and point its GitHub install step at the PR branch or commit.
+To test an app or plugin change from GitHub, paste a PR URL, commit URL, or PR changes URL for the repository installed by an existing app blueprint, such as `https://github.com/example-user/example-plugin/pull/117`, `https://github.com/example-user/example-plugin/commit/0123456789abcdef0123456789abcdef01234567`, or `https://github.com/example-user/example-plugin/pull/144/changes/fedcba9876543210fedcba9876543210fedcba98`. My Apps will point the matching blueprint or recommended GitHub plugin at the PR branch or commit. Reverting that modified entry also clears its pasted version list.
 
 Example:
 

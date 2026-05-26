@@ -692,10 +692,11 @@
 		return versions;
 	}
 
-	function customBlueprintAppMeta(entry, originalMeta) {
+	function customBlueprintAppMeta(entry, data) {
 		entry = normalizeCustomBlueprintEntry(entry);
 		if (!entry) return null;
 
+		var originalMeta = entry.overrides && data ? data[entry.overrides] : null;
 		var useOriginal = !!(originalMeta && entry.overrides && isCustomBlueprintOriginalVersion(entry.activeVersionId));
 		var meta = cleanCustomBlueprintMeta(useOriginal ? originalMeta : entry.meta);
 		if (useOriginal) {
@@ -801,8 +802,7 @@
 		var custom = getCustomBlueprints();
 		Object.keys(custom).forEach(function(path) {
 			var entry = normalizeCustomBlueprintEntry(custom[path]);
-			var originalMeta = entry && entry.overrides && data[entry.overrides] ? data[entry.overrides] : null;
-			var meta = customBlueprintAppMeta(entry, originalMeta);
+			var meta = customBlueprintAppMeta(entry, data);
 			if (!entry || !meta) return;
 			// If this overrides an existing app, replace it
 			if (entry.overrides && data[entry.overrides]) {
@@ -955,7 +955,7 @@
 				return;
 			}
 
-			var updated = customBlueprintAppMeta(entry);
+			var updated = customBlueprintAppMeta(entry, appStoreData);
 			if (!updated) return;
 
 			if (appStoreData) {
@@ -5047,7 +5047,8 @@
 			if (data[pluginPath] && data[pluginPath]._custom) {
 				var entry = getCustomBlueprintEntry(pluginPath);
 				if (entry && entry.overrides === pluginPath) {
-					data[pluginPath] = customBlueprintAppMeta(entry, pluginMeta);
+					data[pluginPath] = pluginMeta;
+					data[pluginPath] = customBlueprintAppMeta(entry, data);
 				}
 				return;
 			}
@@ -5950,7 +5951,7 @@
 		saveCustomBlueprint(customPath, appMeta, blueprint, actualOverrides);
 
 		// Merge into current data
-		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath));
+		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath), appStoreData);
 
 		buildAppStoreNav(appStoreData);
 		navigateToAppStoreCategory('Custom');
@@ -6182,7 +6183,7 @@
 			versionLabel: refLabel,
 			source: githubReferenceVersionSource(ref, target)
 		});
-		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath));
+		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath), appStoreData);
 
 		buildAppStoreNav(appStoreData);
 		navigateToAppStoreCategory(isPluginFallback ? '__plugins__' : 'Custom');

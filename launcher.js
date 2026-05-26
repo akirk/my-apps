@@ -552,8 +552,6 @@
 		delete clean._overrides;
 		delete clean._customVersions;
 		delete clean._activeCustomVersion;
-		delete clean._originalVersionActive;
-		delete clean._originalVersionMeta;
 		delete clean._path;
 		return clean;
 	}
@@ -628,9 +626,9 @@
 		var blueprint = entry.blueprint && typeof entry.blueprint === 'object' ? entry.blueprint : {};
 		var overrides = entry.overrides || null;
 		var activeVersionId = entry.activeVersionId || '';
-		var fallbackVersionId = isCustomBlueprintOriginalVersion(activeVersionId)
-			? customBlueprintVersionId(blueprint)
-			: (activeVersionId || customBlueprintVersionId(blueprint));
+		var fallbackVersionId = activeVersionId && !isCustomBlueprintOriginalVersion(activeVersionId)
+			? activeVersionId
+			: customBlueprintVersionId(blueprint);
 		var fallbackVersion = {
 			id: fallbackVersionId,
 			label: entry.versionLabel || 'Current',
@@ -653,8 +651,8 @@
 			versions.push(normalizeCustomBlueprintVersion(fallbackVersion, fallbackVersion));
 		}
 
-		var normalizedActiveVersionId = activeVersionId || (versions[0] ? versions[0].id : '');
-		if (isCustomBlueprintOriginalVersion(activeVersionId) && !overrides) {
+		var normalizedActiveVersionId = activeVersionId;
+		if (!normalizedActiveVersionId || (isCustomBlueprintOriginalVersion(normalizedActiveVersionId) && !overrides)) {
 			normalizedActiveVersionId = versions[0] ? versions[0].id : '';
 		}
 
@@ -698,31 +696,14 @@
 		entry = normalizeCustomBlueprintEntry(entry);
 		if (!entry) return null;
 
-		var original = originalMeta ? cleanCustomBlueprintMeta(originalMeta) : null;
-		var activeOriginal = !!(
-			entry.overrides &&
-			isCustomBlueprintOriginalVersion(entry.activeVersionId)
-		);
-		var meta = activeOriginal && original
-			? cleanCustomBlueprintMeta(original)
-			: cleanCustomBlueprintMeta(entry.meta);
-		if (
-			activeOriginal &&
-			original &&
-			Array.isArray(entry.meta.categories) &&
-			entry.meta.categories.indexOf('Custom') !== -1
-		) {
+		var useOriginal = !!(originalMeta && entry.overrides && isCustomBlueprintOriginalVersion(entry.activeVersionId));
+		var meta = cleanCustomBlueprintMeta(useOriginal ? originalMeta : entry.meta);
+		if (useOriginal) {
 			meta.categories = customCategoryList(meta.categories);
 		}
 		meta._custom = true;
 		if (entry.overrides) {
 			meta._overrides = entry.overrides;
-		}
-		if (activeOriginal) {
-			meta._originalVersionActive = true;
-		}
-		if (original) {
-			meta._originalVersionMeta = cleanCustomBlueprintMeta(original);
 		}
 
 		var versions = customBlueprintVersionSummaries(entry);
@@ -955,8 +936,27 @@
 		select.addEventListener('change', function(e) {
 			e.stopPropagation();
 			var entry = switchCustomBlueprintVersion(path, select.value);
-			var updated = customBlueprintAppMeta(entry, app && app._originalVersionMeta);
-			if (!entry || !updated) return;
+			if (!entry) return;
+			var label = customVersionLabel(app, select.value);
+
+			if (isCustomBlueprintOriginalVersion(select.value)) {
+				refreshAppStoreDataFromSources()
+					.then(function() {
+						if (typeof afterSwitch === 'function') {
+							afterSwitch(appStoreData && appStoreData[path]);
+						} else {
+							renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+						}
+						showToast('Using ' + label);
+					})
+					.catch(function() {
+						showToast('Could not refresh the App Store');
+					});
+				return;
+			}
+
+			var updated = customBlueprintAppMeta(entry);
+			if (!updated) return;
 
 			if (appStoreData) {
 				appStoreData[path] = updated;
@@ -968,7 +968,7 @@
 			} else {
 				renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
 			}
-			showToast('Using ' + customVersionLabel(updated, select.value));
+			showToast('Using ' + label);
 		});
 
 		return select;
@@ -5947,13 +5947,10 @@
 		var actualOverrides = matchedApp && matchedApp._overrides
 			? matchedApp._overrides
 			: (matchedApp && !matchedApp._custom ? overridesPath : null);
-		var originalMeta = matchedApp && matchedApp._originalVersionMeta
-			? matchedApp._originalVersionMeta
-			: (actualOverrides && matchedApp && !matchedApp._custom ? matchedApp : null);
 		saveCustomBlueprint(customPath, appMeta, blueprint, actualOverrides);
 
 		// Merge into current data
-		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath), originalMeta);
+		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath));
 
 		buildAppStoreNav(appStoreData);
 		navigateToAppStoreCategory('Custom');
@@ -6185,10 +6182,7 @@
 			versionLabel: refLabel,
 			source: githubReferenceVersionSource(ref, target)
 		});
-		appStoreData[customPath] = customBlueprintAppMeta(
-			getCustomBlueprintEntry(customPath),
-			app && app._originalVersionMeta ? app._originalVersionMeta : (overrides && !app._custom ? app : null)
-		);
+		appStoreData[customPath] = customBlueprintAppMeta(getCustomBlueprintEntry(customPath));
 
 		buildAppStoreNav(appStoreData);
 		navigateToAppStoreCategory(isPluginFallback ? '__plugins__' : 'Custom');

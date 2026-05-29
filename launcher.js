@@ -7885,6 +7885,7 @@
 				if (blueprint.landingPage) {
 					var landingLi = document.createElement('li');
 					landingLi.appendChild(document.createTextNode('And finally, go to '));
+					var landingUrl = toAbsoluteUrl(blueprint.landingPage) || blueprint.landingPage;
 					var landingCode = document.createElement('code');
 					landingCode.className = 'app-detail-landing-path';
 					landingCode.textContent = blueprint.landingPage;
@@ -7899,6 +7900,25 @@
 						}
 					});
 					landingLi.appendChild(landingCode);
+					var landingLink = document.createElement('a');
+					landingLink.className = 'app-detail-landing-open';
+					landingLink.href = landingUrl;
+					landingLink.title = 'Open page';
+					landingLink.setAttribute('aria-label', 'Open ' + blueprint.landingPage);
+					landingLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3z"/><path d="M5 5h6v2H7v10h10v-4h2v6H5V5z"/></svg>';
+					try {
+						if ((new URL(landingUrl, window.location.href)).origin !== window.location.origin) {
+							landingLink.target = '_blank';
+							landingLink.rel = 'noopener noreferrer';
+						} else if (shouldUseDesktopModeAppStoreInstallFlow()) {
+							landingLink.addEventListener('click', function(e) {
+								if (openDesktopModeUrl(landingUrl, { title: blueprint.landingPage })) {
+									e.preventDefault();
+								}
+							});
+						}
+					} catch (e) {}
+					landingLi.appendChild(landingLink);
 					recipeList.appendChild(landingLi);
 				}
 

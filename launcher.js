@@ -373,14 +373,14 @@
 		return resolveGithubPullRequestTarget(ref);
 	}
 
-	function isGithubReferenceDistMainBranch(ref) {
-		return /^dist\/main(?:$|[\/._-])/.test(String(ref || ''));
+	function isGithubReferenceDistBranch(ref) {
+		return /^dist\/.+/.test(String(ref || ''));
 	}
 
 	function githubReferenceResourceBranch(data) {
 		if (!data) return '';
 		if (typeof data.branch === 'string') return data.branch;
-		if (typeof data.ref === 'string' && (data.refType === 'branch' || isGithubReferenceDistMainBranch(data.ref))) {
+		if (typeof data.ref === 'string' && (data.refType === 'branch' || isGithubReferenceDistBranch(data.ref))) {
 			return data.ref;
 		}
 		return '';
@@ -394,11 +394,11 @@
 		return 'dist/' + ref;
 	}
 
-	// Entries installed from dist/main use built assets, so PR overrides
-	// should target the corresponding dist/<branch> branch.
+	// Entries installed from dist/* use built assets, so PR overrides
+	// should keep targeting the corresponding dist/<branch> branch.
 	function githubReferenceTargetForResource(data, target) {
 		var originalBranch = githubReferenceResourceBranch(data);
-		if (!isGithubReferenceDistMainBranch(originalBranch)) return target;
+		if (!isGithubReferenceDistBranch(originalBranch)) return target;
 		if (!target || target.refType !== 'branch' || !target.ref) return target;
 
 		var distRef = githubReferenceDistBranch(target.ref);
@@ -415,10 +415,39 @@
 		return mapped;
 	}
 
-	function githubReferenceTargetForBlueprint(blueprint, ref, target) {
+	function customBlueprintActiveGithubSource(path) {
+		var entry = getCustomBlueprintEntry(path);
+		var source = null;
+		if (!entry || !entry.activeVersionId || !Array.isArray(entry.versions)) {
+			return null;
+		}
+		entry.versions.some(function(version) {
+			if (version.id === entry.activeVersionId) {
+				source = version.source || null;
+				return true;
+			}
+			return false;
+		});
+		return source && source.type === 'github' ? source : null;
+	}
+
+	function githubReferenceResourceMatchesRepo(resource, repo, source) {
+		var resourceRepo = githubRepoFromUrl(resource && resource.data ? resource.data.url : '');
+		if (githubReposMatch(resourceRepo, repo)) {
+			return true;
+		}
+		return !!(
+			source &&
+			source.type === 'github' &&
+			githubReposMatch(source.repo, repo) &&
+			githubReposMatch(resourceRepo, source.targetRepo || source.repo)
+		);
+	}
+
+	function githubReferenceTargetForBlueprint(blueprint, ref, target, source) {
 		var mappedTarget = target;
 		blueprintGitResources(blueprint).some(function(resource) {
-			if (!githubReposMatch(githubRepoFromUrl(resource.data.url), ref.baseRepo)) {
+			if (!githubReferenceResourceMatchesRepo(resource, ref.baseRepo, source)) {
 				return false;
 			}
 			mappedTarget = githubReferenceTargetForResource(resource.data, target);
@@ -6355,9 +6384,9 @@
 		return resources;
 	}
 
-	function blueprintInstallsGithubRepo(blueprint, repo) {
+	function blueprintInstallsGithubRepo(blueprint, repo, source) {
 		return blueprintGitResources(blueprint).some(function(resource) {
-			return githubReposMatch(githubRepoFromUrl(resource.data.url), repo);
+			return githubReferenceResourceMatchesRepo(resource, repo, source);
 		});
 	}
 
@@ -6381,7 +6410,7 @@
 		}
 	}
 
-	function applyGithubReferenceToBlueprint(blueprint, ref, target) {
+	function applyGithubReferenceToBlueprint(blueprint, ref, target, source) {
 		var clone;
 		try {
 			clone = JSON.parse(JSON.stringify(blueprint || {}));
@@ -6391,7 +6420,7 @@
 
 		var changed = false;
 		blueprintGitResources(clone).forEach(function(resource) {
-			if (!githubReposMatch(githubRepoFromUrl(resource.data.url), ref.baseRepo)) {
+			if (!githubReferenceResourceMatchesRepo(resource, ref.baseRepo, source)) {
 				return;
 			}
 			setGithubReferenceResource(resource.step, resource.data, target);
@@ -6416,8 +6445,10 @@
 				if (app._baseRepo && !githubReposMatch(app._repo, app._baseRepo)) {
 					blueprintApp = cleanCustomBlueprintMeta(app);
 					blueprintApp._repo = app._baseRepo;
-					blueprintApp._ref = '';
-					blueprintApp._refType = '';
+					if (!isGithubReferenceDistBranch(blueprintApp._ref)) {
+						blueprintApp._ref = '';
+						blueprintApp._refType = '';
+					}
 				}
 				match = {
 					path: path,
@@ -6442,15 +6473,17 @@
 
 		var lookups = paths.map(function(path) {
 			var app = appStoreData[path];
+			var source = customBlueprintActiveGithubSource(path);
 			return resolveBlueprintFromUrl(getBlueprintUrl(path))
 				.then(function(blueprint) {
-					if (!blueprintInstallsGithubRepo(blueprint, ref.baseRepo)) {
+					if (!blueprintInstallsGithubRepo(blueprint, ref.baseRepo, source)) {
 						return null;
 					}
 					return {
 						path: path,
 						app: app,
 						blueprint: blueprint,
+						source: source,
 						isPluginFallback: false
 					};
 				})
@@ -6600,8 +6633,8 @@
 				return;
 			}
 
-			var saveTarget = githubReferenceTargetForBlueprint(match.blueprint, ref, target);
-			var blueprint = applyGithubReferenceToBlueprint(match.blueprint, ref, target);
+			var saveTarget = githubReferenceTargetForBlueprint(match.blueprint, ref, target, match.source);
+			var blueprint = applyGithubReferenceToBlueprint(match.blueprint, ref, target, match.source);
 			if (!blueprint) {
 				showToast('No GitHub install step found for ' + ref.baseRepo);
 				return;

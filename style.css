@@ -1528,6 +1528,26 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	background: #e0e0e0;
 }
 
+.app-detail-landing-open {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	margin-left: 6px;
+	border-radius: 4px;
+	color: #3858e9;
+	text-decoration: none;
+	vertical-align: middle;
+	transition: background 0.15s, color 0.15s;
+}
+
+.app-detail-landing-open:hover,
+.app-detail-landing-open:focus {
+	background: var(--ma-button-bg);
+	color: #2d4bd1;
+}
+
 /* Code toggle for runPHP steps */
 .app-detail-code-toggle {
 	background: none;

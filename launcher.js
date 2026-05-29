@@ -373,6 +373,60 @@
 		return resolveGithubPullRequestTarget(ref);
 	}
 
+	function isGithubReferenceDistMainBranch(ref) {
+		return /^dist\/main(?:$|[\/._-])/.test(String(ref || ''));
+	}
+
+	function githubReferenceResourceBranch(data) {
+		if (!data) return '';
+		if (typeof data.branch === 'string') return data.branch;
+		if (typeof data.ref === 'string' && (data.refType === 'branch' || isGithubReferenceDistMainBranch(data.ref))) {
+			return data.ref;
+		}
+		return '';
+	}
+
+	function githubReferenceDistBranch(ref) {
+		ref = String(ref || '').replace(/^\/+|\/+$/g, '');
+		if (!ref || ref.indexOf('dist/') === 0) {
+			return ref;
+		}
+		return 'dist/' + ref;
+	}
+
+	// Entries installed from dist/main use built assets, so PR overrides
+	// should target the corresponding dist/<branch> branch.
+	function githubReferenceTargetForResource(data, target) {
+		var originalBranch = githubReferenceResourceBranch(data);
+		if (!isGithubReferenceDistMainBranch(originalBranch)) return target;
+		if (!target || target.refType !== 'branch' || !target.ref) return target;
+
+		var distRef = githubReferenceDistBranch(target.ref);
+		if (!distRef || distRef === target.ref) return target;
+
+		var mapped = {};
+		Object.keys(target).forEach(function(key) {
+			mapped[key] = target[key];
+		});
+		mapped.ref = distRef;
+		if (mapped.repo) {
+			mapped.label = mapped.repo + ' @ ' + distRef;
+		}
+		return mapped;
+	}
+
+	function githubReferenceTargetForBlueprint(blueprint, ref, target) {
+		var mappedTarget = target;
+		blueprintGitResources(blueprint).some(function(resource) {
+			if (!githubReposMatch(githubRepoFromUrl(resource.data.url), ref.baseRepo)) {
+				return false;
+			}
+			mappedTarget = githubReferenceTargetForResource(resource.data, target);
+			return true;
+		});
+		return mappedTarget;
+	}
+
 	function getStoredBlueprintsSourceInput() {
 		try {
 			return localStorage.getItem(BLUEPRINTS_SOURCE_STORAGE_KEY) || '';
@@ -6110,6 +6164,7 @@
 	}
 
 	function setGithubReferenceResource(step, data, target) {
+		target = githubReferenceTargetForResource(data, target);
 		step.options = step.options || {};
 		if (!step.options.targetFolderName) {
 			var folder = deriveTargetFolderName(data);
@@ -6347,13 +6402,14 @@
 				return;
 			}
 
+			var saveTarget = githubReferenceTargetForBlueprint(match.blueprint, ref, target);
 			var blueprint = applyGithubReferenceToBlueprint(match.blueprint, ref, target);
 			if (!blueprint) {
 				showToast('No GitHub install step found for ' + ref.baseRepo);
 				return;
 			}
 
-			saveGithubReferenceBlueprint(match, ref, target, blueprint);
+			saveGithubReferenceBlueprint(match, ref, saveTarget, blueprint);
 		}).catch(function(error) {
 			showToast(error && error.message ? error.message : 'Could not import GitHub URL');
 		});

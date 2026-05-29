@@ -2384,6 +2384,7 @@ class My_Apps {
 				'deletableSlugs'            => self::normalize_app_slug_list( array_keys( get_option( 'my_apps_additional_apps', array() ) ) ),
 				'appUrls'                   => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'          => self::get_installed_plugin_statuses(),
+				'uninstallablePlugins'      => self::get_uninstallable_plugins(),
 				'uninstallableApps'         => self::get_launcher_uninstallable_plugin_apps(),
 				'background'                => $background_state['slug'],
 				'redirectRoot'              => self::is_root_redirect_enabled(),
@@ -2705,6 +2706,79 @@ class My_Apps {
 	}
 
 	/**
+	 * Build an uninstallable plugin payload when a plugin can be deleted safely.
+	 *
+	 * @param string     $plugin_file Plugin file relative to WP_PLUGIN_DIR.
+	 * @param array|null $installed_plugins Installed plugin data keyed by plugin file.
+	 * @return array|null
+	 */
+	private static function uninstallable_plugin_payload( $plugin_file, $installed_plugins = null ) {
+		if ( ! current_user_can( 'delete_plugins' ) ) {
+			return null;
+		}
+
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$plugin_file      = plugin_basename( (string) $plugin_file );
+		$installed_plugins = is_array( $installed_plugins ) ? $installed_plugins : get_plugins();
+
+		if (
+			'' === $plugin_file
+			|| self::self_plugin_file() === $plugin_file
+			|| 0 !== validate_file( $plugin_file )
+			|| ! isset( $installed_plugins[ $plugin_file ] )
+			|| is_plugin_active_for_network( $plugin_file )
+		) {
+			return null;
+		}
+
+		if ( is_plugin_active( $plugin_file ) && ! current_user_can( 'deactivate_plugin', $plugin_file ) ) {
+			return null;
+		}
+
+		$plugin_slug = self::plugin_slug_from_file( $plugin_file );
+		$data        = $installed_plugins[ $plugin_file ];
+
+		return array(
+			'plugin'     => $plugin_file,
+			'pluginSlug' => $plugin_slug,
+			'name'       => isset( $data['Name'] ) ? $data['Name'] : $plugin_slug,
+			'active'     => is_plugin_active( $plugin_file ),
+		);
+	}
+
+	/**
+	 * Get installed plugins that can be uninstalled safely.
+	 *
+	 * @return object
+	 */
+	private static function get_uninstallable_plugins() {
+		if ( ! current_user_can( 'delete_plugins' ) ) {
+			return (object) array();
+		}
+
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$installed_plugins = get_plugins();
+		$uninstallable     = array();
+
+		foreach ( $installed_plugins as $plugin_file => $_data ) {
+			$payload = self::uninstallable_plugin_payload( $plugin_file, $installed_plugins );
+			if ( ! $payload ) {
+				continue;
+			}
+
+			$uninstallable[ $payload['pluginSlug'] ] = $payload;
+		}
+
+		return (object) $uninstallable;
+	}
+
+	/**
 	 * Get launcher apps that can be uninstalled as one installed plugin.
 	 *
 	 * @return object
@@ -2720,7 +2794,6 @@ class My_Apps {
 
 		$installed_plugins = get_plugins();
 		$statuses          = self::get_installed_plugin_statuses();
-		$self_plugin       = self::self_plugin_file();
 		$uninstallable     = array();
 
 		foreach ( self::get_apps() as $app_slug => $app ) {
@@ -2748,29 +2821,10 @@ class My_Apps {
 				$plugin_file = plugin_basename( $statuses[ $app_slug ]['plugin'] );
 			}
 
-			if (
-				'' === $plugin_file
-				|| $self_plugin === $plugin_file
-				|| 0 !== validate_file( $plugin_file )
-				|| ! isset( $installed_plugins[ $plugin_file ] )
-				|| is_plugin_active_for_network( $plugin_file )
-			) {
-				continue;
+			$payload = self::uninstallable_plugin_payload( $plugin_file, $installed_plugins );
+			if ( $payload ) {
+				$uninstallable[ $app_slug ] = $payload;
 			}
-
-			if ( is_plugin_active( $plugin_file ) && ! current_user_can( 'deactivate_plugin', $plugin_file ) ) {
-				continue;
-			}
-
-			$plugin_slug = self::plugin_slug_from_file( $plugin_file );
-			$data        = $installed_plugins[ $plugin_file ];
-
-			$uninstallable[ $app_slug ] = array(
-				'plugin'     => $plugin_file,
-				'pluginSlug' => $plugin_slug,
-				'name'       => isset( $data['Name'] ) ? $data['Name'] : $plugin_slug,
-				'active'     => is_plugin_active( $plugin_file ),
-			);
 		}
 
 		return (object) $uninstallable;
@@ -3321,11 +3375,12 @@ class My_Apps {
 			);
 		}
 
-		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
-		if ( '' === $slug ) {
+		$slug        = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
+		$plugin_slug = isset( $_POST['plugin_slug'] ) ? sanitize_key( wp_unslash( $_POST['plugin_slug'] ) ) : '';
+		if ( '' === $slug && '' === $plugin_slug ) {
 			wp_send_json_error(
 				array(
-					'errorMessage' => __( 'No app specified.', 'my-apps' ),
+					'errorMessage' => __( 'No plugin specified.', 'my-apps' ),
 				)
 			);
 		}
@@ -3333,24 +3388,50 @@ class My_Apps {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
-		$uninstallable = (array) self::get_launcher_uninstallable_plugin_apps();
-		if ( empty( $uninstallable[ $slug ]['plugin'] ) ) {
+		$uninstallable_apps    = (array) self::get_launcher_uninstallable_plugin_apps();
+		$uninstallable_plugins = (array) self::get_uninstallable_plugins();
+		$plugin_file           = '';
+		$related_app_slugs     = array();
+
+		if ( '' !== $slug ) {
+			if ( empty( $uninstallable_apps[ $slug ]['plugin'] ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'errorMessage' => __( 'This app cannot be safely matched to one uninstallable plugin.', 'my-apps' ),
+					)
+				);
+			}
+
+			$plugin_file = plugin_basename( $uninstallable_apps[ $slug ]['plugin'] );
+		} elseif ( ! empty( $uninstallable_plugins[ $plugin_slug ]['plugin'] ) ) {
+			$plugin_file = plugin_basename( $uninstallable_plugins[ $plugin_slug ]['plugin'] );
+		}
+
+		if ( '' === $plugin_file ) {
 			wp_send_json_error(
 				array(
 					'slug'         => $slug,
-					'errorMessage' => __( 'This app cannot be safely matched to one uninstallable plugin.', 'my-apps' ),
+					'pluginSlug'   => $plugin_slug,
+					'errorMessage' => __( 'This plugin cannot be uninstalled from My Apps.', 'my-apps' ),
 				)
 			);
 		}
 
-		$plugin_file = plugin_basename( $uninstallable[ $slug ]['plugin'] );
 		if ( self::self_plugin_file() === $plugin_file || 0 !== validate_file( $plugin_file ) ) {
 			wp_send_json_error(
 				array(
 					'slug'         => $slug,
+					'pluginSlug'   => $plugin_slug,
 					'errorMessage' => __( 'This plugin cannot be uninstalled from My Apps.', 'my-apps' ),
 				)
 			);
+		}
+
+		foreach ( $uninstallable_apps as $app_slug => $app_uninstallable ) {
+			if ( ! empty( $app_uninstallable['plugin'] ) && plugin_basename( $app_uninstallable['plugin'] ) === $plugin_file ) {
+				$related_app_slugs[] = self::normalize_app_slug( $app_slug );
+			}
 		}
 
 		if ( is_plugin_active_for_network( $plugin_file ) ) {
@@ -3433,7 +3514,9 @@ class My_Apps {
 			);
 		}
 
-		self::remove_app_customization_state( $slug );
+		foreach ( array_unique( array_filter( $related_app_slugs ) ) as $related_app_slug ) {
+			self::remove_app_customization_state( $related_app_slug );
+		}
 		wp_clean_plugins_cache();
 
 		wp_send_json_success(
@@ -3441,6 +3524,7 @@ class My_Apps {
 				'slug'       => $slug,
 				'plugin'     => $plugin_file,
 				'pluginSlug' => self::plugin_slug_from_file( $plugin_file ),
+				'appSlugs'   => array_values( array_unique( array_filter( $related_app_slugs ) ) ),
 				'deleted'    => true,
 			)
 		);

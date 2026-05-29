@@ -319,7 +319,7 @@ $is_app_store = isset( $_GET['app-store'] );
 			<?php esc_html_e( 'Delete Shortcut', 'my-apps' ); ?>
 		</button>
 		<button type="button" class="context-danger context-uninstall" data-action="uninstall" hidden>
-			<?php esc_html_e( 'Uninstall Plugin...', 'my-apps' ); ?>
+			<?php esc_html_e( 'Uninstall', 'my-apps' ); ?>
 		</button>
 	</div>
 

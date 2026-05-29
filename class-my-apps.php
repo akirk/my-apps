@@ -1926,9 +1926,15 @@ class My_Apps {
 				#wpadminbar li#wp-admin-bar-my-apps {
 					display: block;
 				}
+				#wpadminbar li.wp-app-admin-link {
+					display: block;
+				}
 				#wpadminbar li#wp-admin-bar-my-apps a.ab-item span.ab-icon:before {
 					width: 32px;
 					height: 32px;
+				}
+				#wpadminbar li.wp-app-admin-link > a.ab-item {
+					padding: 0 8px;
 				}
 			}
 		</style>
@@ -2168,14 +2174,6 @@ class My_Apps {
 			$node_ids = array_merge(
 				$node_ids,
 				array(
-					'about',
-					'contribute',
-					'wp-logo-external',
-					'wporg',
-					'documentation',
-					'learn',
-					'support-forums',
-					'feedback',
 					'site-name',
 					'comments',
 					'new-content',

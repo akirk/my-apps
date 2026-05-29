@@ -1005,6 +1005,27 @@
 		}
 	}
 
+	function forgetAppUrl(url) {
+		if (!url || !Array.isArray(myAppsConfig.appUrls)) return;
+
+		var normalized = normalizeAppUrl(url);
+		myAppsConfig.appUrls = myAppsConfig.appUrls.filter(function(existing) {
+			return normalizeAppUrl(existing) !== normalized;
+		});
+	}
+
+	function isDeletableSlug(slug) {
+		return Array.isArray(myAppsConfig.deletableSlugs) && myAppsConfig.deletableSlugs.indexOf(String(slug || '')) !== -1;
+	}
+
+	function forgetDeletableSlug(slug) {
+		if (!Array.isArray(myAppsConfig.deletableSlugs)) return;
+
+		myAppsConfig.deletableSlugs = myAppsConfig.deletableSlugs.filter(function(existing) {
+			return String(existing) !== String(slug);
+		});
+	}
+
 	function getPluginInstallUrl() {
 		if (typeof myAppsConfig === 'undefined') return '/wp-admin/plugin-install.php';
 		return myAppsConfig.pluginInstallUrl
@@ -3113,6 +3134,13 @@
 		var row = deleteBtn.closest('.hidden-app-row');
 		if (!slug || !row) return;
 
+		deleteApp(slug, { hiddenRow: row });
+	}
+
+	function deleteApp(slug, options) {
+		options = options || {};
+		if (!slug) return;
+
 		var confirmMsg = (myAppsConfig.i18n && myAppsConfig.i18n.confirmDelete) || 'Delete this app? This cannot be undone.';
 		if (!window.confirm(confirmMsg)) return;
 
@@ -3128,12 +3156,18 @@
 		.then(function(res) { return res.json(); })
 		.then(function(data) {
 			if (data.success) {
-				if (Array.isArray(myAppsConfig.deletableSlugs)) {
-					myAppsConfig.deletableSlugs = myAppsConfig.deletableSlugs.filter(function(s) {
-						return s !== slug;
-					});
+				forgetDeletableSlug(slug);
+
+				if (options.visibleApp) {
+					forgetAppUrl(options.visibleApp.dataset.url);
+					options.visibleApp.remove();
 				}
-				removeHiddenRow(row.querySelector('.hidden-app-item') || row);
+
+				if (options.hiddenRow) {
+					removeHiddenRow(options.hiddenRow.querySelector('.hidden-app-item') || options.hiddenRow);
+				}
+
+				showToast('Shortcut deleted');
 			} else {
 				alert((data && data.data) || 'Error deleting app');
 			}
@@ -4146,15 +4180,32 @@
 		saveOrder();
 	}
 
+	function updateContextMenuDeleteAction(slug) {
+		var canDelete = isDeletableSlug(slug);
+		var deleteBtn = contextMenu.querySelector('[data-action="delete"]');
+		var separator = contextMenu.querySelector('.context-delete-separator');
+
+		if (deleteBtn) {
+			deleteBtn.hidden = !canDelete;
+		}
+		if (separator) {
+			separator.hidden = !canDelete;
+		}
+
+		return canDelete;
+	}
+
 	function handleContextMenu(e) {
 		var appIcon = e.target.closest('.app-icon:not(.add-app-btn)');
 		if (!appIcon) return;
 
 		e.preventDefault();
 		contextTarget = appIcon;
+		var canDelete = updateContextMenuDeleteAction(appIcon.dataset.slug);
+		var menuHeight = canDelete ? 260 : 210;
 
 		var x = Math.max(8, Math.min(e.clientX, window.innerWidth - 160));
-		var y = Math.max(8, Math.min(e.clientY, window.innerHeight - 210));
+		var y = Math.max(8, Math.min(e.clientY, window.innerHeight - menuHeight));
 
 		contextMenu.style.left = x + 'px';
 		contextMenu.style.top = y + 'px';
@@ -4189,6 +4240,11 @@
 			case 'move-front':
 				container.insertBefore(contextTarget, container.firstChild);
 				saveOrder();
+				break;
+			case 'delete':
+				if (isDeletableSlug(slug)) {
+					deleteApp(slug, { visibleApp: contextTarget });
+				}
 				break;
 		}
 

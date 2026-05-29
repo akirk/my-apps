@@ -1979,6 +1979,18 @@ body.my-apps-launcher .bg-picker-popup .bg-option {
 	background: #f0f0f0;
 }
 
+.context-menu [hidden] {
+	display: none;
+}
+
+.context-menu button.context-delete {
+	color: #b42318;
+}
+
+.context-menu button.context-delete:hover {
+	background: #fee4e2;
+}
+
 .context-menu hr {
 	margin: 6px 0;
 	border: none;

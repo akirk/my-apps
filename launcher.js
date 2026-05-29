@@ -526,6 +526,10 @@
 		return m ? m[1] : '';
 	}
 
+	function normalizePluginSlug(slug) {
+		return String(slug || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+	}
+
 	// Retrofit options.targetFolderName onto installPlugin/installTheme
 	// steps that pull from git:directory but don't already specify a
 	// folder name. Without it Playground writes the repo to a generated
@@ -1044,14 +1048,14 @@
 		var plugins = myAppsConfig.uninstallablePlugins || {};
 		if (!plugins || typeof plugins !== 'object' || Array.isArray(plugins)) return null;
 
-		return plugins[String(slug || '')] || null;
+		return plugins[normalizePluginSlug(slug)] || null;
 	}
 
 	function forgetUninstallablePlugin(slug) {
 		var plugins = myAppsConfig.uninstallablePlugins || {};
 		if (!plugins || typeof plugins !== 'object' || Array.isArray(plugins)) return;
 
-		delete plugins[String(slug || '')];
+		delete plugins[normalizePluginSlug(slug)];
 	}
 
 	function forgetUninstallableAppsForPlugin(slug) {
@@ -5707,9 +5711,10 @@
 			if (step.step === 'installPlugin') {
 				var pluginData = step.pluginData || {};
 				if (pluginData.resource === 'wordpress.org/plugins' && pluginData.slug) {
-					if (!seenPlugins[pluginData.slug]) {
-						seenPlugins[pluginData.slug] = true;
-						plan.plugins.push(pluginData.slug);
+					var pluginSlug = normalizePluginSlug(pluginData.slug);
+					if (pluginSlug && !seenPlugins[pluginSlug]) {
+						seenPlugins[pluginSlug] = true;
+						plan.plugins.push(pluginSlug);
 					}
 					return;
 				}
@@ -5724,6 +5729,52 @@
 		});
 
 		return plan;
+	}
+
+	function getBlueprintInstallPluginSlug(step) {
+		if (!step || step.step !== 'installPlugin') return '';
+
+		var pluginData = step.pluginData || {};
+		if (pluginData.resource === 'wordpress.org/plugins' && pluginData.slug) {
+			return normalizePluginSlug(pluginData.slug);
+		}
+
+		if (step.options && step.options.targetFolderName) {
+			return normalizePluginSlug(step.options.targetFolderName);
+		}
+
+		if (pluginData.targetFolderName) {
+			return normalizePluginSlug(pluginData.targetFolderName);
+		}
+
+		if (pluginData.resource === 'git:directory') {
+			return normalizePluginSlug(deriveTargetFolderName(pluginData));
+		}
+
+		return '';
+	}
+
+	function getSingleBlueprintPluginSlug(blueprint) {
+		var slugs = [];
+		var seen = {};
+		var unknownInstall = false;
+		var steps = blueprint && Array.isArray(blueprint.steps) ? blueprint.steps : [];
+
+		steps.forEach(function(step) {
+			if (!step || step.step !== 'installPlugin') return;
+
+			var slug = getBlueprintInstallPluginSlug(step);
+			if (!slug) {
+				unknownInstall = true;
+				return;
+			}
+			if (seen[slug]) return;
+
+			seen[slug] = true;
+			slugs.push(slug);
+		});
+
+		return !unknownInstall && slugs.length === 1 ? slugs[0] : '';
 	}
 
 	function installBlueprintOnHost(app, blueprintUrl, infoEl, btn) {
@@ -7960,9 +8011,9 @@
 					}
 				}
 
-				var plan = getHostBlueprintInstallPlan(blueprint);
-				if (!appUninstallBtn && plan.plugins.length === 1 && plan.unsupported.length === 0) {
-					appUninstallBtn = createAppStoreUninstallButton(plan.plugins[0], {
+				var singlePluginSlug = getSingleBlueprintPluginSlug(blueprint);
+				if (!appUninstallBtn && singlePluginSlug) {
+					appUninstallBtn = createAppStoreUninstallButton(singlePluginSlug, {
 						onSuccess: function() {
 							prepareInstallButton(installBtn, app, blueprint);
 						}

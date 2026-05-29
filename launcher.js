@@ -1040,11 +1040,77 @@
 		delete apps[String(slug || '')];
 	}
 
+	function getUninstallablePlugin(slug) {
+		var plugins = myAppsConfig.uninstallablePlugins || {};
+		if (!plugins || typeof plugins !== 'object' || Array.isArray(plugins)) return null;
+
+		return plugins[String(slug || '')] || null;
+	}
+
+	function forgetUninstallablePlugin(slug) {
+		var plugins = myAppsConfig.uninstallablePlugins || {};
+		if (!plugins || typeof plugins !== 'object' || Array.isArray(plugins)) return;
+
+		delete plugins[String(slug || '')];
+	}
+
+	function forgetUninstallableAppsForPlugin(slug) {
+		var apps = myAppsConfig.uninstallableApps || {};
+		if (!slug || !apps || typeof apps !== 'object' || Array.isArray(apps)) return;
+
+		Object.keys(apps).forEach(function(appSlug) {
+			if (apps[appSlug] && String(apps[appSlug].pluginSlug) === String(slug)) {
+				delete apps[appSlug];
+			}
+		});
+	}
+
 	function forgetInstalledPlugin(slug) {
 		var plugins = myAppsConfig.installedPlugins || {};
 		if (!slug || !plugins || typeof plugins !== 'object' || Array.isArray(plugins)) return;
 
 		delete plugins[String(slug)];
+	}
+
+	function removeLauncherApps(slugs, visibleApp) {
+		var seen = {};
+
+		(slugs || []).forEach(function(slug) {
+			slug = String(slug || '');
+			if (!slug || seen[slug]) return;
+			seen[slug] = true;
+
+			if (container) {
+				Array.prototype.forEach.call(container.querySelectorAll('.app-icon[data-slug]'), function(appEl) {
+					if (appEl.dataset.slug !== slug) return;
+					forgetAppUrl(appEl.dataset.url);
+					appEl.remove();
+				});
+			}
+
+			if (hiddenAppsList) {
+				Array.prototype.forEach.call(hiddenAppsList.querySelectorAll('.hidden-app-item[data-slug]'), function(item) {
+					if (item.dataset.slug !== slug) return;
+					removeHiddenRow(item);
+				});
+			}
+
+			forgetUninstallableApp(slug);
+		});
+
+		if (visibleApp && visibleApp.parentNode) {
+			forgetAppUrl(visibleApp.dataset.url);
+			visibleApp.remove();
+		}
+	}
+
+	function markPluginUninstalled(slug, appSlugs, visibleApp) {
+		if (!slug) return;
+
+		forgetInstalledPlugin(slug);
+		forgetUninstallablePlugin(slug);
+		forgetUninstallableAppsForPlugin(slug);
+		removeLauncherApps(appSlugs || [], visibleApp);
 	}
 
 	function getPluginInstallUrl() {
@@ -3203,6 +3269,28 @@
 		var plugin = getUninstallableApp(slug);
 		if (!slug || !plugin) return;
 
+		var formData = new FormData();
+		formData.append('action', 'my_apps_uninstall_plugin');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('slug', slug);
+
+		uninstallPlugin(plugin, formData, options);
+	}
+
+	function uninstallPluginBySlug(slug, options) {
+		options = options || {};
+		var plugin = getUninstallablePlugin(slug);
+		if (!slug || !plugin) return;
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_uninstall_plugin');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('plugin_slug', slug);
+
+		uninstallPlugin(plugin, formData, options);
+	}
+
+	function uninstallPlugin(plugin, formData, options) {
 		var confirmMsg = (myAppsConfig.i18n && myAppsConfig.i18n.confirmUninstall) ||
 			'Uninstall this plugin? This will deactivate it and delete its files. The plugin may also remove its saved data.';
 		if (plugin.name) {
@@ -3210,10 +3298,9 @@
 		}
 		if (!window.confirm(confirmMsg)) return;
 
-		var formData = new FormData();
-		formData.append('action', 'my_apps_uninstall_plugin');
-		formData.append('nonce', myAppsConfig.nonce);
-		formData.append('slug', slug);
+		if (options.button) {
+			setInstallButtonState(options.button, 'Uninstalling...', true);
+		}
 
 		fetch(myAppsConfig.ajaxUrl, {
 			method: 'POST',
@@ -3223,22 +3310,50 @@
 		.then(function(data) {
 			if (data.success) {
 				var result = data.data || {};
-				forgetUninstallableApp(slug);
-				forgetInstalledPlugin(result.pluginSlug || plugin.pluginSlug);
+				var pluginSlug = result.pluginSlug || plugin.pluginSlug;
+				markPluginUninstalled(pluginSlug, result.appSlugs || [], options.visibleApp);
 
-				if (options.visibleApp) {
-					forgetAppUrl(options.visibleApp.dataset.url);
-					options.visibleApp.remove();
+				if (typeof options.onSuccess === 'function') {
+					options.onSuccess(result, pluginSlug);
 				}
 
 				showToast('Plugin uninstalled');
 			} else {
+				if (options.button) {
+					setInstallButtonState(options.button, 'Uninstall Plugin...', false);
+				}
 				alert(ajaxErrorMessage(data, 'Error uninstalling plugin'));
 			}
 		})
 		.catch(function() {
+			if (options.button) {
+				setInstallButtonState(options.button, 'Uninstall Plugin...', false);
+			}
 			alert('Network error');
 		});
+	}
+
+	function createAppStoreUninstallButton(pluginSlug, options) {
+		options = options || {};
+		if (!getUninstallablePlugin(pluginSlug)) return null;
+
+		var uninstallBtn = document.createElement('button');
+		uninstallBtn.type = 'button';
+		uninstallBtn.className = 'app-store-install-btn app-detail-install-btn app-detail-uninstall-btn';
+		uninstallBtn.textContent = 'Uninstall Plugin...';
+		uninstallBtn.addEventListener('click', function() {
+			uninstallPluginBySlug(pluginSlug, {
+				button: uninstallBtn,
+				onSuccess: function(result, uninstalledSlug) {
+					uninstallBtn.remove();
+					if (typeof options.onSuccess === 'function') {
+						options.onSuccess(result, uninstalledSlug);
+					}
+				}
+			});
+		});
+
+		return uninstallBtn;
 	}
 
 	function removeHiddenRow(item) {
@@ -7532,6 +7647,14 @@
 			installPluginApp(plugin, installBtn, pluginInstallInfoEl);
 		});
 
+		var uninstallBtn = plugin._source === 'wp.org'
+			? createAppStoreUninstallButton(plugin._slug, {
+				onSuccess: function() {
+					prepareInstallButton(installBtn, plugin);
+				}
+			})
+			: null;
+
 		var shareBtn = document.createElement('button');
 		shareBtn.type = 'button';
 		shareBtn.className = 'app-detail-share-btn';
@@ -7549,6 +7672,9 @@
 		});
 
 		headerActions.appendChild(installBtn);
+		if (uninstallBtn) {
+			headerActions.appendChild(uninstallBtn);
+		}
 		headerActions.appendChild(shareBtn);
 
 		headerEl.appendChild(iconEl);
@@ -7751,6 +7877,7 @@
 				installBlueprintOnHost(app, blueprintUrl, blueprintInfoEl, installBtn);
 			});
 		}
+		var appUninstallBtn = null;
 
 		var shareBtn = document.createElement('button');
 		shareBtn.type = 'button';
@@ -7830,6 +7957,18 @@
 					app._launcherUrl = blueprint.launcher_url;
 					if (!installBtn.disabled) {
 						prepareInstallButton(installBtn, app, blueprint);
+					}
+				}
+
+				var plan = getHostBlueprintInstallPlan(blueprint);
+				if (!appUninstallBtn && plan.plugins.length === 1 && plan.unsupported.length === 0) {
+					appUninstallBtn = createAppStoreUninstallButton(plan.plugins[0], {
+						onSuccess: function() {
+							prepareInstallButton(installBtn, app, blueprint);
+						}
+					});
+					if (appUninstallBtn) {
+						headerActions.insertBefore(appUninstallBtn, shareBtn);
 					}
 				}
 

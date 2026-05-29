@@ -1111,6 +1111,15 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	cursor: wait;
 }
 
+.app-store-install-btn.app-detail-uninstall-btn {
+	color: #b42318;
+}
+
+.app-store-install-btn.app-detail-uninstall-btn:hover {
+	background: #b42318;
+	color: #fff;
+}
+
 /* Blueprint details shown on non-Playground installs */
 .app-store-blueprint-info {
 	margin-top: 8px;

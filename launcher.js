@@ -3324,14 +3324,14 @@
 				showToast('Plugin uninstalled');
 			} else {
 				if (options.button) {
-					setInstallButtonState(options.button, 'Uninstall Plugin...', false);
+					setInstallButtonState(options.button, 'Uninstall', false);
 				}
 				alert(ajaxErrorMessage(data, 'Error uninstalling plugin'));
 			}
 		})
 		.catch(function() {
 			if (options.button) {
-				setInstallButtonState(options.button, 'Uninstall Plugin...', false);
+				setInstallButtonState(options.button, 'Uninstall', false);
 			}
 			alert('Network error');
 		});
@@ -3344,7 +3344,7 @@
 		var uninstallBtn = document.createElement('button');
 		uninstallBtn.type = 'button';
 		uninstallBtn.className = 'app-store-install-btn app-detail-install-btn app-detail-uninstall-btn';
-		uninstallBtn.textContent = 'Uninstall Plugin...';
+		uninstallBtn.textContent = 'Uninstall';
 		uninstallBtn.addEventListener('click', function() {
 			uninstallPluginBySlug(pluginSlug, {
 				button: uninstallBtn,

@@ -1983,11 +1983,11 @@ body.my-apps-launcher .bg-picker-popup .bg-option {
 	display: none;
 }
 
-.context-menu button.context-delete {
+.context-menu button.context-danger {
 	color: #b42318;
 }
 
-.context-menu button.context-delete:hover {
+.context-menu button.context-danger:hover {
 	background: #fee4e2;
 }
 

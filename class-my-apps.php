@@ -699,6 +699,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_save_root_redirect', array( $this, 'ajax_save_root_redirect' ) );
 		add_action( 'wp_ajax_my_apps_save_wp_admin_links', array( $this, 'ajax_save_wp_admin_links' ) );
 		add_action( 'wp_ajax_my_apps_install_plugin', array( $this, 'ajax_install_plugin' ) );
+		add_action( 'wp_ajax_my_apps_uninstall_plugin', array( $this, 'ajax_uninstall_plugin' ) );
 	}
 
 	public function enqueue_styles() {
@@ -2383,6 +2384,7 @@ class My_Apps {
 				'deletableSlugs'            => self::normalize_app_slug_list( array_keys( get_option( 'my_apps_additional_apps', array() ) ) ),
 				'appUrls'                   => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'          => self::get_installed_plugin_statuses(),
+				'uninstallableApps'         => self::get_launcher_uninstallable_plugin_apps(),
 				'background'                => $background_state['slug'],
 				'redirectRoot'              => self::is_root_redirect_enabled(),
 				'hideWpAdminLinks'          => self::are_wp_admin_links_hidden(),
@@ -2393,6 +2395,10 @@ class My_Apps {
 				'i18n'                      => array(
 					'fillAllFields'         => __( 'Please fill in all fields', 'my-apps' ),
 					'confirmDelete'         => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
+					'confirmUninstall'      => __(
+						'Uninstall this plugin? This will deactivate it and delete its files. The plugin may also remove its saved data.',
+						'my-apps'
+					),
 					'chooseBackgroundImage' => __( 'Choose Background Image', 'my-apps' ),
 					'useBackgroundImage'    => __( 'Use as Background', 'my-apps' ),
 					'mediaUnavailable'       => __( 'The media library is unavailable.', 'my-apps' ),
@@ -2630,6 +2636,30 @@ class My_Apps {
 	}
 
 	/**
+	 * Get the directory slug for an installed plugin file.
+	 *
+	 * @param string $plugin_file Plugin file relative to WP_PLUGIN_DIR.
+	 * @return string
+	 */
+	private static function plugin_slug_from_file( $plugin_file ) {
+		$slug = dirname( (string) $plugin_file );
+		if ( '.' === $slug ) {
+			$slug = basename( (string) $plugin_file, '.php' );
+		}
+
+		return sanitize_key( $slug );
+	}
+
+	/**
+	 * Get this plugin's main plugin file.
+	 *
+	 * @return string
+	 */
+	private static function self_plugin_file() {
+		return plugin_basename( dirname( __FILE__ ) . '/my-apps.php' );
+	}
+
+	/**
 	 * Get installed plugin status keyed by directory slug for launcher UI.
 	 *
 	 * @return array
@@ -2641,10 +2671,7 @@ class My_Apps {
 
 		$statuses = array();
 		foreach ( get_plugins() as $plugin_file => $data ) {
-			$slug = dirname( $plugin_file );
-			if ( '.' === $slug ) {
-				$slug = basename( $plugin_file, '.php' );
-			}
+			$slug = self::plugin_slug_from_file( $plugin_file );
 
 			$statuses[ $slug ] = array(
 				'plugin'          => $plugin_file,
@@ -2675,6 +2702,78 @@ class My_Apps {
 		}
 
 		return $statuses;
+	}
+
+	/**
+	 * Get launcher apps that can be uninstalled as one installed plugin.
+	 *
+	 * @return object
+	 */
+	private static function get_launcher_uninstallable_plugin_apps() {
+		if ( ! current_user_can( 'delete_plugins' ) ) {
+			return (object) array();
+		}
+
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$installed_plugins = get_plugins();
+		$statuses          = self::get_installed_plugin_statuses();
+		$self_plugin       = self::self_plugin_file();
+		$uninstallable     = array();
+
+		foreach ( self::get_apps() as $app_slug => $app ) {
+			$app_slug    = self::normalize_app_slug( $app_slug );
+			$plugin_file = '';
+			$plugin_slug = '';
+
+			if ( '' === $app_slug || empty( $app['plugin'] ) || ! is_array( $app['plugin'] ) ) {
+				continue;
+			}
+
+			if ( ! empty( $app['plugin']['plugin_file'] ) ) {
+				$plugin_file = plugin_basename( (string) $app['plugin']['plugin_file'] );
+			}
+
+			if ( ! empty( $app['plugin']['slug'] ) ) {
+				$plugin_slug = sanitize_key( (string) $app['plugin']['slug'] );
+			}
+
+			if ( '' === $plugin_file && '' !== $plugin_slug && ! empty( $statuses[ $plugin_slug ]['plugin'] ) ) {
+				$plugin_file = plugin_basename( $statuses[ $plugin_slug ]['plugin'] );
+			}
+
+			if ( '' === $plugin_file && ! empty( $statuses[ $app_slug ]['plugin'] ) ) {
+				$plugin_file = plugin_basename( $statuses[ $app_slug ]['plugin'] );
+			}
+
+			if (
+				'' === $plugin_file
+				|| $self_plugin === $plugin_file
+				|| 0 !== validate_file( $plugin_file )
+				|| ! isset( $installed_plugins[ $plugin_file ] )
+				|| is_plugin_active_for_network( $plugin_file )
+			) {
+				continue;
+			}
+
+			if ( is_plugin_active( $plugin_file ) && ! current_user_can( 'deactivate_plugin', $plugin_file ) ) {
+				continue;
+			}
+
+			$plugin_slug = self::plugin_slug_from_file( $plugin_file );
+			$data        = $installed_plugins[ $plugin_file ];
+
+			$uninstallable[ $app_slug ] = array(
+				'plugin'     => $plugin_file,
+				'pluginSlug' => $plugin_slug,
+				'name'       => isset( $data['Name'] ) ? $data['Name'] : $plugin_slug,
+				'active'     => is_plugin_active( $plugin_file ),
+			);
+		}
+
+		return (object) $uninstallable;
 	}
 
 	/**
@@ -3140,6 +3239,42 @@ class My_Apps {
 	}
 
 	/**
+	 * Remove stored launcher preferences for an app slug.
+	 *
+	 * @param string $slug App slug.
+	 */
+	private static function remove_app_customization_state( $slug ) {
+		$slug = self::normalize_app_slug( $slug );
+		if ( '' === $slug ) {
+			return;
+		}
+
+		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
+		$hide_plugins = array_values( array_filter( $hide_plugins, function( $s ) use ( $slug ) {
+			return $s !== $slug;
+		} ) );
+		update_option( 'my_apps_hide_plugins', $hide_plugins );
+
+		$sort = self::normalize_app_slug_list( get_option( 'my_apps_sort', array() ) );
+		$sort = array_values( array_filter( $sort, function( $s ) use ( $slug ) {
+			return $s !== $slug;
+		} ) );
+		update_option( 'my_apps_sort', $sort );
+
+		$icon_overrides = self::get_app_icon_overrides();
+		if ( isset( $icon_overrides[ $slug ] ) ) {
+			unset( $icon_overrides[ $slug ] );
+			update_option( self::APP_ICON_OVERRIDES_OPTION, $icon_overrides );
+		}
+
+		$app_overrides = self::get_app_overrides();
+		if ( isset( $app_overrides[ $slug ] ) ) {
+			unset( $app_overrides[ $slug ] );
+			update_option( self::APP_OVERRIDES_OPTION, $app_overrides );
+		}
+	}
+
+	/**
 	 * AJAX: Delete a user-added app.
 	 *
 	 * Only custom apps (stored in my_apps_additional_apps) can be deleted — apps
@@ -3167,31 +3302,148 @@ class My_Apps {
 		unset( $additional_apps[ $slug ] );
 		update_option( 'my_apps_additional_apps', $additional_apps );
 
-		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
-		$hide_plugins = array_values( array_filter( $hide_plugins, function( $s ) use ( $slug ) {
-			return $s !== $slug;
-		} ) );
-		update_option( 'my_apps_hide_plugins', $hide_plugins );
-
-		$sort = self::normalize_app_slug_list( get_option( 'my_apps_sort', array() ) );
-		$sort = array_values( array_filter( $sort, function( $s ) use ( $slug ) {
-			return $s !== $slug;
-		} ) );
-		update_option( 'my_apps_sort', $sort );
-
-		$icon_overrides = self::get_app_icon_overrides();
-		if ( isset( $icon_overrides[ $slug ] ) ) {
-			unset( $icon_overrides[ $slug ] );
-			update_option( self::APP_ICON_OVERRIDES_OPTION, $icon_overrides );
-		}
-
-		$app_overrides = self::get_app_overrides();
-		if ( isset( $app_overrides[ $slug ] ) ) {
-			unset( $app_overrides[ $slug ] );
-			update_option( self::APP_OVERRIDES_OPTION, $app_overrides );
-		}
+		self::remove_app_customization_state( $slug );
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: Uninstall the plugin backing a launcher app.
+	 */
+	public function ajax_uninstall_plugin() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! current_user_can( 'delete_plugins' ) ) {
+			wp_send_json_error(
+				array(
+					'errorMessage' => __( 'Sorry, you are not allowed to delete plugins on this site.', 'my-apps' ),
+				)
+			);
+		}
+
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
+		if ( '' === $slug ) {
+			wp_send_json_error(
+				array(
+					'errorMessage' => __( 'No app specified.', 'my-apps' ),
+				)
+			);
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		$uninstallable = (array) self::get_launcher_uninstallable_plugin_apps();
+		if ( empty( $uninstallable[ $slug ]['plugin'] ) ) {
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'errorMessage' => __( 'This app cannot be safely matched to one uninstallable plugin.', 'my-apps' ),
+				)
+			);
+		}
+
+		$plugin_file = plugin_basename( $uninstallable[ $slug ]['plugin'] );
+		if ( self::self_plugin_file() === $plugin_file || 0 !== validate_file( $plugin_file ) ) {
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'errorMessage' => __( 'This plugin cannot be uninstalled from My Apps.', 'my-apps' ),
+				)
+			);
+		}
+
+		if ( is_plugin_active_for_network( $plugin_file ) ) {
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'plugin'       => $plugin_file,
+					'errorMessage' => __( 'Network-active plugins must be deactivated from Network Admin before uninstalling.', 'my-apps' ),
+				)
+			);
+		}
+
+		$url = wp_nonce_url( 'plugins.php?action=delete-selected&verify-delete=1&checked[]=' . rawurlencode( $plugin_file ), 'bulk-plugins' );
+
+		ob_start();
+		$credentials = request_filesystem_credentials( $url );
+		ob_end_clean();
+
+		if ( false === $credentials || ! WP_Filesystem( $credentials ) ) {
+			global $wp_filesystem;
+
+			$error_message = __( 'Unable to connect to the filesystem. Please confirm your credentials.', 'my-apps' );
+			if ( $wp_filesystem instanceof \WP_Filesystem_Base && is_wp_error( $wp_filesystem->errors ) && $wp_filesystem->errors->has_errors() ) {
+				$error_message = esc_html( $wp_filesystem->errors->get_error_message() );
+			}
+
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'plugin'       => $plugin_file,
+					'errorCode'    => 'unable_to_connect_to_filesystem',
+					'errorMessage' => $error_message,
+				)
+			);
+		}
+
+		if ( is_plugin_active( $plugin_file ) ) {
+			if ( ! current_user_can( 'deactivate_plugin', $plugin_file ) ) {
+				wp_send_json_error(
+					array(
+						'slug'         => $slug,
+						'plugin'       => $plugin_file,
+						'errorMessage' => __( 'Sorry, you are not allowed to deactivate this plugin.', 'my-apps' ),
+					)
+				);
+			}
+
+			deactivate_plugins( $plugin_file );
+		}
+
+		if ( is_plugin_active( $plugin_file ) ) {
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'plugin'       => $plugin_file,
+					'errorMessage' => __( 'The plugin could not be deactivated.', 'my-apps' ),
+				)
+			);
+		}
+
+		$result = delete_plugins( array( $plugin_file ) );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'plugin'       => $plugin_file,
+					'errorCode'    => $result->get_error_code(),
+					'errorMessage' => $result->get_error_message(),
+				)
+			);
+		}
+
+		if ( false === $result ) {
+			wp_send_json_error(
+				array(
+					'slug'         => $slug,
+					'plugin'       => $plugin_file,
+					'errorMessage' => __( 'Plugin could not be deleted.', 'my-apps' ),
+				)
+			);
+		}
+
+		self::remove_app_customization_state( $slug );
+		wp_clean_plugins_cache();
+
+		wp_send_json_success(
+			array(
+				'slug'       => $slug,
+				'plugin'     => $plugin_file,
+				'pluginSlug' => self::plugin_slug_from_file( $plugin_file ),
+				'deleted'    => true,
+			)
+		);
 	}
 
 	/**
@@ -5338,14 +5590,15 @@ class My_Apps {
 				}
 
 				if ( str_ends_with( $which, '.php' ) ) {
-					$which = ltrim( str_replace( WP_PLUGIN_DIR, '', $which ), '/' );
-					$which = strtok( $which, '/' ) . '/';
+					$which        = ltrim( str_replace( WP_PLUGIN_DIR, '', $which ), '/' );
+					$which_prefix = false === strpos( $which, '/' ) ? $which : strtok( $which, '/' ) . '/';
 
 					// Look up the plugin name from the file path via the plugins array.
 					foreach ( $plugins as $plugin => $data ) {
-						if ( str_starts_with( $plugin, $which ) ) {
+						if ( $plugin === $which_prefix || str_starts_with( $plugin, $which_prefix ) ) {
 							$which = $data;
-							$which['slug'] = strtok( $plugin, '/' );
+							$which['plugin_file'] = $plugin;
+							$which['slug']        = self::plugin_slug_from_file( $plugin );
 							break;
 						}
 					}

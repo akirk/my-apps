@@ -1026,6 +1026,27 @@
 		});
 	}
 
+	function getUninstallableApp(slug) {
+		var apps = myAppsConfig.uninstallableApps || {};
+		if (!apps || typeof apps !== 'object' || Array.isArray(apps)) return null;
+
+		return apps[String(slug || '')] || null;
+	}
+
+	function forgetUninstallableApp(slug) {
+		var apps = myAppsConfig.uninstallableApps || {};
+		if (!apps || typeof apps !== 'object' || Array.isArray(apps)) return;
+
+		delete apps[String(slug || '')];
+	}
+
+	function forgetInstalledPlugin(slug) {
+		var plugins = myAppsConfig.installedPlugins || {};
+		if (!slug || !plugins || typeof plugins !== 'object' || Array.isArray(plugins)) return;
+
+		delete plugins[String(slug)];
+	}
+
 	function getPluginInstallUrl() {
 		if (typeof myAppsConfig === 'undefined') return '/wp-admin/plugin-install.php';
 		return myAppsConfig.pluginInstallUrl
@@ -3177,6 +3198,49 @@
 		});
 	}
 
+	function uninstallPluginApp(slug, options) {
+		options = options || {};
+		var plugin = getUninstallableApp(slug);
+		if (!slug || !plugin) return;
+
+		var confirmMsg = (myAppsConfig.i18n && myAppsConfig.i18n.confirmUninstall) ||
+			'Uninstall this plugin? This will deactivate it and delete its files. The plugin may also remove its saved data.';
+		if (plugin.name) {
+			confirmMsg = plugin.name + '\n\n' + confirmMsg;
+		}
+		if (!window.confirm(confirmMsg)) return;
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_uninstall_plugin');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('slug', slug);
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(res) { return res.json(); })
+		.then(function(data) {
+			if (data.success) {
+				var result = data.data || {};
+				forgetUninstallableApp(slug);
+				forgetInstalledPlugin(result.pluginSlug || plugin.pluginSlug);
+
+				if (options.visibleApp) {
+					forgetAppUrl(options.visibleApp.dataset.url);
+					options.visibleApp.remove();
+				}
+
+				showToast('Plugin uninstalled');
+			} else {
+				alert(ajaxErrorMessage(data, 'Error uninstalling plugin'));
+			}
+		})
+		.catch(function() {
+			alert('Network error');
+		});
+	}
+
 	function removeHiddenRow(item) {
 		var row = item.closest('.hidden-app-row') || item;
 		row.remove();
@@ -4180,19 +4244,24 @@
 		saveOrder();
 	}
 
-	function updateContextMenuDeleteAction(slug) {
+	function updateContextMenuActions(slug) {
 		var canDelete = isDeletableSlug(slug);
+		var canUninstall = !!getUninstallableApp(slug);
 		var deleteBtn = contextMenu.querySelector('[data-action="delete"]');
+		var uninstallBtn = contextMenu.querySelector('[data-action="uninstall"]');
 		var separator = contextMenu.querySelector('.context-delete-separator');
 
 		if (deleteBtn) {
 			deleteBtn.hidden = !canDelete;
 		}
+		if (uninstallBtn) {
+			uninstallBtn.hidden = !canUninstall;
+		}
 		if (separator) {
-			separator.hidden = !canDelete;
+			separator.hidden = !canDelete && !canUninstall;
 		}
 
-		return canDelete;
+		return canDelete || canUninstall;
 	}
 
 	function handleContextMenu(e) {
@@ -4201,8 +4270,8 @@
 
 		e.preventDefault();
 		contextTarget = appIcon;
-		var canDelete = updateContextMenuDeleteAction(appIcon.dataset.slug);
-		var menuHeight = canDelete ? 260 : 210;
+		var hasDestructiveAction = updateContextMenuActions(appIcon.dataset.slug);
+		var menuHeight = hasDestructiveAction ? 300 : 210;
 
 		var x = Math.max(8, Math.min(e.clientX, window.innerWidth - 160));
 		var y = Math.max(8, Math.min(e.clientY, window.innerHeight - menuHeight));
@@ -4244,6 +4313,11 @@
 			case 'delete':
 				if (isDeletableSlug(slug)) {
 					deleteApp(slug, { visibleApp: contextTarget });
+				}
+				break;
+			case 'uninstall':
+				if (getUninstallableApp(slug)) {
+					uninstallPluginApp(slug, { visibleApp: contextTarget });
 				}
 				break;
 		}

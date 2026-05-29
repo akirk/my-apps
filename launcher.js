@@ -2117,15 +2117,6 @@
 	function applyWpAdminLinksPreference() {
 		if (!wpAdminLinksHidden) return;
 		[
-			'wp-admin-bar-wp-logo-default',
-			'wp-admin-bar-about',
-			'wp-admin-bar-contribute',
-			'wp-admin-bar-wp-logo-external',
-			'wp-admin-bar-wporg',
-			'wp-admin-bar-documentation',
-			'wp-admin-bar-learn',
-			'wp-admin-bar-support-forums',
-			'wp-admin-bar-feedback',
 			'wp-admin-bar-site-name',
 			'wp-admin-bar-comments',
 			'wp-admin-bar-new-content'
@@ -2135,18 +2126,6 @@
 				node.parentNode.removeChild(node);
 			}
 		});
-		var wpLogo = document.getElementById('wp-admin-bar-wp-logo');
-		if (wpLogo) {
-			var submenu = wpLogo.querySelector('.ab-sub-wrapper');
-			if (submenu && submenu.parentNode) {
-				submenu.parentNode.removeChild(submenu);
-			}
-			wpLogo.classList.remove('menupop', 'hover');
-			var wpLogoLink = wpLogo.querySelector('.ab-item');
-			if (wpLogoLink) {
-				wpLogoLink.removeAttribute('aria-expanded');
-			}
-		}
 	}
 
 	function toggleWpAdminLinks() {

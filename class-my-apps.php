@@ -2168,10 +2168,12 @@ class My_Apps {
 			$node_ids = array_merge(
 				$node_ids,
 				array(
-					'wp-logo',
 					'about',
+					'contribute',
+					'wp-logo-external',
 					'wporg',
 					'documentation',
+					'learn',
 					'support-forums',
 					'feedback',
 					'site-name',

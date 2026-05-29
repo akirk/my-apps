@@ -1162,13 +1162,20 @@
 		}
 	}
 
-	function markPluginUninstalled(slug, appSlugs, visibleApp) {
+	function refreshLauncherAfterPluginUninstall(visibleApp) {
+		return reloadApps().catch(function() {
+			removeLauncherApps([], visibleApp);
+			return null;
+		});
+	}
+
+	function markPluginUninstalled(slug, visibleApp) {
 		if (!slug) return;
 
 		forgetInstalledPlugin(slug);
 		forgetUninstallablePlugin(slug);
 		forgetUninstallableAppsForPlugin(slug);
-		removeLauncherApps(appSlugs || [], visibleApp);
+		refreshLauncherAfterPluginUninstall(visibleApp);
 	}
 
 	function getPluginInstallUrl() {
@@ -3369,7 +3376,7 @@
 			if (data.success) {
 				var result = data.data || {};
 				var pluginSlug = result.pluginSlug || plugin.pluginSlug;
-				markPluginUninstalled(pluginSlug, result.appSlugs || [], options.visibleApp);
+				markPluginUninstalled(pluginSlug, options.visibleApp);
 
 				if (typeof options.onSuccess === 'function') {
 					options.onSuccess(result, pluginSlug);

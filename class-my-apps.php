@@ -2227,9 +2227,10 @@ class My_Apps {
 	/**
 	 * Determine whether the current request is the exact site home path.
 	 *
+	 * @param bool $allow_query Whether query strings are allowed on the request.
 	 * @return bool
 	 */
-	private static function is_current_request_home_path() {
+	private static function is_current_request_home_path( $allow_query = false ) {
 		$request_method = isset( $_SERVER['REQUEST_METHOD'] )
 			? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) )
 			: 'GET';
@@ -2240,7 +2241,7 @@ class My_Apps {
 		$request_uri = isset( $_SERVER['REQUEST_URI'] )
 			? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
 			: '';
-		if ( '' === $request_uri || null !== wp_parse_url( $request_uri, PHP_URL_QUERY ) ) {
+		if ( '' === $request_uri || ( ! $allow_query && null !== wp_parse_url( $request_uri, PHP_URL_QUERY ) ) ) {
 			return false;
 		}
 
@@ -2254,10 +2255,79 @@ class My_Apps {
 	}
 
 	/**
-	 * Redirect logged-in users from the site root to the My Apps launcher when enabled.
+	 * Read a scalar query value from the current request.
+	 *
+	 * @param string $key Query parameter key.
+	 * @return string
+	 */
+	private static function current_query_value( $key ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$value = isset( $_GET[ $key ] ) ? wp_unslash( $_GET[ $key ] ) : null;
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
+
+		return trim( sanitize_text_field( $value ) );
+	}
+
+	/**
+	 * Determine whether a short install flag should be treated as disabled.
+	 *
+	 * @param string $value Query parameter value.
+	 * @return bool
+	 */
+	private static function is_falsey_install_shortcut_value( $value ) {
+		return in_array( strtolower( trim( (string) $value ) ), array( '0', 'false', 'no', 'off' ), true );
+	}
+
+	/**
+	 * Determine whether the current request asks My Apps to install an app.
+	 *
+	 * Supported forms:
+	 * - ?install=wordcamp-companion
+	 * - ?i=wordcamp-companion
+	 * - ?install=1&app=wordcamp-companion
+	 *
+	 * @return bool
+	 */
+	private static function request_has_app_install_shortcut() {
+		$install = self::current_query_value( 'install' );
+		if ( '' !== $install && ! self::is_falsey_install_shortcut_value( $install ) ) {
+			return ! in_array( strtolower( $install ), array( '1', 'true', 'yes', 'on' ), true )
+				|| '' !== self::current_query_value( 'app' );
+		}
+
+		$short_install = self::current_query_value( 'i' );
+		return '' !== $short_install && ! self::is_falsey_install_shortcut_value( $short_install );
+	}
+
+	/**
+	 * Build the My Apps redirect URL for a root-level install shortcut.
+	 *
+	 * @return string Empty string when the current request is not an install shortcut.
+	 */
+	private static function app_install_shortcut_redirect_url() {
+		if ( ! self::is_current_request_home_path( true ) || ! self::request_has_app_install_shortcut() ) {
+			return '';
+		}
+
+		$params = array();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! empty( $_GET ) && is_array( $_GET ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$params = map_deep( wp_unslash( $_GET ), 'sanitize_text_field' );
+		}
+
+		$params['app-store'] = '1';
+
+		return add_query_arg( $params, home_url( '/my-apps/' ) );
+	}
+
+	/**
+	 * Redirect root requests to My Apps for explicit install shortcuts or the root redirect setting.
 	 */
 	public function redirect_root_to_my_apps() {
-		if ( ! self::is_root_redirect_enabled() || ! is_user_logged_in() || is_admin() || wp_doing_ajax() ) {
+		if ( is_admin() || wp_doing_ajax() ) {
 			return;
 		}
 
@@ -2265,7 +2335,24 @@ class My_Apps {
 			return;
 		}
 
-		if ( is_feed() || is_trackback() || is_preview() || ! is_front_page() || ! self::is_current_request_home_path() ) {
+		if ( is_feed() || is_trackback() || is_preview() ) {
+			return;
+		}
+
+		$install_shortcut_redirect = self::app_install_shortcut_redirect_url();
+		if ( '' !== $install_shortcut_redirect ) {
+			if ( ! is_user_logged_in() ) {
+				$install_shortcut_redirect = wp_login_url( $install_shortcut_redirect );
+			}
+			wp_safe_redirect( $install_shortcut_redirect, 302 );
+			exit;
+		}
+
+		if ( ! self::is_root_redirect_enabled() || ! is_user_logged_in() ) {
+			return;
+		}
+
+		if ( ! is_front_page() || ! self::is_current_request_home_path() ) {
 			return;
 		}
 

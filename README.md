@@ -73,6 +73,18 @@ Example:
 }
 ```
 
+### Short install links
+
+For QR-code-friendly shares, link to the site root with `install=<app-slug>` or the shorter `i=<app-slug>`. My Apps redirects the request into `/my-apps/`, installs the matching App Store entry if needed, and opens the app's landing page with the remaining query parameters preserved.
+
+Example:
+
+```
+https://my.wordpress.net/?i=wordcamp-companion&schedule=https%3A%2F%2Fexample.com%2Fschedule.json
+```
+
+`wordcamp-companion` resolves to `apps/wordcamp-companion.json`. You can also use `?install=1&app=wordcamp-companion` when an `app` parameter is easier to generate.
+
 ### Abilities API
 
 When the WordPress Abilities API is available, My Apps registers a `my-apps` category with App Store search, What can I do? guide discovery, and launcher customization abilities:

@@ -50,6 +50,7 @@
 	// can render the detail page directly instead of flashing the grid first.
 	let pendingDeepLink = null;
 	let deepLinkRendered = false;
+	let pendingAutoInstall = null;
 	// Single base for the blueprints repo we read apps, recipes and the
 	// curated plugin list from.
 	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
@@ -67,6 +68,18 @@
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
 	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
 	const WALLPAPER_SHUFFLE_BAG_KEY = 'wallpaperShuffleBag';
+	const AUTO_INSTALL_CONTROL_PARAMS = {
+		'app-store': true,
+		'install': true,
+		'i': true,
+		'app': true,
+		'plugin': true,
+		'recipe': true,
+		'category': true,
+		'add': true,
+		'recipes': true,
+		'what-can-i-do': true
+	};
 
 	refreshBlueprintsSourceUrls();
 
@@ -1376,6 +1389,70 @@
 		}
 	}
 
+	function normalizeAppStoreAppPath(value) {
+		value = String(value || '').trim();
+		if (!value) return '';
+
+		var pathMatch = value.match(/^\/?apps\/([A-Za-z0-9._-]+)\.json$/i);
+		if (pathMatch) {
+			return 'apps/' + pathMatch[1].toLowerCase() + '.json';
+		}
+
+		if (/^[A-Za-z0-9._-]+$/.test(value)) {
+			return 'apps/' + value.toLowerCase() + '.json';
+		}
+
+		return value;
+	}
+
+	function isFalseyShortcutValue(value) {
+		return ['0', 'false', 'no', 'off'].indexOf(String(value || '').trim().toLowerCase()) !== -1;
+	}
+
+	function isFlagShortcutValue(value) {
+		return ['1', 'true', 'yes', 'on'].indexOf(String(value || '').trim().toLowerCase()) !== -1;
+	}
+
+	function getAutoInstallAppPath(url) {
+		var install = url.searchParams.get('install');
+		if (install && !isFalseyShortcutValue(install)) {
+			if (!isFlagShortcutValue(install)) {
+				return normalizeAppStoreAppPath(install);
+			}
+			return normalizeAppStoreAppPath(url.searchParams.get('app'));
+		}
+
+		var shortInstall = url.searchParams.get('i');
+		if (shortInstall && !isFalseyShortcutValue(shortInstall)) {
+			return normalizeAppStoreAppPath(shortInstall);
+		}
+
+		return '';
+	}
+
+	function getForwardInstallParams(url) {
+		var params = [];
+		url.searchParams.forEach(function(value, key) {
+			if (!AUTO_INSTALL_CONTROL_PARAMS[String(key).toLowerCase()]) {
+				params.push([key, value]);
+			}
+		});
+		return params;
+	}
+
+	function appendForwardInstallParams(url, params) {
+		if (!url || !params || !params.length) return url;
+		try {
+			var parsed = new URL(url, window.location.origin);
+			params.forEach(function(pair) {
+				parsed.searchParams.append(pair[0], pair[1]);
+			});
+			return parsed.toString();
+		} catch (e) {
+			return url;
+		}
+	}
+
 	function getBlueprintLandingUrl(blueprint) {
 		if (!blueprint || typeof blueprint.landingPage !== 'string' || !blueprint.landingPage.trim()) {
 			return '';
@@ -1400,7 +1477,23 @@
 		if (!openUrl) {
 			openUrl = getEntryLauncherUrl(install.app, install.blueprint);
 		}
-		return toAbsoluteUrl(openUrl);
+		openUrl = toAbsoluteUrl(openUrl);
+		return appendForwardInstallParams(openUrl, install.forwardParams);
+	}
+
+	function openInstallTarget(install) {
+		var openUrl = getInstallOpenUrl(install);
+		if (!openUrl) return false;
+
+		if (install && install.desktopMode) {
+			var desktopInstall = Object.assign({}, install, { landingUrl: openUrl });
+			if (openDesktopModeLandingPage(desktopInstall)) {
+				return true;
+			}
+		}
+
+		window.location.href = openUrl;
+		return true;
 	}
 
 	function getAiAssistantLatchButton() {
@@ -1691,7 +1784,8 @@
 		return requestId;
 	}
 
-	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, btn) {
+	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, btn, options) {
+		options = options || {};
 		var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 		var blueprintUrl = getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl);
 
@@ -1703,15 +1797,18 @@
 			btn: btn || null,
 			desktopMode: desktopMode,
 			landingUrl: getInstallLandingUrl(app, blueprint),
-			blueprintUrl: blueprintUrl
+			blueprintUrl: blueprintUrl,
+			autoOpenAfterInstall: !!options.autoOpenAfterInstall,
+			forwardParams: options.forwardParams || []
 		}));
 	}
 
-	function installBlueprintInPlayground(app, blueprintUrl, btn) {
+	function installBlueprintInPlayground(app, blueprintUrl, btn, options) {
+		options = options || {};
 		setInstallButtonState(btn, 'Installing...', true);
 		return resolveBlueprintFromUrl(blueprintUrl)
 			.then(function(blueprint) {
-				return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, btn);
+				return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, btn, options);
 			})
 			.catch(function(error) {
 				var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
@@ -1730,7 +1827,9 @@
 					btn: btn || null,
 					desktopMode: desktopMode,
 					landingUrl: '',
-					blueprintUrl: blueprintUrl
+					blueprintUrl: blueprintUrl,
+					autoOpenAfterInstall: !!options.autoOpenAfterInstall,
+					forwardParams: options.forwardParams || []
 				});
 			});
 	}
@@ -1747,6 +1846,9 @@
 			finishInstallButton(install.btn, wasUpdate ? 'Updated' : 'Installed', install);
 			showToast(wasUpdate ? 'Updated' : 'Installed');
 			bootstrapAiAssistantAfterPlaygroundInstall(install, result);
+			if (install.autoOpenAfterInstall) {
+				openInstallTarget(install);
+			}
 		});
 	}
 
@@ -5892,7 +5994,8 @@
 		return !unknownInstall && slugs.length === 1 ? slugs[0] : '';
 	}
 
-	function installBlueprintOnHost(app, blueprintUrl, infoEl, btn) {
+	function installBlueprintOnHost(app, blueprintUrl, infoEl, btn, options) {
+		options = options || {};
 		if (infoEl && infoEl.classList.contains('active')) {
 			closeBlueprintInstallInfo(infoEl, btn);
 			return;
@@ -5953,7 +6056,9 @@
 							blueprint: blueprint,
 							btn: btn,
 							desktopMode: desktopMode,
-							landingUrl: getInstallLandingUrl(app, blueprint)
+							landingUrl: getInstallLandingUrl(app, blueprint),
+							autoOpenAfterInstall: !!options.autoOpenAfterInstall,
+							forwardParams: options.forwardParams || []
 						};
 						return completeInstalledBlueprint(install).then(function() {
 							return { install: install };
@@ -5969,6 +6074,9 @@
 							showToast('Already up to date');
 						} else {
 							showToast('Installed');
+						}
+						if (outcome.install && outcome.install.autoOpenAfterInstall) {
+							openInstallTarget(outcome.install);
 						}
 						return true;
 					});
@@ -6060,6 +6168,57 @@
 		}
 	}
 
+	function maybeStartPendingAutoInstall(appPath, app, blueprintUrl, installBtn, infoEl) {
+		if (
+			!pendingAutoInstall ||
+			pendingAutoInstall.started ||
+			pendingAutoInstall.path !== appPath
+		) {
+			return;
+		}
+
+		pendingAutoInstall.started = true;
+		var options = {
+			autoOpenAfterInstall: true,
+			forwardParams: pendingAutoInstall.forwardParams || []
+		};
+
+		setInstallButtonState(installBtn, 'Checking...', true);
+		resolveBlueprintFromUrl(blueprintUrl)
+			.then(function(blueprint) {
+				if (blueprint && blueprint.launcher_url) {
+					app._launcherUrl = blueprint.launcher_url;
+				}
+
+				if (isStoreEntryInstalled(app, blueprint)) {
+					openInstallTarget({
+						app: app,
+						blueprint: blueprint,
+						btn: installBtn,
+						desktopMode: shouldUseDesktopModeAppStoreInstallFlow(),
+						landingUrl: getInstallLandingUrl(app, blueprint),
+						forwardParams: options.forwardParams
+					});
+					return null;
+				}
+
+				if (isPlayground) {
+					return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, installBtn, options);
+				}
+
+				return installBlueprintOnHost(app, blueprintUrl, infoEl, installBtn, options);
+			})
+			.catch(function(error) {
+				if (isPlayground) {
+					return installBlueprintInPlayground(app, blueprintUrl, installBtn, options);
+				}
+
+				resetInstallButtonState(installBtn);
+				showToast(error && error.message ? error.message : 'Install failed');
+				return null;
+			});
+	}
+
 	// 'loading' \u2192 plugins fetch in flight; 'loaded' \u2192 merged in; 'failed' \u2192 fetch errored or returned nothing.
 	var pluginsLoadState = 'loading';
 	var appStoreLoadId = 0;
@@ -6139,6 +6298,10 @@
 					// Clear any leftover pending target — if it didn't resolve
 					// by now, the slug doesn't exist in the catalogue.
 					pendingDeepLink = null;
+					if (pendingAutoInstall && !pendingAutoInstall.started) {
+						showToast('App not found: ' + pendingAutoInstall.path.replace(/^apps\/|\.json$/g, ''));
+						pendingAutoInstall = null;
+					}
 					if (!renderedNow && !deepLinkRendered) {
 						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 					}
@@ -8070,6 +8233,7 @@
 
 		headerActions.appendChild(installBtn);
 		headerActions.appendChild(shareBtn);
+		maybeStartPendingAutoInstall(appPath, app, blueprintUrl, installBtn, blueprintInfoEl);
 
 		headerEl.appendChild(iconEl);
 		headerEl.appendChild(headerInfo);
@@ -8516,7 +8680,7 @@
 		if (!installSoftwareModal.classList.contains('active')) return;
 
 		var url = new URL(window.location);
-		var appParam = url.searchParams.get('app');
+		var appParam = normalizeAppStoreAppPath(url.searchParams.get('app'));
 		var pluginParam = url.searchParams.get('plugin');
 		var recipeParam = url.searchParams.get('recipe');
 
@@ -8555,9 +8719,35 @@
 	// On initial load, check query params for deep-links into the modal.
 	function checkDeepLink() {
 		var url = new URL(window.location);
+		var recipeParam = url.searchParams.get('recipe');
+		var appParam = normalizeAppStoreAppPath(url.searchParams.get('app'));
+		var pluginParam = url.searchParams.get('plugin');
+		var autoInstallAppPath = getAutoInstallAppPath(url);
+
+		if (autoInstallAppPath) {
+			pendingAutoInstall = {
+				path: autoInstallAppPath,
+				forwardParams: getForwardInstallParams(url),
+				started: false
+			};
+			pendingDeepLink = { type: 'app', path: autoInstallAppPath };
+			activeCategory = DEFAULT_APP_STORE_CATEGORY;
+			activeRecipe = null;
+			openInstallSoftwareModal();
+			return;
+		}
+
 		if (url.searchParams.has('app-store')) {
 			if (routeRequestsRecipes(url)) {
 				activeCategory = '__recipes__';
+				activeRecipe = null;
+			} else if (appParam) {
+				pendingDeepLink = { type: 'app', path: appParam };
+				activeCategory = DEFAULT_APP_STORE_CATEGORY;
+				activeRecipe = null;
+			} else if (pluginParam && !areAppStorePluginsHidden()) {
+				pendingDeepLink = { type: 'plugin', path: pluginParam };
+				activeCategory = DEFAULT_APP_STORE_CATEGORY;
 				activeRecipe = null;
 			}
 			openInstallSoftwareModal();
@@ -8588,9 +8778,6 @@
 			openRecipesRoute(true);
 			return;
 		}
-		var recipeParam = url.searchParams.get('recipe');
-		var appParam = url.searchParams.get('app');
-		var pluginParam = url.searchParams.get('plugin');
 
 		// Recipes load async, so we can't validate recipeParam against the
 		// recipes map here. Stash it; loadAppStore will resolve it once

@@ -71,7 +71,7 @@
 	const AUTO_INSTALL_CONTROL_PARAMS = {
 		'app-store': true,
 		'install': true,
-		'i': true,
+		'myapps-i': true,
 		'app': true,
 		'plugin': true,
 		'recipe': true,
@@ -1414,17 +1414,17 @@
 	}
 
 	function getAutoInstallAppPath(url) {
+		var namespacedInstall = url.searchParams.get('myapps-i');
+		if (namespacedInstall && !isFalseyShortcutValue(namespacedInstall)) {
+			return normalizeAppStoreAppPath(namespacedInstall);
+		}
+
 		var install = url.searchParams.get('install');
 		if (install && !isFalseyShortcutValue(install)) {
 			if (!isFlagShortcutValue(install)) {
 				return normalizeAppStoreAppPath(install);
 			}
 			return normalizeAppStoreAppPath(url.searchParams.get('app'));
-		}
-
-		var shortInstall = url.searchParams.get('i');
-		if (shortInstall && !isFalseyShortcutValue(shortInstall)) {
-			return normalizeAppStoreAppPath(shortInstall);
 		}
 
 		return '';

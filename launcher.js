@@ -2089,6 +2089,7 @@
 	];
 
 	function init() {
+		bindAppStoreDocumentPaste();
 		updateBlueprintsSourceBadge();
 		if (new URL(window.location).searchParams.has('app-store')) {
 			checkDeepLink();
@@ -5087,6 +5088,7 @@
 	var activeView = 'apps';
 	var activeRecipe = null;
 	var appStoreEventsBound = false;
+	var appStoreDocumentPasteBound = false;
 
 	function updateBlueprintsSourceBadge() {
 		if (!appStoreSourceBadge) return;
@@ -6201,6 +6203,7 @@
 	// 'loading' \u2192 plugins fetch in flight; 'loaded' \u2192 merged in; 'failed' \u2192 fetch errored or returned nothing.
 	var pluginsLoadState = 'loading';
 	var appStoreLoadId = 0;
+	var appStoreLoadPromise = null;
 
 	function loadAppStore() {
 		var loadId = ++appStoreLoadId;
@@ -6226,10 +6229,10 @@
 				recipesLoadState = 'failed';
 			});
 
-		fetch(APPS_INDEX_URL)
+		appStoreLoadPromise = fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
-				if (loadId !== appStoreLoadId) return;
+				if (loadId !== appStoreLoadId) return null;
 				appStoreData = mergeCustomBlueprints(data);
 				buildAppStoreNav(appStoreData);
 
@@ -6251,8 +6254,8 @@
 				// final re-render. The plugins from each app's blueprint are
 				// covered by the curated plugins.json now, so we no longer
 				// fetch every blueprint up front to extract them.
-				Promise.all([pluginsPromise, recipesPromise]).then(function(results) {
-					if (loadId !== appStoreLoadId) return;
+				return Promise.all([pluginsPromise, recipesPromise]).then(function(results) {
+					if (loadId !== appStoreLoadId) return null;
 					var plugins = results[0];
 					if (!plugins || !Object.keys(plugins).length) {
 						pluginsLoadState = 'failed';
@@ -6284,12 +6287,16 @@
 					if (!renderedNow && !deepLinkRendered) {
 						renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
 					}
+					return appStoreData;
 				});
 			})
 			.catch(function() {
-				if (loadId !== appStoreLoadId) return;
+				if (loadId !== appStoreLoadId) return null;
 				appStoreContent.innerHTML = '<div class="app-store-error">Unable to load apps. Check your connection.</div>';
+				return null;
 			});
+
+		return appStoreLoadPromise;
 	}
 
 	// Render the pending deep-link target if its data is now available.
@@ -6816,6 +6823,123 @@
 		return importCustomBlueprint(blueprint);
 	}
 
+	function isAppStoreOpenForPaste() {
+		return !!(
+			installSoftwareModal &&
+			installSoftwareModal.classList &&
+			installSoftwareModal.classList.contains('active')
+		);
+	}
+
+	function isActiveElement(element) {
+		return !!(element && element.classList && element.classList.contains('active'));
+	}
+
+	function isAppStoreGlobalPasteAvailable() {
+		if (isAppStoreOpenForPaste()) return true;
+		return !(
+			isActiveElement(iconEditModal) ||
+			isActiveElement(settingsModal) ||
+			isActiveElement(bgPicker) ||
+			isActiveElement(hiddenPopup) ||
+			isActiveElement(contextMenu)
+		);
+	}
+
+	function isEditablePasteTarget(target) {
+		if (!target || target === document || target === window) return false;
+		if (target.isContentEditable) return true;
+		if (target.closest && target.closest('input, textarea, select, [contenteditable="true"]')) {
+			return true;
+		}
+
+		return false;
+	}
+
+	function isAppStorePasteCandidate(text) {
+		return !!(
+			normalizeBlueprintsSourceInput(text) ||
+			parseGithubReferenceUrl(text) ||
+			isJsonTextCandidate(text)
+		);
+	}
+
+	function ensureAppStoreReadyForPaste() {
+		if (appStoreData && pluginsLoadState !== 'loading') {
+			return Promise.resolve(appStoreData);
+		}
+
+		if (appStoreLoadPromise && pluginsLoadState === 'loading') {
+			return appStoreLoadPromise;
+		}
+
+		return loadAppStore();
+	}
+
+	function importAppStorePasteText(text, options) {
+		options = options || {};
+
+		if (importBlueprintsSourceText(text)) {
+			if (options.openStore && !isAppStoreOpenForPaste()) {
+				openDefaultAppStore();
+			}
+			return true;
+		}
+
+		if (parseGithubReferenceUrl(text)) {
+			if (options.openStore && !isAppStoreOpenForPaste()) {
+				openDefaultAppStore();
+			}
+
+			if (options.waitForAppStore && (!appStoreData || pluginsLoadState === 'loading')) {
+				ensureAppStoreReadyForPaste().then(function() {
+					importGithubReferenceText(text);
+				});
+				return true;
+			}
+
+			return importGithubReferenceText(text);
+		}
+
+		if (!isJsonTextCandidate(text)) {
+			return false;
+		}
+
+		if (options.openStore && !isAppStoreOpenForPaste()) {
+			openDefaultAppStore();
+		}
+
+		if (options.waitForAppStore && !appStoreData) {
+			ensureAppStoreReadyForPaste().then(function() {
+				importBlueprintText(text, { showErrors: true, consumeInvalid: true });
+			});
+			return true;
+		}
+
+		return importBlueprintText(text, { showErrors: true, consumeInvalid: true });
+	}
+
+	function bindAppStoreDocumentPaste() {
+		if (appStoreDocumentPasteBound) return;
+		appStoreDocumentPasteBound = true;
+		document.addEventListener('paste', handleAppStoreDocumentPaste, true);
+	}
+
+	function handleAppStoreDocumentPaste(e) {
+		if (e.defaultPrevented || !isAppStoreGlobalPasteAvailable()) return;
+		if (isEditablePasteTarget(e.target)) return;
+		if (isAppStoreOpenForPaste() && e.target && installSoftwareModal.contains(e.target)) return;
+
+		var clipboard = e.clipboardData || window.clipboardData;
+		var text = clipboard ? clipboard.getData('text') : '';
+		if (!text || !isAppStorePasteCandidate(text)) return;
+
+		if (importAppStorePasteText(text, { openStore: true, waitForAppStore: true })) {
+			e.preventDefault();
+			e.stopPropagation();
+		}
+	}
+
 	function handleBlueprintPaste(e) {
 		if (e.defaultPrevented) return;
 
@@ -6823,19 +6947,7 @@
 		var text = clipboard ? clipboard.getData('text') : '';
 		if (!text) return;
 
-		if (importBlueprintsSourceText(text)) {
-			e.preventDefault();
-			e.stopPropagation();
-			return;
-		}
-
-		if (importGithubReferenceText(text)) {
-			e.preventDefault();
-			e.stopPropagation();
-			return;
-		}
-
-		if (importBlueprintText(text, { showErrors: true, consumeInvalid: true })) {
+		if (importAppStorePasteText(text, { waitForAppStore: true })) {
 			e.preventDefault();
 			e.stopPropagation();
 		}
@@ -6901,6 +7013,7 @@
 
 		installSoftwareModal.addEventListener('paste', handleBlueprintPaste);
 		appStoreSearchInput.addEventListener('paste', handleBlueprintSearchPaste);
+		bindAppStoreDocumentPaste();
 
 		appStoreNav.addEventListener('click', function(e) {
 			var item = e.target.closest('.app-store-nav-item');

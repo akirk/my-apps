@@ -1390,7 +1390,7 @@
 	}
 
 	function normalizeAppStoreAppPath(value) {
-		value = String(value || '').trim();
+		value = String(value || '').trim().replace(/^\/+/, '');
 		if (!value) return '';
 
 		var pathMatch = value.match(/^\/?apps\/([A-Za-z0-9._-]+)\.json$/i);
@@ -1398,11 +1398,80 @@
 			return 'apps/' + pathMatch[1].toLowerCase() + '.json';
 		}
 
+		pathMatch = value.match(/^\/?blueprints\/([A-Za-z0-9._-]+)\/blueprint\.json$/i);
+		if (pathMatch) {
+			return 'blueprints/' + pathMatch[1].toLowerCase() + '/blueprint.json';
+		}
+
 		if (/^[A-Za-z0-9._-]+$/.test(value)) {
 			return 'apps/' + value.toLowerCase() + '.json';
 		}
 
 		return value;
+	}
+
+	function appStoreSlugFromPath(path) {
+		path = String(path || '').trim().replace(/^\/+/, '');
+		var match = path.match(/^apps\/([A-Za-z0-9._-]+)\.json$/i);
+		if (match) return match[1].toLowerCase();
+		match = path.match(/^blueprints\/([A-Za-z0-9._-]+)\/blueprint\.json$/i);
+		if (match) return match[1].toLowerCase();
+		return '';
+	}
+
+	function addUniqueAppStorePath(candidates, path) {
+		if (path && candidates.indexOf(path) === -1) {
+			candidates.push(path);
+		}
+	}
+
+	function appStoreAppPathCandidates(value) {
+		var normalized = normalizeAppStoreAppPath(value);
+		var candidates = [];
+		addUniqueAppStorePath(candidates, normalized);
+
+		var slug = appStoreSlugFromPath(normalized);
+		if (!slug && /^[A-Za-z0-9._-]+$/.test(String(value || '').trim())) {
+			slug = String(value).trim().toLowerCase();
+		}
+
+		if (slug) {
+			addUniqueAppStorePath(candidates, 'apps/' + slug + '.json');
+			addUniqueAppStorePath(candidates, 'blueprints/' + slug + '/blueprint.json');
+		}
+
+		return candidates;
+	}
+
+	function resolveAppStoreAppPath(value, data) {
+		var candidates = appStoreAppPathCandidates(value);
+		if (!data) return candidates[0] || '';
+
+		for (var i = 0; i < candidates.length; i++) {
+			if (data[candidates[i]]) return candidates[i];
+		}
+
+		var slug = '';
+		for (var s = 0; s < candidates.length && !slug; s++) {
+			slug = appStoreSlugFromPath(candidates[s]);
+		}
+		if (!slug) return '';
+
+		var keys = Object.keys(data);
+		for (var k = 0; k < keys.length; k++) {
+			if (data[keys[k]] && data[keys[k]]._type !== 'plugin' && appStoreSlugFromPath(keys[k]) === slug) {
+				return keys[k];
+			}
+		}
+
+		return '';
+	}
+
+	function appStoreAppPathsMatch(a, b) {
+		if (a === b) return true;
+		var aSlug = appStoreSlugFromPath(a);
+		var bSlug = appStoreSlugFromPath(b);
+		return !!(aSlug && bSlug && aSlug === bSlug);
 	}
 
 	function isFalseyShortcutValue(value) {
@@ -1416,15 +1485,15 @@
 	function getAutoInstallAppPath(url) {
 		var namespacedInstall = url.searchParams.get('myapps-i');
 		if (namespacedInstall && !isFalseyShortcutValue(namespacedInstall)) {
-			return normalizeAppStoreAppPath(namespacedInstall);
+			return resolveAppStoreAppPath(namespacedInstall);
 		}
 
 		var install = url.searchParams.get('install');
 		if (install && !isFalseyShortcutValue(install)) {
 			if (!isFlagShortcutValue(install)) {
-				return normalizeAppStoreAppPath(install);
+				return resolveAppStoreAppPath(install);
 			}
-			return normalizeAppStoreAppPath(url.searchParams.get('app'));
+			return resolveAppStoreAppPath(url.searchParams.get('app'));
 		}
 
 		return '';
@@ -5547,7 +5616,7 @@
 		var path = app._path ? String(app._path).replace(/^\/+/, '') : '';
 		return (app._source === 'wp.org' && app._slug === 'ai-assistant') ||
 			(!app._source && app._slug === 'ai-assistant') ||
-			path === 'apps/ai-assistant.json' ||
+			appStoreSlugFromPath(path) === 'ai-assistant' ||
 			path === 'plugin/ai-assistant';
 	}
 
@@ -6153,12 +6222,13 @@
 		if (
 			!pendingAutoInstall ||
 			pendingAutoInstall.started ||
-			pendingAutoInstall.path !== appPath
+			!appStoreAppPathsMatch(pendingAutoInstall.path, appPath)
 		) {
 			return;
 		}
 
 		pendingAutoInstall.started = true;
+		pendingAutoInstall.path = appPath;
 		var options = {
 			autoOpenAfterInstall: true,
 			forwardParams: pendingAutoInstall.forwardParams || []
@@ -6281,7 +6351,8 @@
 					// by now, the slug doesn't exist in the catalogue.
 					pendingDeepLink = null;
 					if (pendingAutoInstall && !pendingAutoInstall.started) {
-						showToast('App not found: ' + pendingAutoInstall.path.replace(/^apps\/|\.json$/g, ''));
+						var missingApp = appStoreSlugFromPath(pendingAutoInstall.path) || pendingAutoInstall.path;
+						showToast('App not found: ' + missingApp);
 						pendingAutoInstall = null;
 					}
 					if (!renderedNow && !deepLinkRendered) {
@@ -6305,7 +6376,7 @@
 	function tryRenderPendingDeepLink() {
 		if (!pendingDeepLink || !appStoreData) return false;
 		if (pendingDeepLink.type === 'app') {
-			var appPath = pendingDeepLink.path;
+			var appPath = resolveAppStoreAppPath(pendingDeepLink.path, appStoreData);
 			if (!appStoreData[appPath]) return false;
 			var app = appStoreData[appPath];
 			var blueprintUrl = getBlueprintUrl(appPath);
@@ -7152,8 +7223,8 @@
 		return defaultGradient;
 	}
 
-	// When the same software ships as both a richer "app" entry (apps.json,
-	// path "apps/<slug>.json") and a curated plugin (plugins.json), the app
+	// When the same software ships as both a richer "app" entry (apps.json)
+	// and a curated plugin (plugins.json), the app
 	// wins. Two signals identify a collision: the app's path slug matching
 	// the plugin's slug / GitHub repo / URL key, and a case-insensitive
 	// title match. Either is enough.
@@ -7163,8 +7234,8 @@
 		keys.forEach(function(path) {
 			var entry = data[path];
 			if (!entry || entry._type === 'plugin') return;
-			var match = path.match(/^apps\/([^\/]+)\.json$/);
-			if (match) claimedSlugs[match[1].toLowerCase()] = true;
+			var slug = appStoreSlugFromPath(path);
+			if (slug) claimedSlugs[slug] = true;
 			if (entry.title) claimedTitles[entry.title.toLowerCase()] = true;
 		});
 		return keys.filter(function(path) {
@@ -8786,11 +8857,12 @@
 			activeRecipe = null;
 		}
 
-		if (appParam && appStoreData && appStoreData[appParam]) {
-			var app = appStoreData[appParam];
-			var blueprintUrl = getBlueprintUrl(appParam);
+		var resolvedAppParam = appParam && appStoreData ? resolveAppStoreAppPath(appParam, appStoreData) : '';
+		if (resolvedAppParam && appStoreData && appStoreData[resolvedAppParam]) {
+			var app = appStoreData[resolvedAppParam];
+			var blueprintUrl = getBlueprintUrl(resolvedAppParam);
 			var gradient = getCategoryGradient(app.categories);
-			renderAppDetail(appParam, app, blueprintUrl, gradient);
+			renderAppDetail(resolvedAppParam, app, blueprintUrl, gradient);
 		} else if (pluginParam && !areAppStorePluginsHidden() && appStoreData && appStoreData[pluginParam]) {
 			renderPluginDetail(pluginParam, appStoreData[pluginParam]);
 		} else if (appStoreData) {

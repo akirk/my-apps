@@ -4085,6 +4085,43 @@ class My_Apps {
 	}
 
 	/**
+	 * Determine whether a catalog path points to a blueprint app entry.
+	 *
+	 * @param string $path App Store path.
+	 * @return bool
+	 */
+	private static function is_app_store_app_path( $path ) {
+		if ( ! is_string( $path ) ) {
+			return false;
+		}
+
+		return 1 === preg_match( '#^apps/[A-Za-z0-9._-]+\.json$#', $path )
+			|| 1 === preg_match( '#^blueprints/[A-Za-z0-9._-]+/blueprint\.json$#', $path );
+	}
+
+	/**
+	 * Extract a stable app slug from a supported App Store app path.
+	 *
+	 * @param string $path App Store path.
+	 * @return string
+	 */
+	private static function app_store_app_slug_from_path( $path ) {
+		if ( ! is_string( $path ) ) {
+			return '';
+		}
+
+		if ( preg_match( '#^apps/([^/]+)\.json$#', $path, $matches ) ) {
+			return strtolower( $matches[1] );
+		}
+
+		if ( preg_match( '#^blueprints/([^/]+)/blueprint\.json$#', $path, $matches ) ) {
+			return strtolower( $matches[1] );
+		}
+
+		return '';
+	}
+
+	/**
 	 * Sanitize apps loaded from apps.json.
 	 *
 	 * @param array $data Raw app index.
@@ -4094,7 +4131,7 @@ class My_Apps {
 		$entries = array();
 
 		foreach ( $data as $path => $app ) {
-			if ( ! is_string( $path ) || ! preg_match( '#^apps/[A-Za-z0-9._-]+\.json$#', $path ) || ! is_array( $app ) ) {
+			if ( ! self::is_app_store_app_path( $path ) || ! is_array( $app ) ) {
 				continue;
 			}
 
@@ -4286,8 +4323,9 @@ class My_Apps {
 			if ( ! is_array( $entry ) || ( isset( $entry['type'] ) && 'plugin' === $entry['type'] ) ) {
 				continue;
 			}
-			if ( preg_match( '#^apps/([^/]+)\.json$#', $path, $matches ) ) {
-				$claimed_slugs[ strtolower( $matches[1] ) ] = true;
+			$slug = self::app_store_app_slug_from_path( $path );
+			if ( '' !== $slug ) {
+				$claimed_slugs[ $slug ] = true;
 			}
 			if ( ! empty( $entry['title'] ) ) {
 				$claimed_titles[ strtolower( $entry['title'] ) ] = true;
@@ -4892,7 +4930,7 @@ class My_Apps {
 
 		if ( isset( $step['path'] ) && is_scalar( $step['path'] ) ) {
 			$path = sanitize_text_field( (string) $step['path'] );
-			if ( preg_match( '#^apps/[A-Za-z0-9._-]+\.json$#', $path ) ) {
+			if ( self::is_app_store_app_path( $path ) ) {
 				$payload['path'] = $path;
 			}
 		}

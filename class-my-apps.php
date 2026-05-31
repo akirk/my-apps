@@ -2284,21 +2284,25 @@ class My_Apps {
 	 * Determine whether the current request asks My Apps to install an app.
 	 *
 	 * Supported forms:
+	 * - ?myapps-i=wordcamp-companion
 	 * - ?install=wordcamp-companion
-	 * - ?i=wordcamp-companion
 	 * - ?install=1&app=wordcamp-companion
 	 *
 	 * @return bool
 	 */
 	private static function request_has_app_install_shortcut() {
+		$namespaced_install = self::current_query_value( 'myapps-i' );
+		if ( '' !== $namespaced_install && ! self::is_falsey_install_shortcut_value( $namespaced_install ) ) {
+			return true;
+		}
+
 		$install = self::current_query_value( 'install' );
 		if ( '' !== $install && ! self::is_falsey_install_shortcut_value( $install ) ) {
 			return ! in_array( strtolower( $install ), array( '1', 'true', 'yes', 'on' ), true )
 				|| '' !== self::current_query_value( 'app' );
 		}
 
-		$short_install = self::current_query_value( 'i' );
-		return '' !== $short_install && ! self::is_falsey_install_shortcut_value( $short_install );
+		return false;
 	}
 
 	/**

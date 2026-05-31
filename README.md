@@ -83,7 +83,7 @@ Example:
 https://my.wordpress.net/?myapps-i=wordcamp-companion&schedule=https%3A%2F%2Fexample.com%2Fschedule.json
 ```
 
-`wordcamp-companion` resolves to `apps/wordcamp-companion.json`. You can also use `?install=1&app=wordcamp-companion` when an `app` parameter is easier to generate.
+`wordcamp-companion` resolves to the matching App Store catalog key, including `apps/wordcamp-companion.json` and `blueprints/wordcamp-companion/blueprint.json`. You can also use `?install=1&app=wordcamp-companion` when an `app` parameter is easier to generate.
 
 ### Abilities API
 

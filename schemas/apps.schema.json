@@ -6,7 +6,7 @@
 	"type": "object",
 	"propertyNames": {
 		"type": "string",
-		"pattern": "^apps/[A-Za-z0-9._-]+\\.json$"
+		"pattern": "^(apps/[A-Za-z0-9._-]+\\.json|blueprints/[A-Za-z0-9._-]+/blueprint\\.json)$"
 	},
 	"additionalProperties": {
 		"$ref": "#/$defs/appCatalogEntry"

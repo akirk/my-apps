@@ -5,7 +5,7 @@
 - Requires at least: 5.0
 - Tested up to: 7.0
 - License: GPL-2.0-or-later
-- Stable tag: 1.3.0
+- Stable tag: 2.0.0
 
 A WordPress app launcher.
 
@@ -119,3 +119,16 @@ When the AI Assistant plugin is available, My Apps also registers domain hints s
    ![Adding an admin link](https://ps.w.org/my-apps/assets/screenshot-7.png)
 8. Adding a web link with a custom emoji, image URL, or Dashicon
    ![Adding a web link](https://ps.w.org/my-apps/assets/screenshot-8.png)
+
+## Changelog
+
+### 2.0.0
+
+- Turns My Apps into a fuller app launcher experience with an in-launcher settings window, app-level options, stronger hidden-app controls, app icon customization, custom launcher backgrounds, media library backgrounds, wallpaper presets, and first-run background randomization.
+- Adds a much more capable App Store workflow: paste custom Playground blueprints, test catalog changes from GitHub PRs, branches, commits, and dist branches, keep multiple pasted versions, revert to original catalog entries, browse improved App Store navigation, and uninstall installed plugins from My Apps.
+- Expands Playground into a first-class install and sharing environment with short install links, a Playground-only Update My Apps action, better install and update states, direct ZIP plugin sources, plugin ref pinning, improved non-Playground fallback behavior, and more reliable post-install refreshes.
+- Adds Desktop Mode support so My Apps and the App Store can open as native, chromeless Desktop Mode windows with desktop icons, generated icons, and install-completion handling tailored for that environment.
+- Adds AI Assistant and Abilities API integration for reading and changing launcher state, searching the App Store, discovering What can I do? guides, changing backgrounds, creating apps, editing app details and icons, and managing visibility and ordering.
+- Introduces What can I do? guide discovery and richer App Store data handling, including recipe search, Playground-safe recipe links, upstream blueprints source shortcuts, and JSON schemas for apps, plugins, recipes, and My Apps settings.
+- Refines simplified WordPress mode and first-run defaults by making root redirects a per-user setting, moving advanced WordPress links behind a reveal flow, removing automatic launcher item creation, and requiring plugins to opt into auto-added launcher icons with `launcher_url`.
+- Polishes launcher behavior and reliability across editing, installs, Desktop Mode, backgrounds, admin color integration, duplicate app prevention, App Store resets, PR overrides, plugin uninstall refreshes, and mobile/control hit areas.

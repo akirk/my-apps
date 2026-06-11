@@ -670,6 +670,7 @@ class My_Apps {
 		add_action( 'admin_head', array( $this, 'admin_bar_css' ), 50 );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 1 );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_new_content_menu' ), 100 );
+		add_action( 'admin_bar_menu', array( $this, 'admin_bar_wp_admin_menu' ), 998 );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_remove_nodes' ), 999 );
 		add_action( 'wp_footer', array( $this, 'admin_bar_quickadd_script' ) );
 		add_action( 'admin_footer', array( $this, 'admin_bar_quickadd_script' ) );
@@ -700,6 +701,8 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_save_wp_admin_links', array( $this, 'ajax_save_wp_admin_links' ) );
 		add_action( 'wp_ajax_my_apps_install_plugin', array( $this, 'ajax_install_plugin' ) );
 		add_action( 'wp_ajax_my_apps_uninstall_plugin', array( $this, 'ajax_uninstall_plugin' ) );
+		add_action( 'admin_post_my_apps_enable_full_wordpress_mode', array( $this, 'admin_post_enable_full_wordpress_mode' ) );
+		add_action( 'admin_post_my_apps_disable_full_wordpress_mode', array( $this, 'admin_post_disable_full_wordpress_mode' ) );
 	}
 
 	public function enqueue_styles() {
@@ -1987,6 +1990,117 @@ class My_Apps {
 	}
 
 	/**
+	 * Add a wp-admin link under the WordPress logo when full WordPress mode is off.
+	 *
+	 * @param mixed $wp_admin_bar The admin bar.
+	 */
+	public function admin_bar_wp_admin_menu( $wp_admin_bar ) {
+		$wp_admin_links_hidden = self::are_wp_admin_links_hidden();
+		if ( ! $wp_admin_bar->get_node( 'wp-logo' ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'read' ) ) {
+			return;
+		}
+		if ( ! $wp_admin_links_hidden && ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$wp_admin_bar->remove_node( 'my-apps-wp-admin' );
+		$wp_admin_bar->remove_node( 'my-apps-wp-admin-group' );
+		$wp_admin_bar->remove_node( 'my-apps-enable-full-wordpress-mode' );
+		$wp_admin_bar->remove_node( 'my-apps-disable-full-wordpress-mode' );
+
+		$wp_logo_children = array();
+		foreach ( $wp_admin_bar->get_nodes() as $node ) {
+			if ( 'wp-logo' !== $node->parent ) {
+				continue;
+			}
+			$wp_logo_children[] = (array) $node;
+			$wp_admin_bar->remove_node( $node->id );
+		}
+
+		$wp_admin_bar->add_group(
+			array(
+				'parent' => 'wp-logo',
+				'id'     => 'my-apps-wp-admin-group',
+				'meta'   => array(
+					'class' => 'ab-sub-secondary',
+				),
+			)
+		);
+		if ( $wp_admin_links_hidden ) {
+			$wp_admin_bar->add_node( $this->wp_admin_dashboard_node_args() );
+		}
+		if ( $wp_admin_links_hidden && current_user_can( 'manage_options' ) ) {
+			$wp_admin_bar->add_node( $this->full_wordpress_mode_node_args() );
+		} elseif ( current_user_can( 'manage_options' ) ) {
+			$wp_admin_bar->add_node( $this->simplified_wordpress_mode_node_args() );
+		}
+
+		foreach ( $wp_logo_children as $node ) {
+			$wp_admin_bar->add_node( $node );
+		}
+	}
+
+	/**
+	 * Get the Dashboard admin-bar node args.
+	 *
+	 * @return array
+	 */
+	private function wp_admin_dashboard_node_args() {
+		return array(
+			'parent' => 'my-apps-wp-admin-group',
+			'id'     => 'my-apps-wp-admin',
+			'title'  => __( 'Dashboard', 'my-apps' ),
+			'href'   => admin_url(),
+			'meta'   => array(
+				'title' => __( 'Open Dashboard', 'my-apps' ),
+			),
+		);
+	}
+
+	/**
+	 * Get the Full WordPress mode admin-bar node args.
+	 *
+	 * @return array
+	 */
+	private function full_wordpress_mode_node_args() {
+		return array(
+			'parent' => 'my-apps-wp-admin-group',
+			'id'     => 'my-apps-enable-full-wordpress-mode',
+			'title'  => __( 'Enable Full WordPress mode', 'my-apps' ),
+			'href'   => wp_nonce_url(
+				admin_url( 'admin-post.php?action=my_apps_enable_full_wordpress_mode' ),
+				'my_apps_enable_full_wordpress_mode'
+			),
+			'meta'   => array(
+				'title' => __( 'Show WordPress admin shortcuts and recommendations', 'my-apps' ),
+			),
+		);
+	}
+
+	/**
+	 * Get the simplified WordPress mode admin-bar node args.
+	 *
+	 * @return array
+	 */
+	private function simplified_wordpress_mode_node_args() {
+		return array(
+			'parent' => 'my-apps-wp-admin-group',
+			'id'     => 'my-apps-disable-full-wordpress-mode',
+			'title'  => __( 'Disable Full WordPress mode', 'my-apps' ),
+			'href'   => wp_nonce_url(
+				admin_url( 'admin-post.php?action=my_apps_disable_full_wordpress_mode' ),
+				'my_apps_disable_full_wordpress_mode'
+			),
+			'meta'   => array(
+				'title' => __( 'Hide WordPress admin shortcuts and recommendations', 'my-apps' ),
+			),
+		);
+	}
+
+	/**
 	 * Emit a tiny interceptor so clicking "+ New → App Icon" persists the
 	 * current screen as an app via AJAX, then redirects to the launcher.
 	 * On admin pages we resolve the current screen to the matching admin
@@ -3130,6 +3244,60 @@ class My_Apps {
 				'hide_wp_admin_links' => $enabled,
 			)
 		);
+	}
+
+	/**
+	 * Enable Full WordPress mode from the admin bar.
+	 */
+	public function admin_post_enable_full_wordpress_mode() {
+		check_admin_referer( 'my_apps_enable_full_wordpress_mode' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die(
+				esc_html__( 'Sorry, you are not allowed to do that.', 'my-apps' ),
+				'',
+				array(
+					'response' => 403,
+				)
+			);
+		}
+
+		update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, '0' );
+
+		$redirect = wp_get_referer();
+		if ( ! $redirect ) {
+			$redirect = home_url( '/my-apps/' );
+		}
+
+		wp_safe_redirect( $redirect );
+		exit;
+	}
+
+	/**
+	 * Disable Full WordPress mode from the admin bar.
+	 */
+	public function admin_post_disable_full_wordpress_mode() {
+		check_admin_referer( 'my_apps_disable_full_wordpress_mode' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die(
+				esc_html__( 'Sorry, you are not allowed to do that.', 'my-apps' ),
+				'',
+				array(
+					'response' => 403,
+				)
+			);
+		}
+
+		update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, '1' );
+
+		$redirect = wp_get_referer();
+		if ( ! $redirect ) {
+			$redirect = home_url( '/my-apps/' );
+		}
+
+		wp_safe_redirect( $redirect );
+		exit;
 	}
 
 	/**

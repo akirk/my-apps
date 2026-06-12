@@ -312,9 +312,10 @@ $is_app_store = isset( $_GET['app-store'] );
 		<button type="button" data-action="open-new"><?php esc_html_e( 'Open in New Tab', 'my-apps' ); ?></button>
 		<hr>
 		<button type="button" data-action="change-icon"><?php esc_html_e( 'Change Icon', 'my-apps' ); ?></button>
-		<button type="button" data-action="update" hidden><?php esc_html_e( 'Update', 'my-apps' ); ?></button>
 		<button type="button" data-action="hide"><?php esc_html_e( 'Hide', 'my-apps' ); ?></button>
 		<button type="button" data-action="move-front"><?php esc_html_e( 'Move to Front', 'my-apps' ); ?></button>
+		<hr class="context-update-separator" hidden>
+		<button type="button" data-action="update" hidden><?php esc_html_e( 'Update', 'my-apps' ); ?></button>
 		<hr class="context-delete-separator" hidden>
 		<button type="button" class="context-danger context-delete" data-action="delete" hidden>
 			<?php esc_html_e( 'Delete Shortcut', 'my-apps' ); ?>

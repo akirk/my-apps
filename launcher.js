@@ -1393,11 +1393,13 @@
 	}
 
 	function blueprintUpdateEntryFromBlueprint(path, app, blueprint, blueprintUrl) {
-		var launcherUrl = blueprint && blueprint.launcher_url;
+		var launcherUrl = blueprint && (blueprint.launcher_url || blueprint.landingPage);
 		if (!launcherUrl) return null;
 
 		app._path = path;
-		app._launcherUrl = launcherUrl;
+		if (blueprint.launcher_url) {
+			app._launcherUrl = blueprint.launcher_url;
+		}
 
 		return {
 			path: path,
@@ -1444,15 +1446,16 @@
 				.then(function(blueprint) {
 					var entry = blueprintUpdateEntryFromBlueprint(path, app, blueprint, blueprintUrl);
 					if (entry) {
-						console.log('[My Apps update] matched blueprint launcher URL', {
+						console.log('[My Apps update] matched blueprint update URL', {
 							path: path,
 							title: app.title,
-							launcherUrl: blueprint.launcher_url,
+							launcherUrl: blueprint.launcher_url || '',
+							landingPage: blueprint.landingPage || '',
 							normalizedLauncherUrl: entry.launcherUrl
 						});
 						entries[entry.launcherUrl] = entry;
 					} else {
-						console.log('[My Apps update] blueprint has no launcher_url', {
+						console.log('[My Apps update] blueprint has no launcher_url or landingPage', {
 							path: path,
 							title: app.title,
 							blueprintUrl: blueprintUrl

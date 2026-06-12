@@ -1414,12 +1414,22 @@
 			var app = data[path];
 			return app && app._type !== 'plugin';
 		});
+		console.log('[My Apps update] building blueprint update entries', {
+			appCount: paths.length,
+			hasAppStoreData: !!data
+		});
 
 		return Promise.all(paths.map(function(path) {
 			var app = data[path];
 			var blueprintUrl = getBlueprintUrl(path);
 
 			if (app._launcherUrl) {
+				console.log('[My Apps update] using cached launcher URL from app metadata', {
+					path: path,
+					title: app.title,
+					launcherUrl: app._launcherUrl,
+					normalizedLauncherUrl: normalizeLauncherMatchUrl(app._launcherUrl)
+				});
 				entries[normalizeLauncherMatchUrl(app._launcherUrl)] = {
 					path: path,
 					app: app,
@@ -1434,33 +1444,63 @@
 				.then(function(blueprint) {
 					var entry = blueprintUpdateEntryFromBlueprint(path, app, blueprint, blueprintUrl);
 					if (entry) {
+						console.log('[My Apps update] matched blueprint launcher URL', {
+							path: path,
+							title: app.title,
+							launcherUrl: blueprint.launcher_url,
+							normalizedLauncherUrl: entry.launcherUrl
+						});
 						entries[entry.launcherUrl] = entry;
+					} else {
+						console.log('[My Apps update] blueprint has no launcher_url', {
+							path: path,
+							title: app.title,
+							blueprintUrl: blueprintUrl
+						});
 					}
 					return null;
 				})
-				.catch(function() {
+				.catch(function(error) {
+					console.log('[My Apps update] failed to resolve blueprint', {
+						path: path,
+						title: app.title,
+						blueprintUrl: blueprintUrl,
+						error: error && error.message ? error.message : error
+					});
 					return null;
 				});
 		})).then(function() {
 			blueprintUpdateEntries = entries;
 			blueprintUpdateLookupPromise = null;
+			console.log('[My Apps update] blueprint update entries ready', {
+				entryCount: Object.keys(entries).length,
+				urls: Object.keys(entries)
+			});
 			return entries;
 		});
 	}
 
 	function ensureBlueprintUpdateEntries() {
 		if (blueprintUpdateEntries) {
+			console.log('[My Apps update] using cached blueprint update entries', {
+				entryCount: Object.keys(blueprintUpdateEntries).length
+			});
 			return Promise.resolve(blueprintUpdateEntries);
 		}
 		if (blueprintUpdateLookupPromise) {
+			console.log('[My Apps update] reusing in-flight blueprint update lookup');
 			return blueprintUpdateLookupPromise;
 		}
 
 		var dataPromise = appStoreData
 			? Promise.resolve(appStoreData)
 			: refreshAppStoreDataFromSources();
+		console.log('[My Apps update] starting blueprint update lookup', {
+			hasAppStoreData: !!appStoreData
+		});
 
 		blueprintUpdateLookupPromise = dataPromise.then(buildBlueprintUpdateEntries, function() {
+			console.log('[My Apps update] failed to load app store data for blueprint update lookup');
 			blueprintUpdateLookupPromise = null;
 			return {};
 		});
@@ -1476,10 +1516,28 @@
 	function findBlueprintUpdateEntry(url) {
 		if (!url) return Promise.resolve(null);
 		var cached = getCachedBlueprintUpdateEntry(url);
-		if (cached) return Promise.resolve(cached);
+		if (cached) {
+			console.log('[My Apps update] found cached blueprint update entry', {
+				url: url,
+				normalizedUrl: normalizeLauncherMatchUrl(url),
+				path: cached.path
+			});
+			return Promise.resolve(cached);
+		}
+		console.log('[My Apps update] looking up blueprint update entry', {
+			url: url,
+			normalizedUrl: normalizeLauncherMatchUrl(url)
+		});
 
 		return ensureBlueprintUpdateEntries().then(function(entries) {
-			return entries[normalizeLauncherMatchUrl(url)] || null;
+			var entry = entries[normalizeLauncherMatchUrl(url)] || null;
+			console.log('[My Apps update] blueprint update lookup result', {
+				url: url,
+				normalizedUrl: normalizeLauncherMatchUrl(url),
+				found: !!entry,
+				path: entry && entry.path
+			});
+			return entry;
 		});
 	}
 
@@ -3663,6 +3721,11 @@
 	function updatePluginApp(slug) {
 		var plugin = getUpdateableApp(slug);
 		var pluginSlug = plugin && plugin.pluginSlug;
+		console.log('[My Apps update] direct plugin update check', {
+			slug: slug,
+			hasPlugin: !!plugin,
+			pluginSlug: pluginSlug || ''
+		});
 		if (!slug || !pluginSlug) return false;
 
 		showToast(plugin.name ? 'Updating ' + plugin.name + '...' : 'Updating...');
@@ -3705,14 +3768,30 @@
 	function updateBlueprintApp(appIcon) {
 		if (!appIcon) return;
 
+		console.log('[My Apps update] blueprint update click', {
+			slug: appIcon.dataset.slug,
+			url: appIcon.dataset.url,
+			normalizedUrl: normalizeLauncherMatchUrl(appIcon.dataset.url)
+		});
 		showToast('Checking for app blueprint...');
 
 		findBlueprintUpdateEntry(appIcon.dataset.url)
 			.then(function(entry) {
 				if (!entry) {
+					console.log('[My Apps update] no blueprint update entry found on click', {
+						slug: appIcon.dataset.slug,
+						url: appIcon.dataset.url
+					});
 					showToast('Could not find this app in the App Store.');
 					return;
 				}
+				console.log('[My Apps update] reinstalling blueprint from context menu', {
+					slug: appIcon.dataset.slug,
+					path: entry.path,
+					blueprintUrl: entry.blueprintUrl,
+					hasResolvedBlueprint: !!entry.blueprint,
+					isPlayground: isPlayground
+				});
 
 				var btn = contextUpdateButton();
 				if (isPlayground) {
@@ -4829,6 +4908,15 @@
 		var deleteBtn = contextMenu.querySelector('[data-action="delete"]');
 		var uninstallBtn = contextMenu.querySelector('[data-action="uninstall"]');
 		var separator = contextMenu.querySelector('.context-delete-separator');
+		console.log('[My Apps update] context menu update check', {
+			slug: slug,
+			targetUrl: targetUrl,
+			normalizedUrl: normalizeLauncherMatchUrl(targetUrl),
+			canUpdatePlugin: canUpdate,
+			hasCachedBlueprintUpdate: !!cachedBlueprintUpdate,
+			canDelete: canDelete,
+			canUninstall: canUninstall
+		});
 
 		if (updateBtn) {
 			updateBtn.hidden = !canUpdate && !cachedBlueprintUpdate;
@@ -4845,6 +4933,12 @@
 
 		if (!canUpdate && targetUrl) {
 			findBlueprintUpdateEntry(targetUrl).then(function(entry) {
+				console.log('[My Apps update] async context menu blueprint result', {
+					slug: slug,
+					targetUrl: targetUrl,
+					found: !!entry,
+					path: entry && entry.path
+				});
 				if (
 					!entry ||
 					!contextTarget ||

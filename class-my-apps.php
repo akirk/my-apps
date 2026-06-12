@@ -2589,6 +2589,7 @@ class My_Apps {
 				'deletableSlugs'            => self::normalize_app_slug_list( array_keys( get_option( 'my_apps_additional_apps', array() ) ) ),
 				'appUrls'                   => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'          => self::get_installed_plugin_statuses(),
+				'updateableApps'            => self::get_launcher_updateable_plugin_apps(),
 				'uninstallablePlugins'      => self::get_uninstallable_plugins(),
 				'uninstallableApps'         => self::get_launcher_uninstallable_plugin_apps(),
 				'background'                => $background_state['slug'],
@@ -2908,6 +2909,59 @@ class My_Apps {
 		}
 
 		return $statuses;
+	}
+
+	/**
+	 * Get launcher apps backed by installed plugins with available updates.
+	 *
+	 * @return object
+	 */
+	private static function get_launcher_updateable_plugin_apps() {
+		if ( ! current_user_can( 'update_plugins' ) ) {
+			return (object) array();
+		}
+
+		$statuses   = self::get_installed_plugin_statuses();
+		$updateable = array();
+
+		foreach ( self::get_apps() as $app_slug => $app ) {
+			$app_slug    = self::normalize_app_slug( $app_slug );
+			$plugin_slug = '';
+
+			if ( '' === $app_slug || empty( $app['plugin'] ) || ! is_array( $app['plugin'] ) ) {
+				continue;
+			}
+
+			if ( ! empty( $app['plugin']['source'] ) && 'wp.org' !== $app['plugin']['source'] ) {
+				continue;
+			}
+
+			if ( ! empty( $app['plugin']['slug'] ) ) {
+				$plugin_slug = sanitize_key( (string) $app['plugin']['slug'] );
+			}
+
+			if ( '' === $plugin_slug && ! empty( $app['plugin']['plugin_file'] ) ) {
+				$plugin_slug = self::plugin_slug_from_file( $app['plugin']['plugin_file'] );
+			}
+
+			if ( '' === $plugin_slug ) {
+				$plugin_slug = $app_slug;
+			}
+
+			if ( empty( $statuses[ $plugin_slug ]['updateAvailable'] ) ) {
+				continue;
+			}
+
+			$updateable[ $app_slug ] = array(
+				'plugin'     => isset( $statuses[ $plugin_slug ]['plugin'] ) ? $statuses[ $plugin_slug ]['plugin'] : '',
+				'pluginSlug' => $plugin_slug,
+				'name'       => isset( $statuses[ $plugin_slug ]['name'] ) ? $statuses[ $plugin_slug ]['name'] : $plugin_slug,
+				'version'    => isset( $statuses[ $plugin_slug ]['version'] ) ? $statuses[ $plugin_slug ]['version'] : '',
+				'newVersion' => isset( $statuses[ $plugin_slug ]['newVersion'] ) ? $statuses[ $plugin_slug ]['newVersion'] : '',
+			);
+		}
+
+		return (object) $updateable;
 	}
 
 	/**

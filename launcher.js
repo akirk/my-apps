@@ -40,6 +40,8 @@
 	let isEditMode = false;
 	let adminMenuData = null;
 	let appStoreData = null;
+	let blueprintUpdateEntries = null;
+	let blueprintUpdateLookupPromise = null;
 	let sortable = null;
 	let bgMediaFrame = null;
 	let contextTarget = null;
@@ -499,6 +501,8 @@
 
 	function resetBlueprintsSourceCatalogState() {
 		appStoreData = null;
+		blueprintUpdateEntries = null;
+		blueprintUpdateLookupPromise = null;
 		recipes = {};
 		hasRecipes = false;
 		recipesLoadState = 'idle';
@@ -1133,6 +1137,20 @@
 		return apps[String(slug || '')] || null;
 	}
 
+	function getUpdateableApp(slug) {
+		var apps = myAppsConfig.updateableApps || {};
+		if (!apps || typeof apps !== 'object' || Array.isArray(apps)) return null;
+
+		return apps[String(slug || '')] || null;
+	}
+
+	function forgetUpdateableApp(slug) {
+		var apps = myAppsConfig.updateableApps || {};
+		if (!apps || typeof apps !== 'object' || Array.isArray(apps)) return;
+
+		delete apps[String(slug || '')];
+	}
+
 	function forgetUninstallableApp(slug) {
 		var apps = myAppsConfig.uninstallableApps || {};
 		if (!apps || typeof apps !== 'object' || Array.isArray(apps)) return;
@@ -1368,6 +1386,101 @@
 			}
 		}
 		return fetch(blueprintUrl).then(function(res) { return res.json(); });
+	}
+
+	function normalizeLauncherMatchUrl(url) {
+		return normalizeAppUrl(absoluteLauncherUrl(url));
+	}
+
+	function blueprintUpdateEntryFromBlueprint(path, app, blueprint, blueprintUrl) {
+		var launcherUrl = blueprint && blueprint.launcher_url;
+		if (!launcherUrl) return null;
+
+		app._path = path;
+		app._launcherUrl = launcherUrl;
+
+		return {
+			path: path,
+			app: app,
+			blueprint: blueprint,
+			blueprintUrl: blueprintUrl,
+			launcherUrl: normalizeLauncherMatchUrl(launcherUrl)
+		};
+	}
+
+	function buildBlueprintUpdateEntries(data) {
+		var entries = {};
+		var paths = Object.keys(data || {}).filter(function(path) {
+			var app = data[path];
+			return app && app._type !== 'plugin';
+		});
+
+		return Promise.all(paths.map(function(path) {
+			var app = data[path];
+			var blueprintUrl = getBlueprintUrl(path);
+
+			if (app._launcherUrl) {
+				entries[normalizeLauncherMatchUrl(app._launcherUrl)] = {
+					path: path,
+					app: app,
+					blueprint: null,
+					blueprintUrl: blueprintUrl,
+					launcherUrl: normalizeLauncherMatchUrl(app._launcherUrl)
+				};
+				return null;
+			}
+
+			return resolveBlueprintFromUrl(blueprintUrl)
+				.then(function(blueprint) {
+					var entry = blueprintUpdateEntryFromBlueprint(path, app, blueprint, blueprintUrl);
+					if (entry) {
+						entries[entry.launcherUrl] = entry;
+					}
+					return null;
+				})
+				.catch(function() {
+					return null;
+				});
+		})).then(function() {
+			blueprintUpdateEntries = entries;
+			blueprintUpdateLookupPromise = null;
+			return entries;
+		});
+	}
+
+	function ensureBlueprintUpdateEntries() {
+		if (blueprintUpdateEntries) {
+			return Promise.resolve(blueprintUpdateEntries);
+		}
+		if (blueprintUpdateLookupPromise) {
+			return blueprintUpdateLookupPromise;
+		}
+
+		var dataPromise = appStoreData
+			? Promise.resolve(appStoreData)
+			: refreshAppStoreDataFromSources();
+
+		blueprintUpdateLookupPromise = dataPromise.then(buildBlueprintUpdateEntries, function() {
+			blueprintUpdateLookupPromise = null;
+			return {};
+		});
+
+		return blueprintUpdateLookupPromise;
+	}
+
+	function getCachedBlueprintUpdateEntry(url) {
+		if (!blueprintUpdateEntries || !url) return null;
+		return blueprintUpdateEntries[normalizeLauncherMatchUrl(url)] || null;
+	}
+
+	function findBlueprintUpdateEntry(url) {
+		if (!url) return Promise.resolve(null);
+		var cached = getCachedBlueprintUpdateEntry(url);
+		if (cached) return Promise.resolve(cached);
+
+		return ensureBlueprintUpdateEntries().then(function(entries) {
+			return entries[normalizeLauncherMatchUrl(url)] || null;
+		});
 	}
 
 	function encodeBlueprintDataUrl(blueprint) {
@@ -3547,6 +3660,83 @@
 		uninstallPlugin(plugin, formData, options);
 	}
 
+	function updatePluginApp(slug) {
+		var plugin = getUpdateableApp(slug);
+		var pluginSlug = plugin && plugin.pluginSlug;
+		if (!slug || !pluginSlug) return false;
+
+		showToast(plugin.name ? 'Updating ' + plugin.name + '...' : 'Updating...');
+
+		installWpOrgPluginOnHost(pluginSlug)
+			.then(function(result) {
+				rememberInstalledPlugin(pluginSlug, result);
+				forgetUpdateableApp(slug);
+				return completeInstalledBlueprint({
+					app: null,
+					blueprint: null,
+					btn: null,
+					desktopMode: shouldUseDesktopModeAppStoreInstallFlow()
+				}).then(function() {
+					return result;
+				});
+			})
+			.then(function(result) {
+				if (result.updated) {
+					showToast('Updated');
+				} else {
+					showToast('Already up to date');
+				}
+			})
+			.catch(function(error) {
+				showToast(error && error.message ? error.message : 'Update failed');
+			});
+
+		return true;
+	}
+
+	function contextUpdateButton() {
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.dataset.defaultLabel = 'Update';
+		btn.textContent = 'Update';
+		return btn;
+	}
+
+	function updateBlueprintApp(appIcon) {
+		if (!appIcon) return;
+
+		showToast('Checking for app blueprint...');
+
+		findBlueprintUpdateEntry(appIcon.dataset.url)
+			.then(function(entry) {
+				if (!entry) {
+					showToast('Could not find this app in the App Store.');
+					return;
+				}
+
+				var btn = contextUpdateButton();
+				if (isPlayground) {
+					if (entry.blueprint) {
+						installResolvedBlueprintInPlayground(entry.app, entry.blueprint, entry.blueprintUrl, btn);
+					} else {
+						installBlueprintInPlayground(entry.app, entry.blueprintUrl, btn);
+					}
+					return;
+				}
+
+				installBlueprintOnHost(entry.app, entry.blueprintUrl, null, btn);
+			})
+			.catch(function(error) {
+				showToast(error && error.message ? error.message : 'Update failed');
+			});
+	}
+
+	function updateContextApp(appIcon) {
+		if (!appIcon) return;
+		if (updatePluginApp(appIcon.dataset.slug)) return;
+		updateBlueprintApp(appIcon);
+	}
+
 	function uninstallPluginBySlug(slug, options) {
 		options = options || {};
 		var plugin = getUninstallablePlugin(slug);
@@ -4630,12 +4820,19 @@
 	}
 
 	function updateContextMenuActions(slug) {
+		var canUpdate = !!getUpdateableApp(slug);
+		var targetUrl = contextTarget && contextTarget.dataset ? contextTarget.dataset.url : '';
+		var cachedBlueprintUpdate = getCachedBlueprintUpdateEntry(targetUrl);
 		var canDelete = isDeletableSlug(slug);
 		var canUninstall = !!getUninstallableApp(slug);
+		var updateBtn = contextMenu.querySelector('[data-action="update"]');
 		var deleteBtn = contextMenu.querySelector('[data-action="delete"]');
 		var uninstallBtn = contextMenu.querySelector('[data-action="uninstall"]');
 		var separator = contextMenu.querySelector('.context-delete-separator');
 
+		if (updateBtn) {
+			updateBtn.hidden = !canUpdate && !cachedBlueprintUpdate;
+		}
 		if (deleteBtn) {
 			deleteBtn.hidden = !canDelete;
 		}
@@ -4646,7 +4843,27 @@
 			separator.hidden = !canDelete && !canUninstall;
 		}
 
-		return canDelete || canUninstall;
+		if (!canUpdate && targetUrl) {
+			findBlueprintUpdateEntry(targetUrl).then(function(entry) {
+				if (
+					!entry ||
+					!contextTarget ||
+					!contextTarget.dataset ||
+					contextTarget.dataset.url !== targetUrl ||
+					!contextMenu.classList.contains('active')
+				) {
+					return;
+				}
+				if (updateBtn) {
+					updateBtn.hidden = false;
+				}
+				var menuHeight = 250 + (canDelete || canUninstall ? 90 : 0);
+				var currentTop = parseInt(contextMenu.style.top, 10) || 8;
+				contextMenu.style.top = Math.max(8, Math.min(currentTop, window.innerHeight - menuHeight)) + 'px';
+			});
+		}
+
+		return 210 + (canUpdate || cachedBlueprintUpdate ? 40 : 0) + (canDelete || canUninstall ? 90 : 0);
 	}
 
 	function handleContextMenu(e) {
@@ -4655,8 +4872,7 @@
 
 		e.preventDefault();
 		contextTarget = appIcon;
-		var hasDestructiveAction = updateContextMenuActions(appIcon.dataset.slug);
-		var menuHeight = hasDestructiveAction ? 300 : 210;
+		var menuHeight = updateContextMenuActions(appIcon.dataset.slug);
 
 		var x = Math.max(8, Math.min(e.clientX, window.innerWidth - 160));
 		var y = Math.max(8, Math.min(e.clientY, window.innerHeight - menuHeight));
@@ -4687,6 +4903,9 @@
 				break;
 			case 'change-icon':
 				openIconEditModal(contextTarget);
+				break;
+			case 'update':
+				updateContextApp(contextTarget);
 				break;
 			case 'hide':
 				hideApp(slug, contextTarget);

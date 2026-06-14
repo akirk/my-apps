@@ -1451,6 +1451,9 @@
 	}
 
 	function ensureBlueprintUpdateEntries() {
+		if (!isPlayground) {
+			return Promise.resolve({});
+		}
 		if (blueprintUpdateEntries) {
 			return Promise.resolve(blueprintUpdateEntries);
 		}
@@ -1471,11 +1474,13 @@
 	}
 
 	function getCachedBlueprintUpdateEntry(url) {
+		if (!isPlayground) return null;
 		if (!blueprintUpdateEntries || !url) return null;
 		return blueprintUpdateEntries[normalizeLauncherMatchUrl(url)] || null;
 	}
 
 	function findBlueprintUpdateEntry(url) {
+		if (!isPlayground) return Promise.resolve(null);
 		if (!url) return Promise.resolve(null);
 		var cached = getCachedBlueprintUpdateEntry(url);
 		if (cached) {
@@ -3708,6 +3713,7 @@
 
 	function updateBlueprintApp(appIcon) {
 		if (!appIcon) return;
+		if (!isPlayground) return;
 
 		showToast('Checking for app blueprint...');
 
@@ -3719,16 +3725,11 @@
 				}
 
 				var btn = contextUpdateButton();
-				if (isPlayground) {
-					if (entry.blueprint) {
-						installResolvedBlueprintInPlayground(entry.app, entry.blueprint, entry.blueprintUrl, btn);
-					} else {
-						installBlueprintInPlayground(entry.app, entry.blueprintUrl, btn);
-					}
-					return;
+				if (entry.blueprint) {
+					installResolvedBlueprintInPlayground(entry.app, entry.blueprint, entry.blueprintUrl, btn);
+				} else {
+					installBlueprintInPlayground(entry.app, entry.blueprintUrl, btn);
 				}
-
-				installBlueprintOnHost(entry.app, entry.blueprintUrl, null, btn);
 			})
 			.catch(function(error) {
 				showToast(error && error.message ? error.message : 'Update failed');
@@ -3738,6 +3739,7 @@
 	function updateContextApp(appIcon) {
 		if (!appIcon) return;
 		if (updatePluginApp(appIcon.dataset.slug)) return;
+		if (!isPlayground) return;
 		updateBlueprintApp(appIcon);
 	}
 
@@ -4826,7 +4828,7 @@
 	function updateContextMenuActions(slug) {
 		var canUpdate = !!getUpdateableApp(slug);
 		var targetUrl = contextTarget && contextTarget.dataset ? contextTarget.dataset.url : '';
-		var cachedBlueprintUpdate = getCachedBlueprintUpdateEntry(targetUrl);
+		var cachedBlueprintUpdate = isPlayground ? getCachedBlueprintUpdateEntry(targetUrl) : null;
 		var canDelete = isDeletableSlug(slug);
 		var canUninstall = !!getUninstallableApp(slug);
 		var updateBtn = contextMenu.querySelector('[data-action="update"]');
@@ -4851,7 +4853,7 @@
 			separator.hidden = !canDelete && !canUninstall;
 		}
 
-		if (!canUpdate && targetUrl) {
+		if (isPlayground && !canUpdate && targetUrl) {
 			findBlueprintUpdateEntry(targetUrl).then(function(entry) {
 				if (
 					!entry ||

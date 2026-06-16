@@ -209,7 +209,7 @@
 		value = (value || '').trim();
 		if (!value) return null;
 
-		var match = value.match(/^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)(?:[\/?#].*)?$/i);
+		var match = value.match(/^(?:https:\/\/github\.com\/)?([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)(?:[\/?#].*)?$/i);
 		if (!match) return null;
 
 		var baseRepo = match[1] + '/' + match[2].replace(/\.git$/i, '');
@@ -230,13 +230,13 @@
 		value = (value || '').trim();
 		if (!value) return null;
 
-		var match = value.match(/^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/commit\/([0-9a-f]{7,40})(?:[\/?#].*)?$/i);
+		var match = value.match(/^(?:https:\/\/github\.com\/)?([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/commit\/([0-9a-f]{7,40})(?:[\/?#].*)?$/i);
 		var prNumber = '';
 		var sha = '';
 		if (match) {
 			sha = match[3].toLowerCase();
 		} else {
-			match = value.match(/^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)\/(?:changes|commits)\/([0-9a-f]{7,40})(?:[\/?#].*)?$/i);
+			match = value.match(/^(?:https:\/\/github\.com\/)?([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)\/(?:changes|commits)\/([0-9a-f]{7,40})(?:[\/?#].*)?$/i);
 			if (!match) return null;
 			prNumber = match[3];
 			sha = match[4].toLowerCase();
@@ -7287,14 +7287,42 @@
 		}
 	}
 
-	function handleBlueprintSearchInput(e) {
-		var value = appStoreSearchInput.value || '';
-		if (e && e.inputType === 'insertFromPaste' && importBlueprintsSourceText(value)) {
+	function isExplicitGithubUrl(value) {
+		return /^https:\/\/github\.com\//i.test(String(value || '').trim());
+	}
+
+	function isGithubReferenceSearchValue(value) {
+		value = String(value || '').trim();
+		return isExplicitGithubUrl(value) ||
+			/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(?:pull\/\d+(?:\/(?:changes|commits)\/[0-9a-f]{7,40})?|commit\/[0-9a-f]{7,40})(?:[\/?#].*)?$/i.test(value);
+	}
+
+	function importGithubSearchValue(value, allowShorthandSource) {
+		value = String(value || '').trim();
+		if (!value) return false;
+
+		var source = normalizeBlueprintsSourceInput(value);
+		if (
+			source &&
+			source.baseUrl &&
+			(allowShorthandSource || isExplicitGithubUrl(value) || /^https:\/\/raw\.githubusercontent\.com\//i.test(value))
+		) {
+			applyBlueprintsSource(source);
 			appStoreSearchInput.value = '';
 			return true;
 		}
-		if (e && e.inputType === 'insertFromPaste' && importGithubReferenceText(value)) {
+
+		if (isGithubReferenceSearchValue(value) && importGithubReferenceText(value)) {
 			appStoreSearchInput.value = '';
+			return true;
+		}
+
+		return false;
+	}
+
+	function handleBlueprintSearchInput(e) {
+		var value = appStoreSearchInput.value || '';
+		if (importGithubSearchValue(value, !!(e && e.inputType === 'insertFromPaste'))) {
 			return true;
 		}
 

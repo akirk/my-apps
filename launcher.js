@@ -1220,6 +1220,7 @@
 			forgetAppUrl(visibleApp.dataset.url);
 			visibleApp.remove();
 		}
+		updateLauncherGroups();
 	}
 
 	function refreshLauncherAfterPluginUninstall(visibleApp) {
@@ -2819,6 +2820,7 @@
 					var newApp = createAppElement(data.data);
 					var addBtn = document.querySelector('.add-app-btn');
 					container.insertBefore(newApp, addBtn);
+					updateLauncherGroups();
 				} else if (data.data && data.data.url) {
 					rememberAppUrl(data.data.url);
 				}
@@ -2898,6 +2900,7 @@
 			filter: '.add-app-btn',
 			disabled: true,
 			onEnd: function() {
+				updateLauncherGroups();
 				if (isEditMode) {
 					saveOrder();
 				}
@@ -3490,8 +3493,8 @@
 				var item = e.target.closest('.settings-dropdown-item');
 				if (!item) return;
 				var action = item.dataset.action;
-				if (action === 'layout-flow' || action === 'layout-grid') {
-					setLayout(action === 'layout-grid' ? 'grid' : 'flow');
+				if (action === 'layout-flow' || action === 'layout-grid' || action === 'layout-list') {
+					setLayout(action.replace('layout-', ''));
 				} else {
 					settingsDropdown.classList.remove('active');
 					if (action === 'open-settings') {
@@ -3599,6 +3602,7 @@
 					var newApp = createAppElement(app);
 					var addBtn = document.querySelector('.add-app-btn');
 					container.insertBefore(newApp, addBtn);
+					updateLauncherGroups();
 				} else if (app && app.url) {
 					rememberAppUrl(app.url);
 				}
@@ -4547,6 +4551,7 @@
 					container.appendChild(appEl);
 				}
 			});
+			updateLauncherGroups();
 		}
 
 		if (hiddenAppsList) {
@@ -4670,12 +4675,13 @@
 	}
 
 	function setLayout(mode) {
+		if (mode !== 'grid' && mode !== 'list') {
+			mode = 'flow';
+		}
 		if (container) {
-			if (mode === 'grid') {
-				container.classList.add('layout-grid');
-			} else {
-				container.classList.remove('layout-grid');
-			}
+			container.classList.toggle('layout-grid', mode === 'grid');
+			container.classList.toggle('layout-list', mode === 'list');
+			updateLauncherGroups();
 		}
 		saveDisplay('layout', mode);
 		updateLayoutButtons();
@@ -4694,6 +4700,8 @@
 				item.classList.toggle('active', mode === 'flow');
 			} else if (item.dataset.action === 'layout-grid') {
 				item.classList.toggle('active', mode === 'grid');
+			} else if (item.dataset.action === 'layout-list') {
+				item.classList.toggle('active', mode === 'list');
 			}
 		});
 		var gridOnly = document.getElementById('settings-grid-only');
@@ -4712,12 +4720,128 @@
 		container.style.setProperty('--app-gap', gap + 'px');
 	}
 
+	var LAUNCHER_GROUP_ORDER = ['Pinned', 'Create', 'Content', 'Customize', 'Manage', 'Settings', 'Tools', 'Explore', 'Links', 'Apps'];
+
+	function inferLauncherGroup(appEl) {
+		if (!appEl || appEl.classList.contains('add-app-btn')) {
+			return 'Apps';
+		}
+
+		var slug = (appEl.dataset.slug || '').toLowerCase();
+		var titleEl = appEl.querySelector('.app-title');
+		var title = titleEl ? titleEl.textContent.toLowerCase() : '';
+		var url = appEl.dataset.url || '';
+		var parsed = null;
+
+		try {
+			parsed = new URL(url, window.location.href);
+		} catch (e) {
+			parsed = null;
+		}
+
+		if (!parsed) {
+			return 'Apps';
+		}
+
+		var sameOrigin = parsed.origin === window.location.origin;
+		var path = parsed.pathname.toLowerCase();
+		var query = parsed.search.toLowerCase();
+		var target = path + query;
+
+		if (!sameOrigin) {
+			return 'Links';
+		}
+		if (target.indexOf('/my-apps/') !== -1 || slug.indexOf('what_can_i_do') !== -1 || title.indexOf('what can i do') !== -1) {
+			return 'Explore';
+		}
+		if (target.indexOf('post-new.php') !== -1 || target.indexOf('site-editor.php?posttype=wp_template') !== -1) {
+			return 'Create';
+		}
+		if (
+			target.indexOf('edit.php') !== -1 ||
+			target.indexOf('upload.php') !== -1 ||
+			target.indexOf('edit-comments.php') !== -1
+		) {
+			return 'Content';
+		}
+		if (
+			target.indexOf('themes.php') !== -1 ||
+			target.indexOf('customize.php') !== -1 ||
+			target.indexOf('site-editor.php') !== -1 ||
+			target.indexOf('widgets.php') !== -1 ||
+			target.indexOf('nav-menus.php') !== -1
+		) {
+			return 'Customize';
+		}
+		if (
+			target.indexOf('users.php') !== -1 ||
+			target.indexOf('user-new.php') !== -1 ||
+			target.indexOf('plugins.php') !== -1 ||
+			target.indexOf('plugin-install.php') !== -1 ||
+			target.indexOf('update-core.php') !== -1
+		) {
+			return 'Manage';
+		}
+		if (target.indexOf('options-') !== -1 || target.indexOf('settings') !== -1) {
+			return 'Settings';
+		}
+		if (target.indexOf('tools.php') !== -1 || target.indexOf('export.php') !== -1 || target.indexOf('import.php') !== -1) {
+			return 'Tools';
+		}
+
+		return 'Apps';
+	}
+
+	function launcherGroupOrder(group) {
+		var idx = LAUNCHER_GROUP_ORDER.indexOf(group);
+		return idx === -1 ? LAUNCHER_GROUP_ORDER.length : idx;
+	}
+
+	function updateLauncherGroups() {
+		if (!container) return;
+
+		var apps = Array.prototype.slice.call(container.querySelectorAll('.app-icon:not(.add-app-btn)'));
+		var seenGroups = {};
+
+		apps.forEach(function(appEl, index) {
+			var group = inferLauncherGroup(appEl);
+			appEl.dataset.group = group;
+			appEl.classList.remove('group-start');
+			appEl.style.order = container.classList.contains('layout-list')
+				? String((launcherGroupOrder(group) * 1000) + index)
+				: '';
+		});
+
+		apps
+			.slice()
+			.sort(function(a, b) {
+				var orderA = parseInt(a.style.order || '0', 10);
+				var orderB = parseInt(b.style.order || '0', 10);
+				return orderA - orderB;
+			})
+			.forEach(function(appEl) {
+				var group = appEl.dataset.group || 'Apps';
+				if (seenGroups[group]) return;
+				seenGroups[group] = true;
+				appEl.classList.add('group-start');
+			});
+
+		var addButton = container.querySelector('.add-app-btn');
+		if (addButton) {
+			addButton.dataset.group = 'Apps';
+			addButton.classList.remove('group-start');
+			addButton.style.order = container.classList.contains('layout-list')
+				? String((launcherGroupOrder('Apps') * 1000) + apps.length + 1)
+				: '';
+		}
+	}
+
 	// Restore settings on load
 	(function() {
 		if (!container) return;
-		if (displaySettings.layout === 'grid') {
-			container.classList.add('layout-grid');
-		}
+		container.classList.toggle('layout-grid', displaySettings.layout === 'grid');
+		container.classList.toggle('layout-list', displaySettings.layout === 'list');
+		updateLauncherGroups();
 		if (displaySettings.grid_columns) applyGridColumns(displaySettings.grid_columns);
 		if (displaySettings.icon_size) applyAppSize(displaySettings.icon_size);
 		if (displaySettings.spacing) applySpacing(displaySettings.spacing);
@@ -4925,6 +5049,7 @@
 				break;
 			case 'move-front':
 				container.insertBefore(contextTarget, container.firstChild);
+				updateLauncherGroups();
 				saveOrder();
 				break;
 			case 'delete':
@@ -4980,6 +5105,7 @@
 		element.classList.add('hiding');
 		setTimeout(function() {
 			element.remove();
+			updateLauncherGroups();
 			saveHidden(slug);
 			addToHiddenList(slug, appName, iconHtml);
 		}, 300);
@@ -5203,6 +5329,7 @@
 		} else {
 			container.appendChild(newApp);
 		}
+		updateLauncherGroups();
 		rememberAppUrl(app.url);
 		return highlightAppElement(newApp);
 	}

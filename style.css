@@ -428,6 +428,16 @@ body.my-apps-launcher .wallpaper-hint-close:focus-visible {
 	}
 }
 
+.apps-container.layout-list {
+	display: grid;
+	grid-template-columns: minmax(0, 760px);
+	justify-content: center;
+	gap: 6px;
+	max-width: 820px;
+	margin: 0 auto;
+	padding-top: 24px;
+}
+
 /* App Icon */
 .app-icon {
 	width: calc(var(--app-size, 60px) + 30px);
@@ -547,6 +557,111 @@ svg.app-letter-icon.app-letter-icon-small {
 	max-height: 2lh;
 }
 
+.apps-container.layout-list .app-icon {
+	width: auto;
+	padding: 0;
+	border-radius: 8px;
+	text-align: left;
+	transition: opacity 0.3s, transform 0.15s;
+}
+
+.apps-container.layout-list .app-icon:hover {
+	transform: none;
+}
+
+.apps-container.layout-list .app-icon.group-start::before {
+	content: attr(data-group);
+	display: block;
+	margin: 18px 2px 6px;
+	color: var(--ma-launcher-fg);
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.2;
+	opacity: 0.78;
+	text-shadow: var(--ma-launcher-text-shadow);
+}
+
+.apps-container.layout-list .app-link {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 58px;
+	padding: 8px 12px;
+	border: 1px solid var(--ma-launcher-soft-border);
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--ma-launcher-soft-bg) 82%, transparent);
+	box-sizing: border-box;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.apps-container.layout-list .app-icon:hover .app-link,
+.apps-container.layout-list .app-icon.sortable-chosen .app-link {
+	background: var(--ma-launcher-toolbar-bg-hover);
+	border-color: var(--ma-launcher-muted-border);
+}
+
+.apps-container.layout-list .app-icon img,
+.apps-container.layout-list .app-icon div.dashicons,
+.apps-container.layout-list .app-gradient-icon,
+.apps-container.layout-list svg.app-letter-icon {
+	flex: 0 0 40px;
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	margin: 0;
+}
+
+.apps-container.layout-list .app-icon div.dashicons {
+	font-size: 27px;
+	line-height: 40px;
+}
+
+.apps-container.layout-list .app-gradient-icon-letter {
+	font-size: 21px;
+}
+
+.apps-container.layout-list .app-icon .emoji {
+	flex: 0 0 40px;
+	width: 40px;
+	height: 40px;
+	font-size: 32px;
+	line-height: 40px;
+	text-align: center;
+}
+
+.apps-container.layout-list .app-title {
+	min-width: 0;
+	min-height: 0;
+	max-height: none;
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.25;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	word-break: normal;
+	overflow-wrap: normal;
+}
+
+.apps-container.layout-list .app-link::after {
+	content: "";
+	flex: 0 0 8px;
+	width: 8px;
+	height: 8px;
+	margin-left: auto;
+	border-top: 2px solid currentColor;
+	border-right: 2px solid currentColor;
+	color: var(--ma-launcher-fg);
+	opacity: 0.48;
+	transform: rotate(45deg);
+}
+
+.apps-container.layout-list .hide-btn {
+	top: 26px;
+	left: -8px;
+}
+
 /* Hide Button */
 .hide-btn {
 	position: absolute;
@@ -642,6 +757,10 @@ body.edit-mode .app-icon.sortable-chosen {
 	animation: none;
 }
 
+body.edit-mode .apps-container.layout-list .app-icon:not(.add-app-btn) {
+	animation: none;
+}
+
 /* Add App Button */
 .add-app-btn {
 	opacity: 0.6;
@@ -687,6 +806,30 @@ body.edit-mode .app-icon.sortable-chosen {
 body.edit-mode .add-app-btn {
 	animation: none;
 	opacity: 1;
+}
+
+.apps-container.layout-list .add-app-btn {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 58px;
+	padding: 8px 12px;
+	border: 1px dashed var(--ma-launcher-soft-border);
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--ma-launcher-soft-bg) 58%, transparent);
+	box-sizing: border-box;
+}
+
+.apps-container.layout-list .add-app-btn:hover {
+	background: var(--ma-launcher-toolbar-bg-hover);
+}
+
+.apps-container.layout-list .add-icon {
+	flex: 0 0 40px;
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	margin: 0;
 }
 
 /* App Store Modal */

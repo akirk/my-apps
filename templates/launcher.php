@@ -74,6 +74,10 @@ $is_app_store = isset( $_GET['app-store'] );
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
 					<?php esc_html_e( 'Grid', 'my-apps' ); ?>
 				</button>
+				<button type="button" class="settings-dropdown-item" data-action="layout-list">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5h3v3H4zm5 .5h11v2H9zM4 10.5h3v3H4zM9 11h11v2H9zM4 16h3v3H4zm5 .5h11v2H9z"/></svg>
+					<?php esc_html_e( 'List', 'my-apps' ); ?>
+				</button>
 				<div class="settings-grid-only" id="settings-grid-only">
 					<div class="settings-dropdown-section"><?php esc_html_e( 'Columns', 'my-apps' ); ?> <span id="grid-columns-value"></span></div>
 					<div class="settings-dropdown-slider">

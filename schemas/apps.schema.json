@@ -30,6 +30,10 @@
 				"author": {
 					"type": "string"
 				},
+				"icon": {
+					"type": "string",
+					"description": "Optional App Store icon. Supports http(s) URLs, root-relative paths, image data URIs, Dashicon class names, or short text/emoji icons."
+				},
 				"categories": {
 					"type": "array",
 					"items": {

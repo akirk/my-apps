@@ -3160,6 +3160,56 @@
 		parent.appendChild(letter);
 	}
 
+	function normalizeAppStoreIcon(icon) {
+		icon = String(icon || '').trim();
+		if (!icon) return null;
+
+		if (/^(https?:)?\/\//i.test(icon) || icon.charAt(0) === '/' || /^data:image\//i.test(icon)) {
+			return { type: 'image', value: icon };
+		}
+
+		if (/^dashicons-[a-z0-9-]+$/i.test(icon)) {
+			return { type: 'dashicon', value: icon };
+		}
+
+		if (icon.length <= 8) {
+			return { type: 'text', value: icon };
+		}
+
+		return null;
+	}
+
+	function appendAppStoreIcon(parent, app, name, gradient) {
+		var icon = normalizeAppStoreIcon(app && (app._icon || app.icon));
+		if (icon && icon.type === 'image') {
+			parent.classList.add('app-store-icon-image');
+			var img = document.createElement('img');
+			img.src = icon.value;
+			img.alt = '';
+			img.loading = 'lazy';
+			parent.appendChild(img);
+			return;
+		}
+
+		if (icon && icon.type === 'dashicon') {
+			parent.style.background = gradient;
+			var dashicon = document.createElement('span');
+			dashicon.className = 'dashicons ' + icon.value;
+			parent.appendChild(dashicon);
+			return;
+		}
+
+		if (icon && icon.type === 'text') {
+			parent.style.background = gradient;
+			parent.classList.add('app-store-icon-text');
+			parent.textContent = icon.value;
+			return;
+		}
+
+		parent.style.background = gradient;
+		appendGradientIconLetter(parent, name);
+	}
+
 	function updateIconEditPreview() {
 		var preview = document.getElementById('icon-edit-preview');
 		if (!preview) return;
@@ -6887,6 +6937,7 @@
 		var title = meta.title || 'Untitled App';
 		var description = meta.description || '';
 		var author = meta.author || '';
+		var icon = meta.icon || '';
 
 		// Check for existing app with matching title
 		var matchedPath = null;
@@ -6932,7 +6983,8 @@
 			title: title,
 			description: description,
 			author: author,
-			categories: customCategories
+			categories: customCategories,
+			icon: icon
 		};
 
 		var actualOverrides = matchedApp && matchedApp._overrides
@@ -7151,7 +7203,8 @@
 			title: title,
 			description: app.description || blueprintMeta.description || '',
 			author: app.author || blueprintMeta.author || '',
-			categories: customCategoryList(app.categories || blueprintMeta.categories)
+			categories: customCategoryList(app.categories || blueprintMeta.categories),
+			icon: app.icon || blueprintMeta.icon || ''
 		};
 
 		var customPath = '';
@@ -7704,16 +7757,7 @@
 
 			var gradient = getCategoryGradient(app.categories);
 
-			if (isPluginEntry && app._icon) {
-				var pluginIcon = document.createElement('img');
-				pluginIcon.src = app._icon;
-				pluginIcon.alt = '';
-				pluginIcon.loading = 'lazy';
-				iconEl.appendChild(pluginIcon);
-			} else {
-				iconEl.style.background = gradient;
-				appendGradientIconLetter(iconEl, app.title);
-			}
+			appendAppStoreIcon(iconEl, app, app.title, gradient);
 
 			var infoEl = document.createElement('div');
 			infoEl.className = 'app-store-info';
@@ -8314,16 +8358,7 @@
 		var iconEl = document.createElement('div');
 		iconEl.className = 'recipe-step-icon';
 
-		if (isPluginEntry && app._icon) {
-			var img = document.createElement('img');
-			img.src = app._icon;
-			img.alt = '';
-			img.loading = 'lazy';
-			iconEl.appendChild(img);
-		} else {
-			iconEl.style.background = gradient;
-			appendGradientIconLetter(iconEl, app.title);
-		}
+		appendAppStoreIcon(iconEl, app, app.title, gradient);
 		card.appendChild(iconEl);
 
 		var info = document.createElement('div');
@@ -8467,16 +8502,7 @@
 
 		var iconEl = document.createElement('div');
 		iconEl.className = 'app-detail-icon';
-		if (plugin._icon) {
-			iconEl.classList.add('app-detail-icon-plugin');
-			var img = document.createElement('img');
-			img.src = plugin._icon;
-			img.alt = '';
-			iconEl.appendChild(img);
-		} else {
-			iconEl.style.background = gradient;
-			appendGradientIconLetter(iconEl, plugin.title);
-		}
+		appendAppStoreIcon(iconEl, plugin, plugin.title, gradient);
 
 		var headerInfo = document.createElement('div');
 		headerInfo.className = 'app-detail-header-info';
@@ -8692,8 +8718,7 @@
 
 		var iconEl = document.createElement('div');
 		iconEl.className = 'app-detail-icon';
-		iconEl.style.background = gradient;
-		appendGradientIconLetter(iconEl, app.title);
+		appendAppStoreIcon(iconEl, app, app.title, gradient);
 
 		var headerInfo = document.createElement('div');
 		headerInfo.className = 'app-detail-header-info';

@@ -141,6 +141,48 @@
 		return 'https://raw.githubusercontent.com/' + owner + '/' + repo + '/' + ref.replace(/^\/+|\/+$/g, '') + '/';
 	}
 
+	function adaptBlueprintsSourceUrl(value) {
+		if (typeof value !== 'string' || BLUEPRINTS_BASE_URL === DEFAULT_BLUEPRINTS_BASE_URL) {
+			return value;
+		}
+
+		try {
+			var url = new URL(value);
+			var match = url.pathname.match(/^\/WordPress\/blueprints\/trunk\/(.+)$/i);
+			if (
+				(url.protocol === 'https:' || url.protocol === 'http:') &&
+				url.hostname.toLowerCase() === 'raw.githubusercontent.com' &&
+				match
+			) {
+				return BLUEPRINTS_BASE_URL + match[1] + url.search + url.hash;
+			}
+		} catch (e) {
+			// Non-URL strings are handled by callers as ordinary metadata.
+		}
+
+		return value;
+	}
+
+	function adaptBlueprintsSourceUrls(value) {
+		if (typeof value === 'string') {
+			return adaptBlueprintsSourceUrl(value);
+		}
+
+		if (Array.isArray(value)) {
+			return value.map(adaptBlueprintsSourceUrls);
+		}
+
+		if (!value || typeof value !== 'object') {
+			return value;
+		}
+
+		var adapted = {};
+		Object.keys(value).forEach(function(key) {
+			adapted[key] = adaptBlueprintsSourceUrls(value[key]);
+		});
+		return adapted;
+	}
+
 	function blueprintsPullRequestSource(input, pr) {
 		return {
 			input: input,
@@ -955,6 +997,7 @@
 		return fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
+				data = adaptBlueprintsSourceUrls(data);
 				var merged = mergeCustomBlueprints(data);
 				return pluginsPromise.then(function(plugins) {
 					if (!plugins || !Object.keys(plugins).length) {
@@ -5758,6 +5801,7 @@
 		return fetch(PLUGINS_URL)
 			.then(function(r) { return r.json(); })
 			.then(function(curated) {
+				curated = adaptBlueprintsSourceUrls(curated);
 				if (!curated || typeof curated !== 'object') return null;
 
 				var promises = Object.keys(curated).map(function(key) {
@@ -6694,6 +6738,7 @@
 		var recipesPromise = fetch(RECIPES_URL)
 			.then(function(r) { return r.json(); })
 			.then(function(data) {
+				data = adaptBlueprintsSourceUrls(data);
 				if (loadId !== appStoreLoadId) return;
 				if (data && typeof data === 'object' && !Array.isArray(data)) {
 					recipes = data;
@@ -6712,6 +6757,7 @@
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
 				if (loadId !== appStoreLoadId) return null;
+				data = adaptBlueprintsSourceUrls(data);
 				appStoreData = mergeCustomBlueprints(data);
 				buildAppStoreNav(appStoreData);
 

@@ -1115,7 +1115,9 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 
 .app-store-icon-image {
 	background: transparent;
+	border: 0;
 	overflow: hidden;
+	box-shadow: none;
 }
 
 .app-store-icon-image img {
@@ -1378,6 +1380,10 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 .app-store-icon-link:hover {
 	transform: scale(1.08);
 	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+
+.app-store-icon-image.app-store-icon-link:hover {
+	box-shadow: none;
 }
 
 /* Clickable category labels */

@@ -46,6 +46,8 @@ You can add your own app to the App Store by pasting a complete WordPress Playgr
 
 My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author` fields to create the app-store entry. If the title matches an existing app, you can temporarily override that app with your pasted blueprint. Custom and modified blueprint entries are stored in this browser, appear in the Custom section, and can be removed or reverted from their badge in the App Store. When you paste multiple versions for the same entry, My Apps keeps a short version list so you can switch between them from the App Store.
 
+My Apps also accepts `meta.icon` as a local App Store display extension for pasted blueprints. The official WordPress Playground blueprint schema does not currently allow `meta.icon`, so include it only when targeting My Apps. App Store icons can be an `http(s)` URL, a root-relative path, an image data URI, a Dashicon class such as `dashicons-admin-plugins`, or a short text/emoji icon.
+
 To test App Store catalog, What can I do? guide, or plugin recommendation changes from another blueprints source without changing this plugin, paste a `WordPress/blueprints` PR number, a PR URL, or a GitHub fork branch URL anywhere in the App Store. On mobile, paste it into Search. Use the x next to the source indicator to return to the default catalog.
 
 To test an app or plugin change from GitHub, paste a PR URL, commit URL, or PR changes URL for the repository installed by an existing app blueprint, such as `https://github.com/example-user/example-plugin/pull/117`, `https://github.com/example-user/example-plugin/commit/0123456789abcdef0123456789abcdef01234567`, or `https://github.com/example-user/example-plugin/pull/144/changes/fedcba9876543210fedcba9876543210fedcba98`. My Apps will point the matching blueprint or recommended GitHub plugin at the PR branch or commit. Reverting that modified entry also clears its pasted version list.
@@ -58,7 +60,8 @@ Example:
 	"meta": {
 		"title": "My Custom App",
 		"description": "Installs my custom WordPress app.",
-		"author": "Your Name"
+		"author": "Your Name",
+		"icon": "https://ps.w.org/gutenberg/assets/icon-256x256.png"
 	},
 	"landingPage": "/wp-admin/",
 	"steps": [
@@ -84,6 +87,8 @@ https://my.wordpress.net/?myapps-i=wordcamp-companion&schedule=https%3A%2F%2Fexa
 ```
 
 `wordcamp-companion` resolves to the matching App Store catalog key, including `apps/wordcamp-companion.json` and `blueprints/wordcamp-companion/blueprint.json`. You can also use `?install=1&app=wordcamp-companion` when an `app` parameter is easier to generate.
+
+Remote App Store catalog entries loaded from `apps.json` can include the same optional `icon` field. This is My Apps catalog metadata, not Playground blueprint metadata.
 
 ### Abilities API
 

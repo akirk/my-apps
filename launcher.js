@@ -141,6 +141,48 @@
 		return 'https://raw.githubusercontent.com/' + owner + '/' + repo + '/' + ref.replace(/^\/+|\/+$/g, '') + '/';
 	}
 
+	function adaptBlueprintsSourceUrl(value) {
+		if (typeof value !== 'string' || BLUEPRINTS_BASE_URL === DEFAULT_BLUEPRINTS_BASE_URL) {
+			return value;
+		}
+
+		try {
+			var url = new URL(value);
+			var match = url.pathname.match(/^\/WordPress\/blueprints\/trunk\/(.+)$/i);
+			if (
+				(url.protocol === 'https:' || url.protocol === 'http:') &&
+				url.hostname.toLowerCase() === 'raw.githubusercontent.com' &&
+				match
+			) {
+				return BLUEPRINTS_BASE_URL + match[1] + url.search + url.hash;
+			}
+		} catch (e) {
+			// Non-URL strings are handled by callers as ordinary metadata.
+		}
+
+		return value;
+	}
+
+	function adaptBlueprintsSourceUrls(value) {
+		if (typeof value === 'string') {
+			return adaptBlueprintsSourceUrl(value);
+		}
+
+		if (Array.isArray(value)) {
+			return value.map(adaptBlueprintsSourceUrls);
+		}
+
+		if (!value || typeof value !== 'object') {
+			return value;
+		}
+
+		var adapted = {};
+		Object.keys(value).forEach(function(key) {
+			adapted[key] = adaptBlueprintsSourceUrls(value[key]);
+		});
+		return adapted;
+	}
+
 	function blueprintsPullRequestSource(input, pr) {
 		return {
 			input: input,
@@ -955,6 +997,7 @@
 		return fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
+				data = adaptBlueprintsSourceUrls(data);
 				var merged = mergeCustomBlueprints(data);
 				return pluginsPromise.then(function(plugins) {
 					if (!plugins || !Object.keys(plugins).length) {
@@ -3158,6 +3201,56 @@
 		letter.setAttribute('aria-hidden', 'true');
 		letter.textContent = gradientIconLetterForName(name);
 		parent.appendChild(letter);
+	}
+
+	function normalizeAppStoreIcon(icon) {
+		icon = String(icon || '').trim();
+		if (!icon) return null;
+
+		if (/^(https?:)?\/\//i.test(icon) || icon.charAt(0) === '/' || /^data:image\//i.test(icon)) {
+			return { type: 'image', value: icon };
+		}
+
+		if (/^dashicons-[a-z0-9-]+$/i.test(icon)) {
+			return { type: 'dashicon', value: icon };
+		}
+
+		if (icon.length <= 8) {
+			return { type: 'text', value: icon };
+		}
+
+		return null;
+	}
+
+	function appendAppStoreIcon(parent, app, name, gradient) {
+		var icon = normalizeAppStoreIcon(app && (app._icon || app.icon));
+		if (icon && icon.type === 'image') {
+			parent.classList.add('app-store-icon-image');
+			var img = document.createElement('img');
+			img.src = icon.value;
+			img.alt = '';
+			img.loading = 'lazy';
+			parent.appendChild(img);
+			return;
+		}
+
+		if (icon && icon.type === 'dashicon') {
+			parent.style.background = gradient;
+			var dashicon = document.createElement('span');
+			dashicon.className = 'dashicons ' + icon.value;
+			parent.appendChild(dashicon);
+			return;
+		}
+
+		if (icon && icon.type === 'text') {
+			parent.style.background = gradient;
+			parent.classList.add('app-store-icon-text');
+			parent.textContent = icon.value;
+			return;
+		}
+
+		parent.style.background = gradient;
+		appendGradientIconLetter(parent, name);
 	}
 
 	function updateIconEditPreview() {
@@ -5708,6 +5801,7 @@
 		return fetch(PLUGINS_URL)
 			.then(function(r) { return r.json(); })
 			.then(function(curated) {
+				curated = adaptBlueprintsSourceUrls(curated);
 				if (!curated || typeof curated !== 'object') return null;
 
 				var promises = Object.keys(curated).map(function(key) {
@@ -6644,6 +6738,7 @@
 		var recipesPromise = fetch(RECIPES_URL)
 			.then(function(r) { return r.json(); })
 			.then(function(data) {
+				data = adaptBlueprintsSourceUrls(data);
 				if (loadId !== appStoreLoadId) return;
 				if (data && typeof data === 'object' && !Array.isArray(data)) {
 					recipes = data;
@@ -6662,6 +6757,7 @@
 			.then(function(res) { return res.json(); })
 			.then(function(data) {
 				if (loadId !== appStoreLoadId) return null;
+				data = adaptBlueprintsSourceUrls(data);
 				appStoreData = mergeCustomBlueprints(data);
 				buildAppStoreNav(appStoreData);
 
@@ -6887,6 +6983,7 @@
 		var title = meta.title || 'Untitled App';
 		var description = meta.description || '';
 		var author = meta.author || '';
+		var icon = meta.icon || '';
 
 		// Check for existing app with matching title
 		var matchedPath = null;
@@ -6932,7 +7029,8 @@
 			title: title,
 			description: description,
 			author: author,
-			categories: customCategories
+			categories: customCategories,
+			icon: icon
 		};
 
 		var actualOverrides = matchedApp && matchedApp._overrides
@@ -7151,7 +7249,8 @@
 			title: title,
 			description: app.description || blueprintMeta.description || '',
 			author: app.author || blueprintMeta.author || '',
-			categories: customCategoryList(app.categories || blueprintMeta.categories)
+			categories: customCategoryList(app.categories || blueprintMeta.categories),
+			icon: app.icon || blueprintMeta.icon || ''
 		};
 
 		var customPath = '';
@@ -7704,16 +7803,7 @@
 
 			var gradient = getCategoryGradient(app.categories);
 
-			if (isPluginEntry && app._icon) {
-				var pluginIcon = document.createElement('img');
-				pluginIcon.src = app._icon;
-				pluginIcon.alt = '';
-				pluginIcon.loading = 'lazy';
-				iconEl.appendChild(pluginIcon);
-			} else {
-				iconEl.style.background = gradient;
-				appendGradientIconLetter(iconEl, app.title);
-			}
+			appendAppStoreIcon(iconEl, app, app.title, gradient);
 
 			var infoEl = document.createElement('div');
 			infoEl.className = 'app-store-info';
@@ -8314,16 +8404,7 @@
 		var iconEl = document.createElement('div');
 		iconEl.className = 'recipe-step-icon';
 
-		if (isPluginEntry && app._icon) {
-			var img = document.createElement('img');
-			img.src = app._icon;
-			img.alt = '';
-			img.loading = 'lazy';
-			iconEl.appendChild(img);
-		} else {
-			iconEl.style.background = gradient;
-			appendGradientIconLetter(iconEl, app.title);
-		}
+		appendAppStoreIcon(iconEl, app, app.title, gradient);
 		card.appendChild(iconEl);
 
 		var info = document.createElement('div');
@@ -8467,16 +8548,7 @@
 
 		var iconEl = document.createElement('div');
 		iconEl.className = 'app-detail-icon';
-		if (plugin._icon) {
-			iconEl.classList.add('app-detail-icon-plugin');
-			var img = document.createElement('img');
-			img.src = plugin._icon;
-			img.alt = '';
-			iconEl.appendChild(img);
-		} else {
-			iconEl.style.background = gradient;
-			appendGradientIconLetter(iconEl, plugin.title);
-		}
+		appendAppStoreIcon(iconEl, plugin, plugin.title, gradient);
 
 		var headerInfo = document.createElement('div');
 		headerInfo.className = 'app-detail-header-info';
@@ -8692,8 +8764,7 @@
 
 		var iconEl = document.createElement('div');
 		iconEl.className = 'app-detail-icon';
-		iconEl.style.background = gradient;
-		appendGradientIconLetter(iconEl, app.title);
+		appendAppStoreIcon(iconEl, app, app.title, gradient);
 
 		var headerInfo = document.createElement('div');
 		headerInfo.className = 'app-detail-header-info';

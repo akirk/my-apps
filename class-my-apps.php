@@ -2584,6 +2584,7 @@ class My_Apps {
 				'canUpdatePlugins'          => current_user_can( 'update_plugins' ),
 				'canUploadMedia'            => $can_upload_media,
 				'aiAssistantBootstrapNonce' => wp_create_nonce( 'ai_assistant_bootstrap' ),
+				'pluginBlueprintUrl'        => plugin_dir_url( __FILE__ ) . 'blueprint.json',
 				'pluginInstallUrl'          => self_admin_url( 'plugin-install.php' ),
 				'displayName'               => wp_get_current_user()->display_name,
 				'deletableSlugs'            => self::normalize_app_slug_list( array_keys( get_option( 'my_apps_additional_apps', array() ) ) ),

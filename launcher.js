@@ -59,6 +59,8 @@
 	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
 	const WORDPRESS_BLUEPRINTS_PR_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/refs/pull/%s/head/';
 	const BLUEPRINTS_SOURCE_STORAGE_KEY = 'my_apps_blueprints_source';
+	const MY_APPS_REPO = 'akirk/my-apps';
+	const MY_APPS_CUSTOM_BLUEPRINT_PATH = 'custom/akirk-my-apps.json';
 	let BLUEPRINTS_BASE_URL = '';
 	let APPS_INDEX_URL = '';
 	let RECIPES_URL = '';
@@ -512,6 +514,12 @@
 			return true;
 		});
 		return mappedTarget;
+	}
+
+	function getMyAppsBlueprintUrl() {
+		return typeof myAppsConfig !== 'undefined' && myAppsConfig.pluginBlueprintUrl
+			? myAppsConfig.pluginBlueprintUrl
+			: '';
 	}
 
 	function getStoredBlueprintsSourceInput() {
@@ -7058,10 +7066,31 @@
 	}
 
 	function updateMyApps() {
+		var customBlueprints = getCustomBlueprints();
+		var customPath = customBlueprints[MY_APPS_CUSTOM_BLUEPRINT_PATH] ? MY_APPS_CUSTOM_BLUEPRINT_PATH : '';
+		Object.keys(customBlueprints).some(function(path) {
+			if (customPath) return true;
+			var entry = normalizeCustomBlueprintEntry(customBlueprints[path]);
+			if (entry && blueprintInstallsGithubRepo(entry.blueprint, MY_APPS_REPO, customBlueprintActiveGithubSource(path))) {
+				customPath = path;
+				return true;
+			}
+			return false;
+		});
+
+		if (customPath) {
+			installBlueprintInPlayground(
+				{ title: 'My Apps', _landingPage: '/my-apps/' },
+				getBlueprintUrl(customPath),
+				null
+			);
+			return;
+		}
+
 		var blueprint = {
 			steps: [ {
 				step: 'installPlugin',
-				pluginData: { resource: 'git:directory', url: 'https://github.com/akirk/my-apps', ref: 'HEAD' },
+				pluginData: { resource: 'git:directory', url: 'https://github.com/akirk/my-apps', ref: 'main', refType: 'branch' },
 				options: { targetFolderName: 'my-apps' }
 			} ]
 		};
@@ -7635,6 +7664,31 @@
 					return null;
 				});
 		});
+
+		if (githubReposMatch(ref.baseRepo, MY_APPS_REPO) && getMyAppsBlueprintUrl()) {
+			lookups.push(resolveBlueprintFromUrl(getMyAppsBlueprintUrl())
+				.then(function(blueprint) {
+					if (!blueprintInstallsGithubRepo(blueprint, ref.baseRepo, null)) {
+						return null;
+					}
+					return {
+						path: MY_APPS_CUSTOM_BLUEPRINT_PATH,
+						app: {
+							title: blueprint && blueprint.meta && blueprint.meta.title ? blueprint.meta.title : 'App Launcher',
+							description: blueprint && blueprint.meta && blueprint.meta.description ? blueprint.meta.description : '',
+							author: blueprint && blueprint.meta && blueprint.meta.author ? blueprint.meta.author : '',
+							categories: ['Utility'],
+							_custom: true
+						},
+						blueprint: blueprint,
+						source: null,
+						isPluginFallback: false
+					};
+				})
+				.catch(function() {
+					return null;
+				}));
+		}
 
 		return Promise.all(lookups).then(function(results) {
 			for (var i = 0; i < results.length; i++) {

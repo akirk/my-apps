@@ -714,58 +714,6 @@ body.edit-mode .hide-btn {
 	display: block;
 }
 
-.app-update-btn {
-	position: absolute;
-	top: -6px;
-	right: -6px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 24px;
-	height: 24px;
-	padding: 0;
-	border: 2px solid #fff;
-	border-radius: 999px;
-	background: #1d4ed8;
-	color: #fff;
-	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-	cursor: pointer;
-	z-index: 11;
-}
-
-.app-update-btn[hidden] {
-	display: none;
-}
-
-body.my-apps-launcher .app-update-btn,
-body.my-apps-launcher .app-update-btn:hover,
-body.my-apps-launcher .app-update-btn:focus,
-body.my-apps-launcher .app-update-btn:active {
-	color: #fff;
-	border-color: #fff;
-	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
-body.my-apps-launcher .app-update-btn:hover {
-	background: #1e40af;
-}
-
-.app-update-btn .dashicons {
-	width: 16px;
-	height: 16px;
-	font-size: 16px;
-	line-height: 16px;
-	background: transparent;
-	box-shadow: none;
-	margin: 0;
-	border-radius: 0;
-}
-
-.apps-container.layout-list .app-update-btn {
-	top: 26px;
-	right: -8px;
-}
-
 /* Just-Added Highlight Animation */
 @keyframes my-apps-pop-in {
 	0%   { transform: scale(0.3); opacity: 0; }
@@ -1661,6 +1609,16 @@ body.my-apps-launcher .app-detail-share-btn:active {
 	opacity: 0;
 	transition: opacity 0.3s, transform 0.3s;
 	pointer-events: none;
+	max-width: min(720px, calc(100vw - 32px));
+	max-height: min(55vh, 420px);
+	overflow: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.my-apps-toast-error {
+	background: rgba(127, 29, 29, 0.94);
+	text-align: left;
 }
 
 .my-apps-toast.visible {

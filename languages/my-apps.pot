@@ -1,0 +1,1130 @@
+# Copyright (C) 2026 Alex Kirk
+# This file is distributed under the GPL2.
+msgid ""
+msgstr ""
+"Project-Id-Version: My Apps 2.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/my-apps\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-06-22T16:09:26+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: my-apps\n"
+
+#. Plugin Name of the plugin
+#: my-apps.php
+#: class-my-apps.php:757
+#: class-my-apps.php:1964
+#: class-my-apps.php:1967
+#: desktop-mode.php:35
+#: desktop-mode.php:236
+#: templates/launcher.php:35
+msgid "My Apps"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: my-apps.php
+msgid "https://github.com/akirk/my-apps"
+msgstr ""
+
+#. Description of the plugin
+#: my-apps.php
+msgid "WordPress apps launcher"
+msgstr ""
+
+#. Author of the plugin
+#: my-apps.php
+msgid "Alex Kirk"
+msgstr ""
+
+#. Author URI of the plugin
+#: my-apps.php
+msgid "https://alex.kirk.at/"
+msgstr ""
+
+#: class-my-apps.php:758
+msgid "Abilities for searching the My Apps App Store, reading What can I do? guides, and customizing the My Apps launcher."
+msgstr ""
+
+#: class-my-apps.php:774
+msgid "Get All My Apps State"
+msgstr ""
+
+#: class-my-apps.php:775
+msgid "Returns the full My Apps launcher state, including background, visible app order, and app metadata."
+msgstr ""
+
+#: class-my-apps.php:782
+msgid "Use this before answering questions about the user's My Apps launcher, launcher apps, visible app order, hidden apps, app icons, app links, or background. The result is the full current launcher state; use visible_ordered for display order and each app's hidden field for visibility."
+msgstr ""
+
+#: class-my-apps.php:795
+msgid "Get What Can I Do Guides"
+msgstr ""
+
+#: class-my-apps.php:796
+msgid "Returns the default My Apps What can I do? guide catalog for answering what users can do with WordPress."
+msgstr ""
+
+#: class-my-apps.php:803
+msgid "Optional guide slug to return one guide."
+msgstr ""
+
+#: class-my-apps.php:807
+msgid "Optional search query matched against guide titles, descriptions, and steps."
+msgstr ""
+
+#: class-my-apps.php:811
+msgid "Optional maximum number of matching guides to return."
+msgstr ""
+
+#: class-my-apps.php:822
+msgid "Use this when the user asks what they can do with WordPress, asks for activity ideas, or asks for What can I do? guide steps. This returns only the default recipes.json catalog; it does not include browser-local custom blueprints or alternate App Store catalog sources."
+msgstr ""
+
+#: class-my-apps.php:835
+msgid "Search My Apps App Store"
+msgstr ""
+
+#: class-my-apps.php:836
+msgid "Searches or browses the built-in My Apps App Store catalog of installable apps and curated plugin recommendations."
+msgstr ""
+
+#: class-my-apps.php:843
+msgid "Optional search query matched against app titles, descriptions, authors, categories, paths, plugin slugs, and GitHub repositories."
+msgstr ""
+
+#: class-my-apps.php:847
+msgid "Optional App Store category to return, such as Apps, AI, Media, Productivity, Social, Utility, Custom, or Other Plugins."
+msgstr ""
+
+#: class-my-apps.php:852
+msgid "Optional entry type filter. Use app for blueprint apps, plugin for curated plugin recommendations, or all."
+msgstr ""
+
+#: class-my-apps.php:856
+msgid "Whether to include curated plugin recommendations. Defaults to the current My Apps simplified WordPress mode setting."
+msgstr ""
+
+#: class-my-apps.php:860
+msgid "Optional maximum number of matching App Store entries to return."
+msgstr ""
+
+#: class-my-apps.php:871
+msgid "Use this when the user asks whether My Apps has an app store, asks to search or browse the app store, asks what apps can be installed from My Apps, or asks about curated app/plugin recommendations. This reads the default published catalog and cannot include browser-local custom blueprints or alternate catalog source overrides."
+msgstr ""
+
+#: class-my-apps.php:884
+msgid "Set My Apps Background"
+msgstr ""
+
+#: class-my-apps.php:885
+msgid "Updates the My Apps launcher background preference."
+msgstr ""
+
+#: class-my-apps.php:893
+msgid "A preset background slug, image attachment ID, remote image URL, or safe CSS color/gradient background."
+msgstr ""
+
+#: class-my-apps.php:903
+msgid "Use this when the user asks to change the My Apps launcher background. Pass one accepted background slug, an image attachment ID, a remote image URL, or a safe CSS color/gradient background."
+msgstr ""
+
+#: class-my-apps.php:916
+msgid "Add My Apps Icon"
+msgstr ""
+
+#: class-my-apps.php:917
+msgid "Adds a custom app icon to the My Apps launcher."
+msgstr ""
+
+#: class-my-apps.php:926
+msgid "The app icon label shown in the launcher."
+msgstr ""
+
+#: class-my-apps.php:930
+#: class-my-apps.php:972
+msgid "The URL opened by the app icon."
+msgstr ""
+
+#: class-my-apps.php:933
+msgid "Optional icon. Omit all icon fields to use a generated letter icon."
+msgstr ""
+
+#: class-my-apps.php:942
+msgid "Use this when the user asks to add or pin an app icon to the My Apps launcher. Provide a name and URL. Provide at most one icon value: icon_url, dashicon, emoji, gradient, icon { type, value }, or use_favicon."
+msgstr ""
+
+#: class-my-apps.php:955
+msgid "Set My Apps App Details"
+msgstr ""
+
+#: class-my-apps.php:956
+msgid "Renames an app or changes its link in the My Apps launcher."
+msgstr ""
+
+#: class-my-apps.php:964
+#: class-my-apps.php:1009
+#: class-my-apps.php:1047
+msgid "The launcher app slug from my-apps/get-all."
+msgstr ""
+
+#: class-my-apps.php:968
+msgid "The app label shown in the launcher."
+msgstr ""
+
+#: class-my-apps.php:976
+msgid "When true, remove the custom name and URL override."
+msgstr ""
+
+#: class-my-apps.php:986
+msgid "Use this when the user asks to rename an app, change an app shortcut link, or revert a custom app name/link. First call my-apps/get-all to find the slug. Provide name and/or url, or set revert to true."
+msgstr ""
+
+#: class-my-apps.php:999
+msgid "Set My Apps App Icon"
+msgstr ""
+
+#: class-my-apps.php:1000
+msgid "Updates the icon graphic for an existing My Apps launcher app."
+msgstr ""
+
+#: class-my-apps.php:1013
+msgid "When true, remove the custom icon override and return to the app-provided icon."
+msgstr ""
+
+#: class-my-apps.php:1016
+msgid "New icon value. Use icon type letter to force a generated letter icon."
+msgstr ""
+
+#: class-my-apps.php:1025
+msgid "Use this when the user asks to change the icon for an existing My Apps launcher app. First call my-apps/get-all to find the slug. Provide exactly one icon value unless reverting."
+msgstr ""
+
+#: class-my-apps.php:1038
+msgid "Set My Apps App Visibility"
+msgstr ""
+
+#: class-my-apps.php:1039
+msgid "Shows or hides an app in the My Apps launcher."
+msgstr ""
+
+#: class-my-apps.php:1051
+msgid "Whether the app should be hidden from the launcher."
+msgstr ""
+
+#: class-my-apps.php:1061
+msgid "Use this when the user asks to hide, show, restore, or unhide one app in the My Apps launcher. First call my-apps/get-all to find the slug. Set hidden to true to hide the app, or false to restore it. For multiple visibility or order changes, prefer my-apps/set-visible-ordered."
+msgstr ""
+
+#: class-my-apps.php:1074
+msgid "Set My Apps Visible Ordered Apps"
+msgstr ""
+
+#: class-my-apps.php:1075
+msgid "Sets the visible My Apps launcher icons and their order."
+msgstr ""
+
+#: class-my-apps.php:1083
+msgid "Launcher app slugs that should be visible, in display order. Apps not listed are hidden."
+msgstr ""
+
+#: class-my-apps.php:1096
+msgid "Use this when the user asks to reorder visible apps, hide multiple apps, or show only specific apps. First call my-apps/get-all to find app slugs and the current visible_ordered array. Pass visible_ordered as the complete desired visible slug list in display order; every app omitted from visible_ordered is hidden. Verify the response using visible_ordered and each app's hidden field."
+msgstr ""
+
+#: class-my-apps.php:1122
+msgid "The icon representation type."
+msgstr ""
+
+#: class-my-apps.php:1126
+msgid "The icon value for icon_url, dashicon, emoji, or gradient."
+msgstr ""
+
+#: class-my-apps.php:1133
+msgid "An image URL to use as the app icon."
+msgstr ""
+
+#: class-my-apps.php:1137
+msgid "A WordPress Dashicon class, such as dashicons-admin-site."
+msgstr ""
+
+#: class-my-apps.php:1141
+msgid "An emoji to use as the app icon."
+msgstr ""
+
+#: class-my-apps.php:1145
+msgid "A safe CSS color or gradient used behind the default app glyph."
+msgstr ""
+
+#: class-my-apps.php:1149
+msgid "Use the app URL origin favicon when no other icon value is supplied."
+msgstr ""
+
+#: class-my-apps.php:1317
+#: class-my-apps.php:1323
+msgid "Invalid app slug list."
+msgstr ""
+
+#: class-my-apps.php:1331
+msgid "Invalid app slug."
+msgstr ""
+
+#: class-my-apps.php:1335
+msgid "Duplicate app slug."
+msgstr ""
+
+#: class-my-apps.php:1339
+#: class-my-apps.php:1412
+#: class-my-apps.php:1481
+#: class-my-apps.php:1527
+msgid "App not found."
+msgstr ""
+
+#: class-my-apps.php:1377
+msgid "No visible apps provided."
+msgstr ""
+
+#: class-my-apps.php:1407
+#: class-my-apps.php:1476
+#: class-my-apps.php:1522
+msgid "No app slug provided."
+msgstr ""
+
+#: class-my-apps.php:1426
+msgid "No app details provided."
+msgstr ""
+
+#: class-my-apps.php:1434
+msgid "No app name provided."
+msgstr ""
+
+#: class-my-apps.php:1442
+msgid "Invalid app URL."
+msgstr ""
+
+#: class-my-apps.php:1452
+msgid "An app with that URL already exists."
+msgstr ""
+
+#: class-my-apps.php:1485
+msgid "No hidden state provided."
+msgstr ""
+
+#: class-my-apps.php:1544
+#: class-my-apps.php:5738
+#: class-my-apps.php:5744
+#: class-my-apps.php:5856
+msgid "Choose only one icon type."
+msgstr ""
+
+#: class-my-apps.php:1548
+#: class-my-apps.php:5760
+#: class-my-apps.php:5860
+msgid "Invalid icon URL."
+msgstr ""
+
+#: class-my-apps.php:1573
+msgid "No background provided."
+msgstr ""
+
+#: class-my-apps.php:1578
+msgid "Choose or set a custom background."
+msgstr ""
+
+#: class-my-apps.php:1597
+msgid "Invalid background."
+msgstr ""
+
+#: class-my-apps.php:1622
+#: class-my-apps.php:1627
+msgid "Invalid background image."
+msgstr ""
+
+#: class-my-apps.php:1643
+msgid "Invalid background image URL."
+msgstr ""
+
+#: class-my-apps.php:1673
+msgid "Invalid background CSS."
+msgstr ""
+
+#: class-my-apps.php:1991
+msgid "App Icon"
+msgstr ""
+
+#: class-my-apps.php:1994
+msgid "Add the current page as an app icon in My Apps"
+msgstr ""
+
+#: class-my-apps.php:2063
+msgid "Dashboard"
+msgstr ""
+
+#: class-my-apps.php:2066
+msgid "Open Dashboard"
+msgstr ""
+
+#: class-my-apps.php:2080
+msgid "Enable Full WordPress mode"
+msgstr ""
+
+#: class-my-apps.php:2086
+msgid "Show WordPress admin shortcuts and recommendations"
+msgstr ""
+
+#: class-my-apps.php:2100
+msgid "Disable Full WordPress mode"
+msgstr ""
+
+#: class-my-apps.php:2106
+msgid "Hide WordPress admin shortcuts and recommendations"
+msgstr ""
+
+#: class-my-apps.php:2622
+msgid "Please fill in all fields"
+msgstr ""
+
+#: class-my-apps.php:2623
+msgid "Delete this app? This cannot be undone."
+msgstr ""
+
+#: class-my-apps.php:2624
+msgid "Uninstall this plugin? This will deactivate it and delete its files. The plugin may also remove its saved data."
+msgstr ""
+
+#: class-my-apps.php:2628
+msgid "Choose Background Image"
+msgstr ""
+
+#: class-my-apps.php:2629
+msgid "Use as Background"
+msgstr ""
+
+#: class-my-apps.php:2630
+msgid "The media library is unavailable."
+msgstr ""
+
+#: class-my-apps.php:2631
+msgid "Please choose an image file."
+msgstr ""
+
+#: class-my-apps.php:2632
+#: templates/launcher.php:161
+msgid "Not feeling this?"
+msgstr ""
+
+#. translators: %s: Wallpaper name.
+#: class-my-apps.php:2634
+#, php-format
+msgid "This wallpaper is %s."
+msgstr ""
+
+#: class-my-apps.php:2635
+#: templates/launcher.php:163
+msgid "Try another."
+msgstr ""
+
+#: class-my-apps.php:2650
+#: class-my-apps.php:2696
+msgid "Sorry, you are not allowed to install plugins on this site."
+msgstr ""
+
+#: class-my-apps.php:2659
+#: class-my-apps.php:3716
+msgid "No plugin specified."
+msgstr ""
+
+#: class-my-apps.php:2733
+#: class-my-apps.php:2802
+#: class-my-apps.php:2811
+#: class-my-apps.php:3789
+msgid "Unable to connect to the filesystem. Please confirm your credentials."
+msgstr ""
+
+#: class-my-apps.php:2745
+msgid "Sorry, you are not allowed to update plugins on this site."
+msgstr ""
+
+#: class-my-apps.php:2755
+msgid "The plugin is installed, but WordPress could not identify its main plugin file."
+msgstr ""
+
+#: class-my-apps.php:2825
+msgid "The plugin was installed, but WordPress could not identify its main plugin file."
+msgstr ""
+
+#: class-my-apps.php:3331
+#: class-my-apps.php:3358
+msgid "Sorry, you are not allowed to do that."
+msgstr ""
+
+#: class-my-apps.php:3706
+msgid "Sorry, you are not allowed to delete plugins on this site."
+msgstr ""
+
+#: class-my-apps.php:3734
+msgid "This app cannot be safely matched to one uninstallable plugin."
+msgstr ""
+
+#: class-my-apps.php:3749
+#: class-my-apps.php:3759
+msgid "This plugin cannot be uninstalled from My Apps."
+msgstr ""
+
+#: class-my-apps.php:3775
+msgid "Network-active plugins must be deactivated from Network Admin before uninstalling."
+msgstr ""
+
+#: class-my-apps.php:3810
+msgid "Sorry, you are not allowed to deactivate this plugin."
+msgstr ""
+
+#: class-my-apps.php:3823
+msgid "The plugin could not be deactivated."
+msgstr ""
+
+#: class-my-apps.php:3845
+msgid "Plugin could not be deleted."
+msgstr ""
+
+#: class-my-apps.php:4004
+msgid "The My Apps App Store URL."
+msgstr ""
+
+#: class-my-apps.php:4008
+msgid "The default apps.json URL used for this response."
+msgstr ""
+
+#: class-my-apps.php:4012
+msgid "The default plugins.json URL used for plugin recommendations."
+msgstr ""
+
+#: class-my-apps.php:4016
+msgid "Whether the response is limited to the default published App Store catalog."
+msgstr ""
+
+#: class-my-apps.php:4020
+msgid "Whether browser-local custom blueprints are included."
+msgstr ""
+
+#: class-my-apps.php:4024
+msgid "Whether browser-local alternate App Store catalog sources are included."
+msgstr ""
+
+#: class-my-apps.php:4028
+msgid "Whether curated plugin recommendations are included in entries."
+msgstr ""
+
+#: class-my-apps.php:4032
+msgid "Whether My Apps simplified WordPress mode currently hides plugin recommendations in the UI by default."
+msgstr ""
+
+#: class-my-apps.php:4039
+msgid "The number of App Store entries returned."
+msgstr ""
+
+#: class-my-apps.php:4043
+msgid "Categories available in the returned App Store catalog."
+msgstr ""
+
+#: class-my-apps.php:4050
+msgid "App Store entries keyed by App Store path."
+msgstr ""
+
+#: class-my-apps.php:4055
+msgid "Non-fatal catalog loading warnings."
+msgstr ""
+
+#: class-my-apps.php:4078
+msgid "Whether this entry is a blueprint app or curated plugin recommendation."
+msgstr ""
+
+#: class-my-apps.php:4083
+msgid "The catalog source for this entry."
+msgstr ""
+
+#: class-my-apps.php:4087
+msgid "The App Store path used for deep links."
+msgstr ""
+
+#: class-my-apps.php:4091
+msgid "The App Store entry title."
+msgstr ""
+
+#: class-my-apps.php:4095
+msgid "The App Store entry description."
+msgstr ""
+
+#: class-my-apps.php:4099
+msgid "The App Store entry author."
+msgstr ""
+
+#: class-my-apps.php:4103
+msgid "The App Store entry categories."
+msgstr ""
+
+#: class-my-apps.php:4110
+msgid "The WordPress Playground blueprint URL for app entries."
+msgstr ""
+
+#: class-my-apps.php:4114
+msgid "The My Apps App Store detail URL."
+msgstr ""
+
+#: class-my-apps.php:4118
+msgid "The WordPress.org plugin slug for wp.org plugin entries."
+msgstr ""
+
+#: class-my-apps.php:4122
+msgid "The GitHub repository for GitHub plugin entries."
+msgstr ""
+
+#: class-my-apps.php:4126
+msgid "The Git ref for GitHub plugin entries."
+msgstr ""
+
+#: class-my-apps.php:4131
+msgid "The Git ref type for GitHub plugin entries."
+msgstr ""
+
+#: class-my-apps.php:4135
+msgid "The public source URL for plugin entries."
+msgstr ""
+
+#: class-my-apps.php:4139
+msgid "The install or plugin-information URL for plugin entries."
+msgstr ""
+
+#: class-my-apps.php:4143
+msgid "The suggested site-relative landing page after installation."
+msgstr ""
+
+#: class-my-apps.php:4147
+msgid "The launcher URL used to detect or open an installed plugin-provided app."
+msgstr ""
+
+#: class-my-apps.php:4277
+msgid "Unable to load App Store catalog."
+msgstr ""
+
+#: class-my-apps.php:4282
+msgid "Invalid App Store catalog."
+msgstr ""
+
+#: class-my-apps.php:4315
+msgid "Unable to load App Store plugin recommendations."
+msgstr ""
+
+#: class-my-apps.php:4320
+msgid "Invalid App Store plugin recommendations."
+msgstr ""
+
+#: class-my-apps.php:4758
+msgid "Plugin"
+msgstr ""
+
+#: class-my-apps.php:4820
+msgid "The default recipes.json URL used for this response."
+msgstr ""
+
+#: class-my-apps.php:4824
+msgid "Whether the response is limited to the default published guide catalog."
+msgstr ""
+
+#: class-my-apps.php:4828
+msgid "Whether browser-local custom blueprints or alternate catalog source overrides are included."
+msgstr ""
+
+#: class-my-apps.php:4835
+msgid "The number of guides returned."
+msgstr ""
+
+#: class-my-apps.php:4839
+msgid "Default What can I do? guide entries keyed by guide slug."
+msgstr ""
+
+#: class-my-apps.php:4859
+msgid "The guide title."
+msgstr ""
+
+#: class-my-apps.php:4863
+msgid "A short guide summary."
+msgstr ""
+
+#: class-my-apps.php:4867
+msgid "The guide description."
+msgstr ""
+
+#: class-my-apps.php:4871
+msgid "The guide icon."
+msgstr ""
+
+#: class-my-apps.php:4875
+msgid "The guide display gradient."
+msgstr ""
+
+#: class-my-apps.php:4879
+msgid "A URL with more information about the guide."
+msgstr ""
+
+#: class-my-apps.php:4883
+msgid "Whether the guide primarily uses core WordPress features."
+msgstr ""
+
+#: class-my-apps.php:4887
+msgid "Guide steps."
+msgstr ""
+
+#: class-my-apps.php:4908
+msgid "The guide step type."
+msgstr ""
+
+#: class-my-apps.php:4912
+msgid "The guide step title."
+msgstr ""
+
+#: class-my-apps.php:4916
+msgid "The guide step description."
+msgstr ""
+
+#: class-my-apps.php:4920
+msgid "Whether the guide step is optional."
+msgstr ""
+
+#: class-my-apps.php:4925
+msgid "The environment where the step applies."
+msgstr ""
+
+#: class-my-apps.php:4929
+msgid "The app blueprint path for app steps."
+msgstr ""
+
+#: class-my-apps.php:4933
+msgid "The WordPress.org plugin slug for plugin steps."
+msgstr ""
+
+#: class-my-apps.php:4937
+msgid "The GitHub repository for GitHub plugin steps."
+msgstr ""
+
+#: class-my-apps.php:4941
+msgid "A supporting URL for the step."
+msgstr ""
+
+#: class-my-apps.php:4945
+msgid "The label for the supporting URL."
+msgstr ""
+
+#: class-my-apps.php:4969
+msgid "Guide not found."
+msgstr ""
+
+#: class-my-apps.php:5029
+msgid "Unable to load guides."
+msgstr ""
+
+#: class-my-apps.php:5034
+msgid "Invalid guide catalog."
+msgstr ""
+
+#: class-my-apps.php:5265
+msgid "Current launcher background state."
+msgstr ""
+
+#: class-my-apps.php:5270
+msgid "The selected launcher background slug."
+msgstr ""
+
+#: class-my-apps.php:5274
+msgid "Custom CSS background value, when the selected background is custom."
+msgstr ""
+
+#: class-my-apps.php:5278
+msgid "The selected custom background image URL."
+msgstr ""
+
+#: class-my-apps.php:5282
+msgid "The selected custom background image attachment ID, when available."
+msgstr ""
+
+#: class-my-apps.php:5286
+msgid "Preset background slugs accepted by the launcher background setter."
+msgstr ""
+
+#: class-my-apps.php:5310
+msgid "Visible launcher app slugs in display order."
+msgstr ""
+
+#: class-my-apps.php:5317
+msgid "Apps available to the launcher, keyed by launcher app slug."
+msgstr ""
+
+#: class-my-apps.php:5324
+msgid "The launcher app display name."
+msgstr ""
+
+#: class-my-apps.php:5328
+msgid "The launcher app URL."
+msgstr ""
+
+#: class-my-apps.php:5333
+msgid "Whether the app comes from plugin registration or launcher customization."
+msgstr ""
+
+#: class-my-apps.php:5337
+msgid "Whether the app is hidden from the launcher."
+msgstr ""
+
+#: class-my-apps.php:5341
+msgid "Whether the app can be deleted from launcher customization."
+msgstr ""
+
+#: class-my-apps.php:5345
+msgid "Whether the icon is customized by a launcher override."
+msgstr ""
+
+#: class-my-apps.php:5354
+msgid "The app icon representation type."
+msgstr ""
+
+#: class-my-apps.php:5358
+msgid "The app icon value."
+msgstr ""
+
+#: class-my-apps.php:5362
+msgid "The generated letter icon background."
+msgstr ""
+
+#: class-my-apps.php:5719
+msgid "No icon value provided."
+msgstr ""
+
+#: class-my-apps.php:5723
+#: class-my-apps.php:5735
+msgid "Invalid icon type."
+msgstr ""
+
+#: class-my-apps.php:5749
+msgid "An icon is required."
+msgstr ""
+
+#: class-my-apps.php:5770
+msgid "Invalid Dashicon."
+msgstr ""
+
+#: class-my-apps.php:5776
+msgid "Invalid emoji."
+msgstr ""
+
+#: class-my-apps.php:5782
+msgid "Invalid icon gradient."
+msgstr ""
+
+#: class-my-apps.php:5846
+msgid "Name and URL are required."
+msgstr ""
+
+#: desktop-mode.php:50
+#: desktop-mode.php:62
+#: desktop-mode.php:246
+#: templates/launcher.php:155
+#: templates/launcher.php:157
+msgid "Add"
+msgstr ""
+
+#: templates/launcher.php:55
+msgid "Edit"
+msgstr ""
+
+#: templates/launcher.php:58
+#: templates/launcher.php:59
+msgid "Done"
+msgstr ""
+
+#: templates/launcher.php:61
+msgid "Change Background"
+msgstr ""
+
+#: templates/launcher.php:65
+msgid "Settings"
+msgstr ""
+
+#: templates/launcher.php:68
+msgid "Layout"
+msgstr ""
+
+#: templates/launcher.php:71
+msgid "Flow"
+msgstr ""
+
+#: templates/launcher.php:75
+msgid "Grid"
+msgstr ""
+
+#: templates/launcher.php:79
+msgid "List"
+msgstr ""
+
+#: templates/launcher.php:82
+msgid "Columns"
+msgstr ""
+
+#: templates/launcher.php:87
+msgid "Icon Size"
+msgstr ""
+
+#: templates/launcher.php:91
+msgid "Spacing"
+msgstr ""
+
+#: templates/launcher.php:98
+#: templates/launcher.php:178
+msgid "App Launcher Settings"
+msgstr ""
+
+#: templates/launcher.php:104
+msgid "Update App Launcher"
+msgstr ""
+
+#: templates/launcher.php:110
+#: templates/launcher.php:235
+msgid "Hidden Apps"
+msgstr ""
+
+#: templates/launcher.php:140
+#: templates/launcher.php:324
+msgid "Hide"
+msgstr ""
+
+#: templates/launcher.php:142
+#: templates/launcher.php:327
+msgid "Update"
+msgstr ""
+
+#: templates/launcher.php:162
+msgid "Try another wallpaper"
+msgstr ""
+
+#: templates/launcher.php:169
+msgid "Dismiss wallpaper randomizer"
+msgstr ""
+
+#: templates/launcher.php:179
+#: templates/launcher.php:341
+msgid "Close"
+msgstr ""
+
+#: templates/launcher.php:184
+msgid "Greeting"
+msgstr ""
+
+#: templates/launcher.php:185
+msgid "Show a personalized greeting above your apps."
+msgstr ""
+
+#: templates/launcher.php:189
+#: templates/launcher.php:200
+#: templates/launcher.php:211
+msgid "On"
+msgstr ""
+
+#: templates/launcher.php:195
+msgid "Start at My Apps"
+msgstr ""
+
+#: templates/launcher.php:196
+msgid "Send you from / straight to /my-apps/. Turn this off to show the WordPress front page instead."
+msgstr ""
+
+#: templates/launcher.php:200
+#: templates/launcher.php:211
+msgid "Off"
+msgstr ""
+
+#: templates/launcher.php:206
+msgid "Full WordPress mode"
+msgstr ""
+
+#: templates/launcher.php:207
+msgid "Show WordPress admin shortcuts, plugin recommendations, manual app links, and core WordPress guides."
+msgstr ""
+
+#: templates/launcher.php:216
+msgid "App launcher settings file"
+msgstr ""
+
+#: templates/launcher.php:217
+msgid "Import or export this launcher setup, including app order, hidden apps, custom apps, icons, backgrounds, display preferences, and custom App Store entries. This does not include WordPress posts, pages, media, users, or other site content."
+msgstr ""
+
+#: templates/launcher.php:221
+msgid "Export App Launcher Settings"
+msgstr ""
+
+#: templates/launcher.php:224
+msgid "Import App Launcher Settings"
+msgstr ""
+
+#: templates/launcher.php:238
+msgid "No hidden apps"
+msgstr ""
+
+#: templates/launcher.php:266
+msgid "Delete"
+msgstr ""
+
+#: templates/launcher.php:278
+msgid "Gradients"
+msgstr ""
+
+#: templates/launcher.php:286
+msgid "Solid Colors"
+msgstr ""
+
+#: templates/launcher.php:294
+msgid "Custom"
+msgstr ""
+
+#: templates/launcher.php:297
+msgid "Custom Background"
+msgstr ""
+
+#: templates/launcher.php:302
+#: templates/launcher.php:349
+msgid "Image"
+msgstr ""
+
+#: templates/launcher.php:305
+msgid "Media Library"
+msgstr ""
+
+#: templates/launcher.php:309
+msgid "Import from URL"
+msgstr ""
+
+#: templates/launcher.php:312
+msgid "https://example.com/image.jpg"
+msgstr ""
+
+#: templates/launcher.php:313
+msgid "Set"
+msgstr ""
+
+#: templates/launcher.php:320
+msgid "Open"
+msgstr ""
+
+#: templates/launcher.php:321
+msgid "Open in New Tab"
+msgstr ""
+
+#: templates/launcher.php:323
+#: templates/launcher.php:340
+msgid "Change Icon"
+msgstr ""
+
+#: templates/launcher.php:325
+msgid "Move to Front"
+msgstr ""
+
+#: templates/launcher.php:330
+msgid "Delete Shortcut"
+msgstr ""
+
+#: templates/launcher.php:333
+msgid "Uninstall"
+msgstr ""
+
+#: templates/launcher.php:346
+#: templates/launcher.php:437
+msgid "Icon"
+msgstr ""
+
+#: templates/launcher.php:348
+#: templates/launcher.php:439
+msgid "Emoji"
+msgstr ""
+
+#: templates/launcher.php:350
+#: templates/launcher.php:441
+msgid "Dashicon"
+msgstr ""
+
+#: templates/launcher.php:351
+msgid "Favicon"
+msgstr ""
+
+#: templates/launcher.php:352
+msgid "Letter"
+msgstr ""
+
+#: templates/launcher.php:358
+#: templates/launcher.php:447
+msgid "Search emoji..."
+msgstr ""
+
+#: templates/launcher.php:366
+#: templates/launcher.php:455
+msgid "Search icons..."
+msgstr ""
+
+#: templates/launcher.php:376
+msgid "Revert"
+msgstr ""
+
+#: templates/launcher.php:377
+msgid "Save Icon"
+msgstr ""
+
+#: templates/launcher.php:388
+msgid "Search"
+msgstr ""
+
+#: templates/launcher.php:391
+#: templates/launcher.php:410
+msgid "Apps"
+msgstr ""
+
+#: templates/launcher.php:394
+msgid "Add Admin Link"
+msgstr ""
+
+#: templates/launcher.php:395
+msgid "Add Web Link"
+msgstr ""
+
+#: templates/launcher.php:402
+msgid "Update All Apps"
+msgstr ""
+
+#: templates/launcher.php:416
+msgid "Loading apps..."
+msgstr ""
+
+#: templates/launcher.php:420
+msgid "Search menu items..."
+msgstr ""
+
+#: templates/launcher.php:423
+msgid "Loading..."
+msgstr ""
+
+#: templates/launcher.php:429
+msgid "Name"
+msgstr ""
+
+#: templates/launcher.php:433
+msgid "URL"
+msgstr ""
+
+#: templates/launcher.php:440
+msgid "Image URL"
+msgstr ""
+
+#: templates/launcher.php:465
+msgid "Add Link"
+msgstr ""

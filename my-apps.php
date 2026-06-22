@@ -10,6 +10,7 @@
  *
  * License: GPL2
  * Text Domain: my-apps
+ * Domain Path: /languages
  *
  * @package My_Apps
  */

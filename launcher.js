@@ -557,6 +557,7 @@
 		recipes = {};
 		hasRecipes = false;
 		recipesLoadState = 'idle';
+		recipesLoadPromise = null;
 		activeRecipe = null;
 		pendingRecipe = null;
 		pendingDeepLink = null;
@@ -632,6 +633,7 @@
 	let recipes = {};
 	let hasRecipes = false;
 	let recipesLoadState = 'idle'; // idle | loading | loaded | failed
+	let recipesLoadPromise = null;
 	let coreWordPressRecipesExpanded = false;
 	const CORE_WORDPRESS_RECIPE_KEYS = {
 		'family-blog': true,
@@ -7224,18 +7226,16 @@
 	var appStoreLoadId = 0;
 	var appStoreLoadPromise = null;
 
-	function loadAppStore() {
-		var loadId = ++appStoreLoadId;
-		appStoreContent.innerHTML = '<div class="app-store-loading">Loading apps\u2026</div>';
-		pluginsLoadState = 'loading';
-		recipesLoadState = 'loading';
+	function fetchRecipesCatalog() {
+		if (recipesLoadState === 'loading' && recipesLoadPromise) {
+			return recipesLoadPromise;
+		}
 
-		var pluginsPromise = fetchRecommendedPlugins();
-		var recipesPromise = fetch(RECIPES_URL)
+		recipesLoadState = 'loading';
+		recipesLoadPromise = fetch(RECIPES_URL)
 			.then(function(r) { return r.json(); })
 			.then(function(data) {
 				data = adaptBlueprintsSourceUrls(data);
-				if (loadId !== appStoreLoadId) return;
 				if (data && typeof data === 'object' && !Array.isArray(data)) {
 					recipes = data;
 					hasRecipes = Object.keys(recipes).length > 0;
@@ -7243,11 +7243,23 @@
 				} else {
 					recipesLoadState = 'failed';
 				}
+				return recipes;
 			})
 			.catch(function() {
-				if (loadId !== appStoreLoadId) return;
 				recipesLoadState = 'failed';
+				return null;
 			});
+
+		return recipesLoadPromise;
+	}
+
+	function loadAppStore() {
+		var loadId = ++appStoreLoadId;
+		appStoreContent.innerHTML = '<div class="app-store-loading">Loading apps\u2026</div>';
+		pluginsLoadState = 'loading';
+
+		var pluginsPromise = fetchRecommendedPlugins();
+		var recipesPromise = fetchRecipesCatalog();
 
 		appStoreLoadPromise = fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
@@ -8661,6 +8673,13 @@
 		introEl.textContent = 'WordPress can do a lot more than blogging — but turning that into something useful takes knowing which pieces fit together. Each guide shows one useful thing you can build or set up.';
 		appStoreContent.appendChild(introEl);
 
+		if (recipesLoadState === 'idle' && !hasRecipes) {
+			fetchRecipesCatalog().then(function() {
+				if (activeCategory === '__recipes__' && appStoreData) {
+					renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
+				}
+			});
+		}
 		if (recipesLoadState === 'loading' && !hasRecipes) {
 			var loadingEl = document.createElement('div');
 			loadingEl.className = 'app-store-loading';

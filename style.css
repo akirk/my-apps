@@ -973,6 +973,44 @@ body.edit-mode .add-app-btn {
 	color: var(--ma-fg);
 }
 
+.app-store-sidebar-footer {
+	flex: 0 0 auto;
+	padding: 8px;
+	border-top: 1px solid var(--ma-border);
+}
+
+.app-store-update-all {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	border: none;
+	background: transparent;
+	text-align: left;
+}
+
+.app-store-update-all .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+	line-height: 16px;
+}
+
+.app-store-update-all:disabled {
+	cursor: wait;
+	opacity: 0.78;
+}
+
+.app-store-update-all.is-updating .dashicons {
+	animation: my-apps-update-spin 0.9s linear infinite;
+}
+
+@keyframes my-apps-update-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
 .app-store-main {
 	flex: 1;
 	display: flex;
@@ -1003,37 +1041,6 @@ body.edit-mode .add-app-btn {
 	font-weight: 700;
 	color: var(--ma-fg);
 	min-width: 0;
-}
-
-.app-store-update-all {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	flex: 0 0 auto;
-	height: 32px;
-	padding: 0 12px;
-	border: 1px solid var(--ma-border);
-	border-radius: 8px;
-	background: var(--ma-bg-tinted);
-	color: var(--ma-fg);
-	font-size: 13px;
-	font-weight: 600;
-	line-height: 1;
-	cursor: pointer;
-	white-space: nowrap;
-}
-
-.app-store-update-all:hover,
-.app-store-update-all:focus-visible {
-	background: var(--ma-button-bg);
-	outline: none;
-}
-
-.app-store-update-all .dashicons {
-	width: 16px;
-	height: 16px;
-	font-size: 16px;
-	line-height: 16px;
 }
 
 .app-store-source-badge {
@@ -1893,18 +1900,17 @@ body.my-apps-launcher .app-detail-share-btn:active {
 		font-size: 20px;
 	}
 
-	.app-store-update-all {
-		height: 30px;
-		padding: 0 10px;
-		font-size: 12px;
-	}
-
 	.app-store-sidebar {
 		width: 100%;
 		border-right: none;
 		border-bottom: 1px solid #e8e8e8;
 		border-radius: 0;
 		flex-shrink: 0;
+	}
+
+	.app-store-sidebar-footer {
+		padding: 4px 8px 8px;
+		border-top: none;
 	}
 
 	.app-store-nav {

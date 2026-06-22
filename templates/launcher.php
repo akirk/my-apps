@@ -95,13 +95,13 @@ $is_app_store = isset( $_GET['app-store'] );
 				<div class="settings-dropdown-divider"></div>
 				<button type="button" class="settings-dropdown-item" data-action="open-settings">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-					<?php esc_html_e( 'My Apps Settings', 'my-apps' ); ?>
+					<?php esc_html_e( 'App Launcher Settings', 'my-apps' ); ?>
 				</button>
 				<?php if ( $is_playground ) : ?>
 				<div class="settings-dropdown-divider"></div>
 				<button type="button" class="settings-dropdown-item" data-action="update-my-apps">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-					<?php esc_html_e( 'Update My Apps', 'my-apps' ); ?>
+					<?php esc_html_e( 'Update App Launcher', 'my-apps' ); ?>
 				</button>
 				<?php endif; ?>
 			</div>
@@ -175,7 +175,7 @@ $is_app_store = isset( $_GET['app-store'] );
 	<dialog class="modal-overlay" id="my-apps-settings-modal" aria-labelledby="my-apps-settings-title">
 		<div class="modal settings-modal">
 			<div class="modal-header">
-				<h2 id="my-apps-settings-title"><?php esc_html_e( 'My Apps Settings', 'my-apps' ); ?></h2>
+				<h2 id="my-apps-settings-title"><?php esc_html_e( 'App Launcher Settings', 'my-apps' ); ?></h2>
 				<button type="button" class="modal-close" aria-label="<?php esc_attr_e( 'Close', 'my-apps' ); ?>">&times;</button>
 			</div>
 			<div class="settings-modal-body">
@@ -213,15 +213,15 @@ $is_app_store = isset( $_GET['app-store'] );
 				</div>
 				<div class="settings-setting settings-setting-stacked">
 					<div class="settings-setting-copy">
-						<h3><?php esc_html_e( 'My Apps settings file', 'my-apps' ); ?></h3>
+						<h3><?php esc_html_e( 'App launcher settings file', 'my-apps' ); ?></h3>
 						<p><?php esc_html_e( 'Import or export this launcher setup, including app order, hidden apps, custom apps, icons, backgrounds, display preferences, and custom App Store entries. This does not include WordPress posts, pages, media, users, or other site content.', 'my-apps' ); ?></p>
 					</div>
 					<div class="settings-action-row">
 						<button type="button" class="settings-action-button" data-action="export">
-							<?php esc_html_e( 'Export My Apps Settings', 'my-apps' ); ?>
+							<?php esc_html_e( 'Export App Launcher Settings', 'my-apps' ); ?>
 						</button>
 						<button type="button" class="settings-action-button" data-action="import">
-							<?php esc_html_e( 'Import My Apps Settings', 'my-apps' ); ?>
+							<?php esc_html_e( 'Import App Launcher Settings', 'my-apps' ); ?>
 						</button>
 					</div>
 				</div>
@@ -395,6 +395,14 @@ $is_app_store = isset( $_GET['app-store'] );
 						<li class="app-store-nav-item" data-view="web-link"><?php esc_html_e( 'Add Web Link', 'my-apps' ); ?></li>
 						<?php endif; ?>
 					</ul>
+					<?php if ( $is_playground ) : ?>
+					<div class="app-store-sidebar-footer">
+						<button type="button" class="app-store-nav-item app-store-update-all" id="app-store-update-all">
+							<span class="dashicons dashicons-update"></span>
+							<span class="app-store-update-all-label"><?php esc_html_e( 'Update All Apps', 'my-apps' ); ?></span>
+						</button>
+					</div>
+					<?php endif; ?>
 				</nav>
 				<div class="app-store-main">
 					<div class="app-store-main-header">
@@ -402,12 +410,6 @@ $is_app_store = isset( $_GET['app-store'] );
 							<h2 id="app-store-heading"><?php esc_html_e( 'Apps', 'my-apps' ); ?></h2>
 							<span class="app-store-source-badge" id="app-store-source-badge" hidden></span>
 						</div>
-						<?php if ( $is_playground ) : ?>
-						<button type="button" class="app-store-update-all" id="app-store-update-all">
-							<span class="dashicons dashicons-update"></span>
-							<?php esc_html_e( 'Update All Apps', 'my-apps' ); ?>
-						</button>
-						<?php endif; ?>
 						<button type="button" class="modal-close">&times;</button>
 					</div>
 					<div class="app-store-content" id="app-store-content">

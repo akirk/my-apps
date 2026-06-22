@@ -1256,6 +1256,12 @@
 
 			var entry = getCachedBlueprintUpdateEntry(appIcon.dataset.url);
 			if (!entry) {
+				entry = getCachedBlueprintPluginUpdateEntry(appIcon.dataset.slug);
+			}
+			if (!entry) {
+				entry = getCachedBlueprintPluginUpdateEntry(launcherPluginSlugFromUrl(appIcon.dataset.url));
+			}
+			if (!entry) {
 				entry = getGitDirectoryPluginUpdateEntry(appIcon);
 			}
 			addBlueprintUpdate(entry, appIcon, appIcon.dataset.url);
@@ -1268,7 +1274,11 @@
 			});
 
 			(Array.isArray(myAppsConfig.appUrls) ? myAppsConfig.appUrls : []).forEach(function(url) {
-				addBlueprintUpdate(getCachedBlueprintUpdateEntry(url), null, url);
+				addBlueprintUpdate(
+					getCachedBlueprintUpdateEntry(url) || getCachedBlueprintPluginUpdateEntry(launcherPluginSlugFromUrl(url)),
+					null,
+					url
+				);
 			});
 		}
 
@@ -1328,6 +1338,12 @@
 		if (!appStoreData || !installed || typeof installed !== 'object' || Array.isArray(installed)) {
 			return entries;
 		}
+
+		Object.keys(installed).forEach(function(slug) {
+			var entry = getCachedBlueprintPluginUpdateEntry(slug);
+			if (!entry || !blueprintHasGitDirectoryStep(entry.blueprint)) return;
+			entries.push(entry);
+		});
 
 		Object.keys(appStoreData).forEach(function(path) {
 			var app = appStoreData[path];
@@ -1603,9 +1619,29 @@
 		return normalizeAppUrl(absoluteLauncherUrl(url));
 	}
 
+	function launcherPluginSlugFromUrl(url) {
+		var parts;
+		var scopeIndex;
+		try {
+			parts = new URL(url, window.location.href).pathname.split('/').filter(Boolean);
+		} catch (e) {
+			return '';
+		}
+		if (!parts.length) return '';
+
+		scopeIndex = parts.findIndex(function(part) {
+			return part.indexOf('scope:') === 0;
+		});
+		if (scopeIndex !== -1 && parts[scopeIndex + 1]) {
+			return normalizePluginSlug(parts[scopeIndex + 1]);
+		}
+		return normalizePluginSlug(parts[parts.length - 1]);
+	}
+
 	function blueprintUpdateEntryFromBlueprint(path, app, blueprint, blueprintUrl) {
 		var launcherUrl = blueprint && (blueprint.launcher_url || blueprint.landingPage);
-		if (!launcherUrl) return null;
+		var pluginSlug = blueprintHasGitDirectoryStep(blueprint) ? getSingleBlueprintPluginSlug(blueprint) : '';
+		if (!launcherUrl && !pluginSlug) return null;
 
 		app._path = path;
 		if (blueprint.launcher_url) {
@@ -1617,8 +1653,19 @@
 			app: app,
 			blueprint: blueprint,
 			blueprintUrl: blueprintUrl,
-			launcherUrl: normalizeLauncherMatchUrl(launcherUrl)
+			launcherUrl: launcherUrl ? normalizeLauncherMatchUrl(launcherUrl) : '',
+			pluginSlug: pluginSlug
 		};
+	}
+
+	function indexBlueprintUpdateEntry(entries, entry) {
+		if (!entry) return;
+		if (entry.launcherUrl) {
+			entries[entry.launcherUrl] = entry;
+		}
+		if (entry.pluginSlug) {
+			entries['plugin:' + entry.pluginSlug] = entry;
+		}
 	}
 
 	function buildBlueprintUpdateEntries(data) {
@@ -1633,22 +1680,19 @@
 			var blueprintUrl = getBlueprintUrl(path);
 
 			if (app._launcherUrl) {
-				entries[normalizeLauncherMatchUrl(app._launcherUrl)] = {
+				indexBlueprintUpdateEntry(entries, {
 					path: path,
 					app: app,
 					blueprint: null,
 					blueprintUrl: blueprintUrl,
 					launcherUrl: normalizeLauncherMatchUrl(app._launcherUrl)
-				};
-				return null;
+				});
 			}
 
 			return resolveBlueprintFromUrl(blueprintUrl)
 				.then(function(blueprint) {
 					var entry = blueprintUpdateEntryFromBlueprint(path, app, blueprint, blueprintUrl);
-					if (entry) {
-						entries[entry.launcherUrl] = entry;
-					}
+					indexBlueprintUpdateEntry(entries, entry);
 					return null;
 				})
 				.catch(function() {
@@ -1688,6 +1732,12 @@
 		if (!isPlayground) return null;
 		if (!blueprintUpdateEntries || !url) return null;
 		return blueprintUpdateEntries[normalizeLauncherMatchUrl(url)] || null;
+	}
+
+	function getCachedBlueprintPluginUpdateEntry(slug) {
+		slug = normalizePluginSlug(slug);
+		if (!isPlayground || !blueprintUpdateEntries || !slug) return null;
+		return blueprintUpdateEntries['plugin:' + slug] || null;
 	}
 
 	function findBlueprintUpdateEntry(url) {
@@ -2147,10 +2197,17 @@
 			}
 
 			resetInstallButtonState(install.btn);
+			if (typeof install.onComplete === 'function') {
+				install.onComplete(data);
+			}
 			if (data.status === 'cancelled') {
-				showToast('Install cancelled');
+				if (!install.suppressToast) {
+					showToast('Install cancelled');
+				}
 			} else {
-				showToast(playgroundInstallErrorMessage(data));
+				if (!install.suppressToast) {
+					showToast(playgroundInstallErrorMessage(data));
+				}
 			}
 		}
 
@@ -2172,7 +2229,12 @@
 		resultTimeout = setTimeout(function() {
 			if (!cleanup()) return;
 			resetInstallButtonState(install.btn);
-			showToast('Install status unknown: Playground did not report whether the install finished.');
+			if (typeof install.onComplete === 'function') {
+				install.onComplete({ status: 'timeout' });
+			}
+			if (!install.suppressToast) {
+				showToast('Install status unknown: Playground did not report whether the install finished.');
+			}
 		}, PLAYGROUND_INSTALL_RESULT_TIMEOUT);
 
 		try {
@@ -2180,7 +2242,12 @@
 		} catch (error) {
 			cleanup();
 			resetInstallButtonState(install.btn);
-			showToast(playgroundInstallErrorMessage({ error: error }));
+			if (typeof install.onComplete === 'function') {
+				install.onComplete({ status: 'error', error: error });
+			}
+			if (!install.suppressToast) {
+				showToast(playgroundInstallErrorMessage({ error: error }));
+			}
 			return null;
 		}
 		return requestId;
@@ -2201,7 +2268,9 @@
 			landingUrl: getInstallLandingUrl(app, blueprint),
 			blueprintUrl: blueprintUrl,
 			autoOpenAfterInstall: !!options.autoOpenAfterInstall,
-			forwardParams: options.forwardParams || []
+			forwardParams: options.forwardParams || [],
+			onComplete: options.onComplete,
+			suppressToast: !!options.suppressToast
 		}));
 	}
 
@@ -2231,7 +2300,9 @@
 					landingUrl: '',
 					blueprintUrl: blueprintUrl,
 					autoOpenAfterInstall: !!options.autoOpenAfterInstall,
-					forwardParams: options.forwardParams || []
+					forwardParams: options.forwardParams || [],
+					onComplete: options.onComplete,
+					suppressToast: !!options.suppressToast
 				});
 			});
 	}
@@ -2243,15 +2314,21 @@
 	}
 
 	function handlePlaygroundInstallSuccess(install, result) {
+		if (typeof install.onComplete === 'function') {
+			install.onComplete({ status: 'success', result: result });
+		}
+
 		return completeInstalledBlueprint(install).then(function() {
 			var wasUpdate = install.btn && install.btn.dataset.defaultLabel === 'Update';
 			finishInstallButton(install.btn, wasUpdate ? 'Updated' : 'Installed', install);
-			showToast(wasUpdate ? 'Updated' : 'Installed');
+			if (!install.suppressToast) {
+				showToast(wasUpdate ? 'Updated' : 'Installed');
+			}
 			bootstrapAiAssistantAfterPlaygroundInstall(install, result);
 			if (install.autoOpenAfterInstall) {
 				openInstallTarget(install);
 			}
-		});
+		}).catch(function() {});
 	}
 
 	var emojis = [
@@ -3973,7 +4050,9 @@
 				return result;
 			})
 			.catch(function(error) {
-				showToast(error && error.message ? error.message : 'Update failed');
+				if (options.showProgress !== false) {
+					showToast(error && error.message ? error.message : 'Update failed');
+				}
 				throw error;
 			});
 	}
@@ -3991,6 +4070,39 @@
 		btn.dataset.defaultLabel = 'Update';
 		btn.textContent = 'Update';
 		return btn;
+	}
+
+	function setUpdateAllButtonLabel(label) {
+		if (!appStoreUpdateAllBtn) return;
+		var labelEl = appStoreUpdateAllBtn.querySelector('.app-store-update-all-label');
+		if (labelEl) {
+			labelEl.textContent = label;
+		} else {
+			appStoreUpdateAllBtn.textContent = label;
+		}
+	}
+
+	function setUpdateAllButtonBusy(isBusy, label) {
+		if (!appStoreUpdateAllBtn) return;
+		appStoreUpdateAllBtn.disabled = !!isBusy;
+		appStoreUpdateAllBtn.classList.toggle('is-updating', !!isBusy);
+		if (label) {
+			setUpdateAllButtonLabel(label);
+		}
+	}
+
+	function resetUpdateAllButtonSoon(label) {
+		setUpdateAllButtonLabel(label || 'Update All Apps');
+		window.setTimeout(function() {
+			setUpdateAllButtonBusy(false, 'Update All Apps');
+		}, 1400);
+	}
+
+	function resetUpdateAllButtonAfterDelay(label, delay) {
+		return window.setTimeout(function() {
+			if (!appStoreUpdateAllBtn || !appStoreUpdateAllBtn.classList.contains('is-updating')) return;
+			resetUpdateAllButtonSoon(label);
+		}, delay);
 	}
 
 	function updateBlueprintApp(appIcon) {
@@ -4076,7 +4188,7 @@
 	function updateAllApps() {
 		if (!isPlayground) return;
 
-		showToast('Checking for app updates...');
+		setUpdateAllButtonBusy(true, 'Checking...');
 
 		ensureBlueprintUpdateEntries()
 			.then(function() {
@@ -4085,11 +4197,11 @@
 
 				if (!total) {
 					refreshLauncherUpdateButtons();
-					showToast('All apps are up to date');
+					resetUpdateAllButtonSoon('All apps up to date');
 					return null;
 				}
 
-				showToast('Updating ' + total + ' app' + (total === 1 ? '' : 's') + '...');
+				setUpdateAllButtonLabel('Updating ' + total + ' app' + (total === 1 ? '' : 's') + '...');
 
 				return updates.plugins.reduce(function(promise, update) {
 					return promise.then(function() {
@@ -4101,7 +4213,7 @@
 					.then(function() {
 						if (!updates.blueprints.length) {
 							refreshLauncherUpdateButtons();
-							showToast('Updates complete');
+							resetUpdateAllButtonSoon('Update complete');
 							return null;
 						}
 
@@ -4110,24 +4222,39 @@
 								return { error: error };
 							});
 						})).then(function(entries) {
-							var blueprint = buildUpdateAllBlueprint(entries.filter(function(entry) {
+							var resolvedEntries = entries.filter(function(entry) {
 								return entry && !entry.error;
-							}));
+							});
+							var blueprint = buildUpdateAllBlueprint(resolvedEntries);
 							if (!blueprint) {
 								refreshLauncherUpdateButtons();
-								showToast(updates.plugins.length ? 'Plugin updates complete' : 'No blueprint updates could be loaded');
+								resetUpdateAllButtonSoon(updates.plugins.length ? 'Plugin updates complete' : 'No blueprint updates found');
 								return null;
 							}
 
-							var btn = contextUpdateButton();
-							installResolvedBlueprintInPlayground({ title: 'Apps', _landingPage: '/my-apps/' }, blueprint, '', btn);
+							var updateAllFallbackTimer = resetUpdateAllButtonAfterDelay('Update submitted', 30000);
+							installResolvedBlueprintInPlayground({ title: 'Apps', _landingPage: '/my-apps/' }, blueprint, '', null, {
+								suppressToast: true,
+								onComplete: function(result) {
+									if (updateAllFallbackTimer) {
+										window.clearTimeout(updateAllFallbackTimer);
+										updateAllFallbackTimer = null;
+									}
+									if (result && result.status === 'success') {
+										refreshLauncherUpdateButtons();
+										resetUpdateAllButtonSoon('Update complete');
+										return;
+									}
+									resetUpdateAllButtonSoon('Update failed');
+								}
+							});
 							refreshLauncherUpdateButtons();
 							return null;
 						});
 					});
 			})
-			.catch(function(error) {
-				showToast(error && error.message ? error.message : 'Update failed');
+			.catch(function() {
+				resetUpdateAllButtonSoon('Update failed');
 			});
 	}
 

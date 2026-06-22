@@ -26,7 +26,7 @@ $redirect_root_enabled = My_Apps::is_root_redirect_enabled();
 $hide_wp_admin_links = My_Apps::are_wp_admin_links_hidden();
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html <?php language_attributes(); ?>>
 
 <head>
 	<meta charset="UTF-8">

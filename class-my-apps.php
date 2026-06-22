@@ -662,6 +662,7 @@ class My_Apps {
 	}
 
 	public function __construct() {
+		add_action( 'init', array( $this, 'load_textdomain' ), 0 );
 		add_action( 'init', array( $this, 'my_apps_endpoint' ) );
 		add_action( 'template_redirect', array( $this, 'redirect_root_to_my_apps' ) );
 		add_filter( 'query_vars', array( $this, 'my_apps_query_vars' ) );
@@ -703,6 +704,13 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_uninstall_plugin', array( $this, 'ajax_uninstall_plugin' ) );
 		add_action( 'admin_post_my_apps_enable_full_wordpress_mode', array( $this, 'admin_post_enable_full_wordpress_mode' ) );
 		add_action( 'admin_post_my_apps_disable_full_wordpress_mode', array( $this, 'admin_post_disable_full_wordpress_mode' ) );
+	}
+
+	/**
+	 * Load plugin translations.
+	 */
+	public function load_textdomain() {
+		load_plugin_textdomain( 'my-apps', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 	}
 
 	public function enqueue_styles() {
@@ -2514,8 +2522,19 @@ class My_Apps {
 		global $wp_query;
 		if ( isset( $wp_query->query_vars['my_apps'] ) ) {
 			if ( is_user_logged_in() ) {
-				$this->enqueue_launcher_assets();
-				include plugin_dir_path( __FILE__ ) . 'templates/launcher.php';
+				$switched_locale = false;
+				if ( function_exists( 'switch_to_user_locale' ) ) {
+					$switched_locale = switch_to_user_locale( get_current_user_id() );
+				}
+
+				try {
+					$this->enqueue_launcher_assets();
+					include plugin_dir_path( __FILE__ ) . 'templates/launcher.php';
+				} finally {
+					if ( $switched_locale && function_exists( 'restore_previous_locale' ) ) {
+						restore_previous_locale();
+					}
+				}
 				exit;
 			} else {
 				wp_safe_redirect( wp_login_url() );
@@ -2612,6 +2631,7 @@ class My_Apps {
 					'mediaUnavailable'       => __( 'The media library is unavailable.', 'my-apps' ),
 					'invalidBackgroundImage' => __( 'Please choose an image file.', 'my-apps' ),
 					'wallpaperPrompt'        => __( 'Not feeling this?', 'my-apps' ),
+					/* translators: %s: Wallpaper name. */
 					'wallpaperNamedPrompt'   => __( 'This wallpaper is %s.', 'my-apps' ),
 					'wallpaperTryAnother'    => __( 'Try another.', 'my-apps' ),
 				),

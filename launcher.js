@@ -67,6 +67,10 @@
 	let PLUGINS_URL = '';
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
+	const i18n = (typeof myAppsConfig !== 'undefined' && myAppsConfig.i18n) ? myAppsConfig.i18n : {};
+	const wpI18n = (window.wp && window.wp.i18n) ? window.wp.i18n : null;
+	const __ = wpI18n && wpI18n.__ ? wpI18n.__ : function(text) { return text; };
+	const _n = wpI18n && wpI18n._n ? wpI18n._n : function(single, plural) { return plural; };
 	let rootRedirectEnabled = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.redirectRoot);
 	let wpAdminLinksHidden = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.hideWpAdminLinks);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
@@ -87,6 +91,28 @@
 	};
 
 	refreshBlueprintsSourceUrls();
+
+	function t(key, fallback) {
+		return i18n && typeof i18n[key] === 'string' ? i18n[key] : fallback;
+	}
+
+	function sprintf(template) {
+		var args = Array.prototype.slice.call(arguments, 1);
+		var index = 0;
+		return String(template || '').replace(/%[sd]/g, function() {
+			return typeof args[index] !== 'undefined' ? args[index++] : '';
+		});
+	}
+
+	function stepCountLabel(count) {
+		/* translators: %d: Number of steps. */
+		return sprintf(_n( '%d step', '%d steps', count, 'my-apps' ), count);
+	}
+
+	function byAuthorLabel(author) {
+		/* translators: %s: App or plugin author name. */
+		return sprintf(t('byAuthor', __( 'by %s', 'my-apps' )), author);
+	}
 
 	// Walk up the parent chain until we reach a cross-origin frame.
 	// In the normal case window.parent is already cross-origin (Playground).
@@ -4058,9 +4084,9 @@
 			.then(function(result) {
 				if (options.showProgress !== false) {
 					if (result.updated) {
-						showToast('Updated');
+						showToast(t('updated', __( 'Updated', 'my-apps' )));
 					} else {
-						showToast('Already up to date');
+						showToast(t('alreadyUpToDate', __( 'Already up to date', 'my-apps' )));
 					}
 				}
 				refreshLauncherUpdateButtons();
@@ -4068,7 +4094,7 @@
 			})
 			.catch(function(error) {
 				if (options.showProgress !== false) {
-					showToast(error && error.message ? error.message : 'Update failed');
+					showToast(error && error.message ? error.message : t('updateFailed', __( 'Update failed', 'my-apps' )));
 				}
 				throw error;
 			});
@@ -4143,7 +4169,7 @@
 				}
 			})
 			.catch(function(error) {
-				showToast(error && error.message ? error.message : 'Update failed');
+				showToast(error && error.message ? error.message : t('updateFailed', __( 'Update failed', 'my-apps' )));
 			});
 	}
 
@@ -4205,7 +4231,7 @@
 	function updateAllApps() {
 		if (!isPlayground) return;
 
-		setUpdateAllButtonBusy(true, 'Checking...');
+		setUpdateAllButtonBusy(true, t('checking', __( 'Checking...', 'my-apps' )));
 
 		ensureBlueprintUpdateEntries()
 			.then(function() {
@@ -4215,11 +4241,12 @@
 
 				if (!total) {
 					refreshLauncherUpdateButtons();
-					resetUpdateAllButtonSoon('All apps up to date');
+					resetUpdateAllButtonSoon(t('allAppsUpToDate', __( 'All apps up to date', 'my-apps' )));
 					return null;
 				}
 
-				setUpdateAllButtonLabel('Updating ' + total + ' app' + (total === 1 ? '' : 's') + '...');
+				/* translators: %d: Number of apps. */
+				setUpdateAllButtonLabel(sprintf(_n( 'Updating %d app...', 'Updating %d apps...', total, 'my-apps' ), total));
 
 				return updates.plugins.reduce(function(promise, update) {
 					return promise.then(function() {
@@ -4244,12 +4271,12 @@
 							refreshLauncherUpdateButtons();
 							if (pluginError) {
 								showToast(
-									pluginError.error && pluginError.error.message ? pluginError.error.message : 'Update failed',
+									pluginError.error && pluginError.error.message ? pluginError.error.message : t('updateFailed', __( 'Update failed', 'my-apps' )),
 									{ type: 'error' }
 								);
-								resetUpdateAllButtonSoon('Update failed');
+								resetUpdateAllButtonSoon(t('updateFailed', __( 'Update failed', 'my-apps' )));
 							} else {
-								resetUpdateAllButtonSoon('Update complete');
+								resetUpdateAllButtonSoon(t('updateComplete', __( 'Update complete', 'my-apps' )));
 							}
 							return null;
 						}
@@ -4265,11 +4292,11 @@
 							var blueprint = buildUpdateAllBlueprint(resolvedEntries);
 							if (!blueprint) {
 								refreshLauncherUpdateButtons();
-								resetUpdateAllButtonSoon(updates.plugins.length ? 'Plugin updates complete' : 'No blueprint updates found');
+								resetUpdateAllButtonSoon(updates.plugins.length ? t('pluginUpdatesComplete', __( 'Plugin updates complete', 'my-apps' )) : t('noBlueprintUpdatesFound', __( 'No blueprint updates found', 'my-apps' )));
 								return null;
 							}
 
-							var updateAllFallbackTimer = resetUpdateAllButtonAfterDelay('Update submitted', 30000);
+							var updateAllFallbackTimer = resetUpdateAllButtonAfterDelay(t('updateSubmitted', __( 'Update submitted', 'my-apps' )), 30000);
 							installResolvedBlueprintInPlayground({ title: 'Apps', _landingPage: '/my-apps/' }, blueprint, '', null, {
 								suppressToast: true,
 								onComplete: function(result) {
@@ -4281,20 +4308,20 @@
 										refreshLauncherUpdateButtons();
 										if (pluginError) {
 											showToast(
-												pluginError.error && pluginError.error.message ? pluginError.error.message : 'Update failed',
+												pluginError.error && pluginError.error.message ? pluginError.error.message : t('updateFailed', __( 'Update failed', 'my-apps' )),
 												{ type: 'error' }
 											);
-											resetUpdateAllButtonSoon('Update failed');
+											resetUpdateAllButtonSoon(t('updateFailed', __( 'Update failed', 'my-apps' )));
 										} else {
-											resetUpdateAllButtonSoon('Update complete');
+											resetUpdateAllButtonSoon(t('updateComplete', __( 'Update complete', 'my-apps' )));
 										}
 										return;
 									}
 									showToast(
-										result && result.status === 'cancelled' ? 'Update cancelled' : playgroundUpdateErrorMessage(result || {}),
+										result && result.status === 'cancelled' ? t('updateCancelled', __( 'Update cancelled', 'my-apps' )) : playgroundUpdateErrorMessage(result || {}),
 										{ type: 'error' }
 									);
-									resetUpdateAllButtonSoon('Update failed');
+									resetUpdateAllButtonSoon(t('updateFailed', __( 'Update failed', 'my-apps' )));
 								}
 							});
 							refreshLauncherUpdateButtons();
@@ -4303,8 +4330,8 @@
 					});
 			})
 			.catch(function(error) {
-				showToast(error && error.message ? error.message : 'Update failed', { type: 'error' });
-				resetUpdateAllButtonSoon('Update failed');
+				showToast(error && error.message ? error.message : t('updateFailed', __( 'Update failed', 'my-apps' )), { type: 'error' });
+				resetUpdateAllButtonSoon(t('updateFailed', __( 'Update failed', 'my-apps' )));
 			});
 	}
 
@@ -6131,10 +6158,10 @@
 		webLinkView.hidden = (view !== 'web-link');
 
 		if (view === 'admin-link') {
-			appStoreHeading.textContent = 'Add Admin Link';
+			appStoreHeading.textContent = t('addAdminLink', __( 'Add Admin Link', 'my-apps' ));
 			resetAdminLinkView();
 		} else if (view === 'web-link') {
-			appStoreHeading.textContent = 'Add Web Link';
+			appStoreHeading.textContent = t('addWebLink', __( 'Add Web Link', 'my-apps' ));
 			resetWebLinkForm();
 		} else {
 			appStoreHeading.textContent = categoryLabel(activeCategory);
@@ -6142,12 +6169,26 @@
 	}
 
 	function categoryLabel(cat) {
-		if (cat === 'all') return DEFAULT_APP_STORE_CATEGORY;
-		if (cat === '__plugins__') return 'Other Plugins';
+		if (cat === 'all') return categoryDisplayLabel(DEFAULT_APP_STORE_CATEGORY);
+		if (cat === '__plugins__') return t('otherPlugins', __( 'Other Plugins', 'my-apps' ));
 		if (cat === '__recipes__') {
-			return (activeRecipe && recipes[activeRecipe]) ? recipes[activeRecipe].title : 'What can I do?';
+			return (activeRecipe && recipes[activeRecipe]) ? recipes[activeRecipe].title : t('whatCanIDo', __( 'What can I do?', 'my-apps' ));
 		}
-		return cat;
+		return categoryDisplayLabel(cat);
+	}
+
+	function categoryDisplayLabel(cat) {
+		var labels = {
+			'Apps': t('categoryApps', __( 'Apps', 'my-apps' )),
+			'AI': t('categoryAI', __( 'AI', 'my-apps' )),
+			'Media': t('categoryMedia', __( 'Media', 'my-apps' )),
+			'Productivity': t('categoryProductivity', __( 'Productivity', 'my-apps' )),
+			'Social': t('categorySocial', __( 'Social', 'my-apps' )),
+			'Utility': t('categoryUtility', __( 'Utility', 'my-apps' )),
+			'Custom': t('categoryCustom', __( 'Custom', 'my-apps' )),
+			'Other Plugins': t('otherPlugins', __( 'Other Plugins', 'my-apps' ))
+		};
+		return labels[cat] || cat;
 	}
 
 	function routeRequestsRecipes(url) {
@@ -7372,7 +7413,7 @@
 			var recipesLi = document.createElement('li');
 			recipesLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === '__recipes__' ? ' active' : '');
 			recipesLi.dataset.category = '__recipes__';
-			recipesLi.textContent = 'What can I do?';
+			recipesLi.textContent = t('whatCanIDo', __( 'What can I do?', 'my-apps' ));
 			appStoreNav.appendChild(recipesLi);
 
 			var recipesDivider = document.createElement('li');
@@ -7384,7 +7425,7 @@
 			var li = document.createElement('li');
 			li.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === cat ? ' active' : '');
 			li.dataset.category = cat;
-			li.textContent = cat;
+			li.textContent = categoryDisplayLabel(cat);
 			appStoreNav.appendChild(li);
 		});
 
@@ -7396,7 +7437,7 @@
 			var pluginsLi = document.createElement('li');
 			pluginsLi.className = 'app-store-nav-item' + (activeView === 'apps' && activeCategory === '__plugins__' ? ' active' : '');
 			pluginsLi.dataset.category = '__plugins__';
-			pluginsLi.textContent = 'Other Plugins';
+			pluginsLi.textContent = t('otherPlugins', __( 'Other Plugins', 'my-apps' ));
 			appStoreNav.appendChild(pluginsLi);
 		}
 
@@ -7408,13 +7449,13 @@
 			var addAdminLi = document.createElement('li');
 			addAdminLi.className = 'app-store-nav-item';
 			addAdminLi.dataset.view = 'admin-link';
-			addAdminLi.textContent = 'Add Admin Link';
+			addAdminLi.textContent = t('addAdminLink', __( 'Add Admin Link', 'my-apps' ));
 			appStoreNav.appendChild(addAdminLi);
 
 			var addWebLi = document.createElement('li');
 			addWebLi.className = 'app-store-nav-item';
 			addWebLi.dataset.view = 'web-link';
-			addWebLi.textContent = 'Add Web Link';
+			addWebLi.textContent = t('addWebLink', __( 'Add Web Link', 'my-apps' ));
 			appStoreNav.appendChild(addWebLi);
 		}
 
@@ -7429,7 +7470,7 @@
 			var pluginDirLink = document.createElement('a');
 			pluginDirLink.href = getPluginInstallUrl();
 			pluginDirLink.target = '_top';
-			pluginDirLink.textContent = 'Plugin Directory';
+			pluginDirLink.textContent = t('pluginDirectory', __( 'Plugin Directory', 'my-apps' ));
 			pluginDirLi.appendChild(pluginDirLink);
 			appStoreNav.appendChild(pluginDirLi);
 		}
@@ -7444,7 +7485,7 @@
 		submitLink.href = 'https://github.com/WordPress/blueprints/blob/trunk/blueprints/my-wordpress/README.md';
 		submitLink.target = '_blank';
 		submitLink.rel = 'noopener noreferrer';
-		submitLink.textContent = 'Submit an App';
+		submitLink.textContent = t('submitAnApp', __( 'Submit an App', 'my-apps' ));
 		submitLi.appendChild(submitLink);
 		appStoreNav.appendChild(submitLi);
 	}
@@ -8338,7 +8379,7 @@
 					}
 					var catLink = document.createElement('span');
 					catLink.className = 'app-store-category-link';
-					catLink.textContent = cat;
+					catLink.textContent = categoryDisplayLabel(cat);
 					catLink.addEventListener('click', function(e) {
 						e.stopPropagation();
 						selectCategory(cat);
@@ -8361,7 +8402,7 @@
 
 			var badgeEl = document.createElement('span');
 			badgeEl.className = 'app-store-badge';
-			badgeEl.textContent = 'Free, open source';
+			badgeEl.textContent = t('freeOpenSource', __( 'Free, open source', 'my-apps' ));
 			metaEl.appendChild(badgeEl);
 
 			if (app._custom) {
@@ -8379,7 +8420,7 @@
 			if (app.author) {
 				var authorEl = document.createElement('span');
 				authorEl.className = 'app-store-author';
-				authorEl.textContent = 'by ' + app.author;
+				authorEl.textContent = byAuthorLabel(app.author);
 				metaEl.appendChild(authorEl);
 			}
 
@@ -8469,20 +8510,20 @@
 		if (category === '__plugins__') {
 			var introEl = document.createElement('p');
 			introEl.className = 'app-store-intro';
-			introEl.textContent = 'These plugins have been hand-picked as useful additions for a personal WordPress site.';
+			introEl.textContent = t('pluginsIntro', __( 'These plugins have been hand-picked as useful additions for a personal WordPress site.', 'my-apps' ));
 			appStoreContent.appendChild(introEl);
 
 			if (!hasResults && pluginsLoadState === 'loading') {
 				var pluginLoadingEl = document.createElement('div');
 				pluginLoadingEl.className = 'app-store-loading';
-				pluginLoadingEl.textContent = 'Loading recommendations…';
+				pluginLoadingEl.textContent = t('loadingRecommendations', __( 'Loading recommendations…', 'my-apps' ));
 				appStoreContent.appendChild(pluginLoadingEl);
 			} else if (!hasResults) {
 				var pluginEmptyEl = document.createElement('div');
 				pluginEmptyEl.className = 'app-store-error';
 				pluginEmptyEl.textContent = pluginsLoadState === 'failed'
-					? 'Unable to load recommendations right now.'
-					: 'No recommendations match your search.';
+					? t('recommendationsUnavailable', __( 'Unable to load recommendations right now.', 'my-apps' ))
+					: t('noRecommendationsMatch', __( 'No recommendations match your search.', 'my-apps' ));
 				appStoreContent.appendChild(pluginEmptyEl);
 			} else {
 				appStoreContent.appendChild(listEl);
@@ -8493,7 +8534,7 @@
 			var footerLink = document.createElement('a');
 			footerLink.href = getPluginInstallUrl();
 			footerLink.target = '_top';
-			footerLink.textContent = 'Browse all WordPress plugins →';
+			footerLink.textContent = t('browseAllPlugins', __( 'Browse all WordPress plugins →', 'my-apps' ));
 			footerEl.appendChild(footerLink);
 			appStoreContent.appendChild(footerEl);
 			return;
@@ -8504,7 +8545,7 @@
 		} else {
 			var emptyEl = document.createElement('div');
 			emptyEl.className = 'app-store-error';
-			emptyEl.textContent = search ? 'No results found.' : 'No apps found.';
+			emptyEl.textContent = search ? t('noResultsFound', __( 'No results found.', 'my-apps' )) : t('noAppsFound', __( 'No apps found.', 'my-apps' ));
 			appStoreContent.appendChild(emptyEl);
 		}
 	}
@@ -8596,7 +8637,7 @@
 
 		var categoryEl = document.createElement('div');
 		categoryEl.className = 'app-store-category';
-		categoryEl.textContent = 'What can I do?';
+		categoryEl.textContent = t('whatCanIDo', __( 'What can I do?', 'my-apps' ));
 		infoEl.appendChild(categoryEl);
 
 		var titleEl = document.createElement('div');
@@ -8614,7 +8655,7 @@
 		metaEl.className = 'app-store-meta';
 		var badgeEl = document.createElement('span');
 		badgeEl.className = 'app-store-badge';
-		badgeEl.textContent = stepCount + ' step' + (stepCount === 1 ? '' : 's');
+		badgeEl.textContent = stepCountLabel(stepCount);
 		metaEl.appendChild(badgeEl);
 		infoEl.appendChild(metaEl);
 
@@ -8623,7 +8664,7 @@
 		var viewBtn = document.createElement('button');
 		viewBtn.type = 'button';
 		viewBtn.className = 'app-store-install-btn';
-		viewBtn.textContent = 'View';
+		viewBtn.textContent = t('view', __( 'View', 'my-apps' ));
 		actionsEl.appendChild(viewBtn);
 
 		var openRecipe = function(e) {
@@ -8658,20 +8699,20 @@
 
 		var introEl = document.createElement('p');
 		introEl.className = 'app-store-intro';
-		introEl.textContent = 'WordPress can do a lot more than blogging — but turning that into something useful takes knowing which pieces fit together. Each guide shows one useful thing you can build or set up.';
+		introEl.textContent = t('recipesIntro', __( 'WordPress can do a lot more than blogging — but turning that into something useful takes knowing which pieces fit together. Each guide shows one useful thing you can build or set up.', 'my-apps' ));
 		appStoreContent.appendChild(introEl);
 
 		if (recipesLoadState === 'loading' && !hasRecipes) {
 			var loadingEl = document.createElement('div');
 			loadingEl.className = 'app-store-loading';
-			loadingEl.textContent = 'Loading guides…';
+			loadingEl.textContent = t('loadingGuides', __( 'Loading guides…', 'my-apps' ));
 			appStoreContent.appendChild(loadingEl);
 			return;
 		}
 		if (recipesLoadState === 'failed' && !hasRecipes) {
 			var failedEl = document.createElement('div');
 			failedEl.className = 'app-store-error';
-			failedEl.textContent = 'Those guides are unavailable right now. Try Apps instead.';
+			failedEl.textContent = t('guidesUnavailable', __( 'Those guides are unavailable right now. Try Apps instead.', 'my-apps' ));
 			appStoreContent.appendChild(failedEl);
 			return;
 		}
@@ -8719,7 +8760,7 @@
 			var stepCount = (r.steps && r.steps.length) || 0;
 			var metaEl = document.createElement('div');
 			metaEl.className = 'recipe-card-meta';
-			metaEl.textContent = stepCount + ' step' + (stepCount === 1 ? '' : 's');
+			metaEl.textContent = stepCountLabel(stepCount);
 			card.appendChild(metaEl);
 
 			(function(k) {
@@ -8740,7 +8781,7 @@
 			var revealButton = document.createElement('button');
 			revealButton.type = 'button';
 			revealButton.className = 'recipe-core-toggle-button';
-			revealButton.textContent = 'Show guides that use WordPress directly';
+			revealButton.textContent = t('showCoreGuides', __( 'Show guides that use WordPress directly', 'my-apps' ));
 			revealButton.addEventListener('click', function() {
 				coreWordPressRecipesExpanded = true;
 				renderRecipesGrid(search);
@@ -8753,7 +8794,7 @@
 		if (visibleRecipeKeys.length === 0 && hiddenCoreCount === 0) {
 			var emptyEl = document.createElement('div');
 			emptyEl.className = 'app-store-error';
-			emptyEl.textContent = 'No guides match your search.';
+			emptyEl.textContent = t('noGuidesMatch', __( 'No guides match your search.', 'my-apps' ));
 			appStoreContent.appendChild(emptyEl);
 		}
 	}
@@ -8777,7 +8818,7 @@
 		backBtn.innerHTML = BACK_ARROW_SVG;
 		var backLabel = document.createElement('span');
 		backLabel.className = 'app-detail-back-label';
-		backLabel.textContent = 'What can I do?';
+		backLabel.textContent = t('whatCanIDo', __( 'What can I do?', 'my-apps' ));
 		backBtn.appendChild(backLabel);
 		backBtn.addEventListener('click', function() {
 			activeRecipe = null;
@@ -8843,7 +8884,7 @@
 			if (step.optional) {
 				var optionalBadge = document.createElement('span');
 				optionalBadge.className = 'recipe-step-optional-badge';
-				optionalBadge.textContent = 'Optional';
+				optionalBadge.textContent = t('optional', __( 'Optional', 'my-apps' ));
 				stepTitle.appendChild(document.createTextNode(' '));
 				stepTitle.appendChild(optionalBadge);
 			}
@@ -8881,17 +8922,17 @@
 									e.preventDefault();
 								}
 							});
-						})(stepUrl, step.url_label || step.title || 'Open');
+						})(stepUrl, step.url_label || step.title || t('open', __( 'Open', 'my-apps' )));
 					}
 				}
-				linkEl.textContent = (step.url_label || 'Open') + ' →';
+				linkEl.textContent = (step.url_label || t('open', __( 'Open', 'my-apps' ))) + ' →';
 				linkWrap.appendChild(linkEl);
 				stepLi.appendChild(linkWrap);
 			} else if (step.type !== 'note') {
 				// Plugin/app referenced but not yet in appStoreData (e.g., recommended-plugins still loading).
 				var pendingEl = document.createElement('div');
 				pendingEl.className = 'recipe-step-pending';
-				pendingEl.textContent = pluginsLoadState === 'loading' ? 'Loading…' : 'Reference unavailable.';
+				pendingEl.textContent = pluginsLoadState === 'loading' ? t('loading', __( 'Loading…', 'my-apps' )) : t('referenceUnavailable', __( 'Reference unavailable.', 'my-apps' ));
 				stepLi.appendChild(pendingEl);
 			}
 
@@ -8906,7 +8947,7 @@
 			learnLink.href = recipe.learn_more;
 			learnLink.target = '_blank';
 			learnLink.rel = 'noopener noreferrer';
-			learnLink.textContent = 'Read why this matters →';
+			learnLink.textContent = t('readWhyThisMatters', __( 'Read why this matters →', 'my-apps' ));
 			learnEl.appendChild(learnLink);
 			appStoreContent.appendChild(learnEl);
 		}
@@ -8939,7 +8980,7 @@
 		if (app.author) {
 			var authorEl = document.createElement('div');
 			authorEl.className = 'recipe-step-card-author';
-			authorEl.textContent = 'by ' + app.author;
+			authorEl.textContent = byAuthorLabel(app.author);
 			info.appendChild(authorEl);
 		}
 		card.appendChild(info);
@@ -9080,13 +9121,13 @@
 
 		var subtitleEl = document.createElement('div');
 		subtitleEl.className = 'app-detail-subtitle';
-		subtitleEl.textContent = plugin.author ? 'by ' + plugin.author : '';
+		subtitleEl.textContent = plugin.author ? byAuthorLabel(plugin.author) : '';
 
 		var metaRow = document.createElement('div');
 		metaRow.className = 'app-detail-meta-row';
 		var badge = document.createElement('span');
 		badge.className = 'app-store-badge';
-		badge.textContent = 'Free, open source';
+		badge.textContent = t('freeOpenSource', __( 'Free, open source', 'my-apps' ));
 		metaRow.appendChild(badge);
 		if (plugin._custom) {
 			metaRow.appendChild(createCustomStatusBadge(pluginPath, plugin, function() {
@@ -9103,7 +9144,7 @@
 		if (plugin.categories && plugin.categories.length) {
 			var catSpan = document.createElement('span');
 			catSpan.className = 'app-detail-categories';
-			catSpan.textContent = plugin.categories.join(' · ');
+			catSpan.textContent = plugin.categories.map(categoryDisplayLabel).join(' · ');
 			metaRow.appendChild(catSpan);
 		}
 
@@ -9136,7 +9177,7 @@
 		var shareBtn = document.createElement('button');
 		shareBtn.type = 'button';
 		shareBtn.className = 'app-detail-share-btn';
-		shareBtn.title = 'Copy link';
+		shareBtn.title = t('copyLink', __( 'Copy link', 'my-apps' ));
 		shareBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>';
 		shareBtn.addEventListener('click', function() {
 			if (navigator.clipboard) {
@@ -9168,7 +9209,7 @@
 			var aboutSection = document.createElement('div');
 			aboutSection.className = 'app-detail-section';
 			var aboutTitle = document.createElement('h4');
-			aboutTitle.textContent = 'About';
+			aboutTitle.textContent = t('about', __( 'About', 'my-apps' ));
 			aboutSection.appendChild(aboutTitle);
 			var aboutP = document.createElement('p');
 			aboutP.textContent = aboutText;
@@ -9198,7 +9239,7 @@
 			var sourceSection = document.createElement('div');
 			sourceSection.className = 'app-detail-section';
 			var sourceTitle = document.createElement('h4');
-			sourceTitle.textContent = 'Source';
+			sourceTitle.textContent = t('source', __( 'Source', 'my-apps' ));
 			sourceSection.appendChild(sourceTitle);
 			var sourceLink = document.createElement('a');
 			sourceLink.href = sourceUrl;
@@ -9296,14 +9337,14 @@
 
 		var subtitleEl = document.createElement('div');
 		subtitleEl.className = 'app-detail-subtitle';
-		subtitleEl.textContent = app.author ? 'by ' + app.author : '';
+		subtitleEl.textContent = app.author ? byAuthorLabel(app.author) : '';
 
 		var metaRow = document.createElement('div');
 		metaRow.className = 'app-detail-meta-row';
 
 		var badge = document.createElement('span');
 		badge.className = 'app-store-badge';
-		badge.textContent = 'Free, open source';
+		badge.textContent = t('freeOpenSource', __( 'Free, open source', 'my-apps' ));
 		metaRow.appendChild(badge);
 
 		if (app._custom) {
@@ -9322,7 +9363,7 @@
 		if (app.categories && app.categories.length) {
 			var catSpan = document.createElement('span');
 			catSpan.className = 'app-detail-categories';
-			catSpan.textContent = app.categories.join(' \u00b7 ');
+			catSpan.textContent = app.categories.map(categoryDisplayLabel).join(' \u00b7 ');
 			metaRow.appendChild(catSpan);
 		}
 
@@ -9359,7 +9400,7 @@
 		var shareBtn = document.createElement('button');
 		shareBtn.type = 'button';
 		shareBtn.className = 'app-detail-share-btn';
-		shareBtn.title = 'Copy link';
+		shareBtn.title = t('copyLink', __( 'Copy link', 'my-apps' ));
 		shareBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>';
 		shareBtn.addEventListener('click', function() {
 			var shareUrl = window.location.href;
@@ -9395,7 +9436,7 @@
 		descSection.className = 'app-detail-section';
 
 		var descTitle = document.createElement('h4');
-		descTitle.textContent = 'Description';
+		descTitle.textContent = t('description', __( 'Description', 'my-apps' ));
 		descSection.appendChild(descTitle);
 
 		var descText = document.createElement('p');
@@ -9409,12 +9450,12 @@
 		recipeSection.className = 'app-detail-section';
 
 		var recipeTitle = document.createElement('h4');
-		recipeTitle.textContent = 'How to install';
+		recipeTitle.textContent = t('howToInstall', __( 'How to install', 'my-apps' ));
 		recipeSection.appendChild(recipeTitle);
 
 		var recipeLoading = document.createElement('p');
 		recipeLoading.className = 'app-detail-comp-loading';
-		recipeLoading.textContent = 'Loading installation steps\u2026';
+		recipeLoading.textContent = t('loadingInstallationSteps', __( 'Loading installation steps…', 'my-apps' ));
 		recipeSection.appendChild(recipeLoading);
 
 		detail.appendChild(recipeSection);
@@ -9454,20 +9495,20 @@
 				if (steps.length === 0) {
 					var noSteps = document.createElement('p');
 					noSteps.className = 'app-detail-comp-note';
-					noSteps.textContent = 'No installation steps required.';
+					noSteps.textContent = t('noInstallationSteps', __( 'No installation steps required.', 'my-apps' ));
 					recipeSection.appendChild(noSteps);
 					return;
 				}
 
 				var recipeIntro = document.createElement('p');
 				recipeIntro.className = 'app-detail-recipe-intro';
-				recipeIntro.appendChild(document.createTextNode('This app is installed by running the following '));
+				recipeIntro.appendChild(document.createTextNode(t('installationIntroPrefix', __( 'This app is installed by running the following ', 'my-apps' ))));
 				var blueprintLink = document.createElement('a');
 				blueprintLink.href = blueprintUrl;
 				blueprintLink.target = '_blank';
 				blueprintLink.rel = 'noopener noreferrer';
 				blueprintLink.className = 'app-detail-recipe-link';
-				blueprintLink.textContent = 'blueprint';
+				blueprintLink.textContent = t('blueprint', __( 'blueprint', 'my-apps' ));
 				recipeIntro.appendChild(blueprintLink);
 				recipeIntro.appendChild(document.createTextNode(' ('));
 				var stepLibLink = document.createElement('a');
@@ -9475,7 +9516,7 @@
 				stepLibLink.target = '_blank';
 				stepLibLink.rel = 'noopener noreferrer';
 				stepLibLink.className = 'app-detail-recipe-link';
-				stepLibLink.textContent = 'view in Step Library';
+				stepLibLink.textContent = t('viewInStepLibrary', __( 'view in Step Library', 'my-apps' ));
 				recipeIntro.appendChild(stepLibLink);
 				recipeIntro.appendChild(document.createTextNode('):'));
 				recipeSection.appendChild(recipeIntro);
@@ -9677,7 +9718,7 @@
 				}
 			})
 			.catch(function() {
-				recipeLoading.textContent = 'Could not load installation steps.';
+				recipeLoading.textContent = t('installationStepsFailed', __( 'Could not load installation steps.', 'my-apps' ));
 			});
 	}
 

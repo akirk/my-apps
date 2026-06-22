@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-22T16:09:26+00:00\n"
+"POT-Creation-Date: 2026-06-22T17:51:38+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: my-apps\n"
@@ -315,15 +315,15 @@ msgid "No hidden state provided."
 msgstr ""
 
 #: class-my-apps.php:1544
-#: class-my-apps.php:5738
-#: class-my-apps.php:5744
-#: class-my-apps.php:5856
+#: class-my-apps.php:5741
+#: class-my-apps.php:5747
+#: class-my-apps.php:5859
 msgid "Choose only one icon type."
 msgstr ""
 
 #: class-my-apps.php:1548
-#: class-my-apps.php:5760
-#: class-my-apps.php:5860
+#: class-my-apps.php:5763
+#: class-my-apps.php:5863
 msgid "Invalid icon URL."
 msgstr ""
 
@@ -384,447 +384,447 @@ msgstr ""
 msgid "Hide WordPress admin shortcuts and recommendations"
 msgstr ""
 
-#: class-my-apps.php:2622
+#: class-my-apps.php:2625
 msgid "Please fill in all fields"
 msgstr ""
 
-#: class-my-apps.php:2623
+#: class-my-apps.php:2626
 msgid "Delete this app? This cannot be undone."
 msgstr ""
 
-#: class-my-apps.php:2624
+#: class-my-apps.php:2627
 msgid "Uninstall this plugin? This will deactivate it and delete its files. The plugin may also remove its saved data."
 msgstr ""
 
-#: class-my-apps.php:2628
+#: class-my-apps.php:2631
 msgid "Choose Background Image"
 msgstr ""
 
-#: class-my-apps.php:2629
+#: class-my-apps.php:2632
 msgid "Use as Background"
 msgstr ""
 
-#: class-my-apps.php:2630
+#: class-my-apps.php:2633
 msgid "The media library is unavailable."
 msgstr ""
 
-#: class-my-apps.php:2631
+#: class-my-apps.php:2634
 msgid "Please choose an image file."
 msgstr ""
 
-#: class-my-apps.php:2632
+#: class-my-apps.php:2635
 #: templates/launcher.php:161
 msgid "Not feeling this?"
 msgstr ""
 
 #. translators: %s: Wallpaper name.
-#: class-my-apps.php:2634
+#: class-my-apps.php:2637
 #, php-format
 msgid "This wallpaper is %s."
 msgstr ""
 
-#: class-my-apps.php:2635
+#: class-my-apps.php:2638
 #: templates/launcher.php:163
 msgid "Try another."
 msgstr ""
 
-#: class-my-apps.php:2650
-#: class-my-apps.php:2696
+#: class-my-apps.php:2653
+#: class-my-apps.php:2699
 msgid "Sorry, you are not allowed to install plugins on this site."
 msgstr ""
 
-#: class-my-apps.php:2659
-#: class-my-apps.php:3716
+#: class-my-apps.php:2662
+#: class-my-apps.php:3719
 msgid "No plugin specified."
 msgstr ""
 
-#: class-my-apps.php:2733
-#: class-my-apps.php:2802
-#: class-my-apps.php:2811
-#: class-my-apps.php:3789
+#: class-my-apps.php:2736
+#: class-my-apps.php:2805
+#: class-my-apps.php:2814
+#: class-my-apps.php:3792
 msgid "Unable to connect to the filesystem. Please confirm your credentials."
 msgstr ""
 
-#: class-my-apps.php:2745
+#: class-my-apps.php:2748
 msgid "Sorry, you are not allowed to update plugins on this site."
 msgstr ""
 
-#: class-my-apps.php:2755
+#: class-my-apps.php:2758
 msgid "The plugin is installed, but WordPress could not identify its main plugin file."
 msgstr ""
 
-#: class-my-apps.php:2825
+#: class-my-apps.php:2828
 msgid "The plugin was installed, but WordPress could not identify its main plugin file."
 msgstr ""
 
-#: class-my-apps.php:3331
-#: class-my-apps.php:3358
+#: class-my-apps.php:3334
+#: class-my-apps.php:3361
 msgid "Sorry, you are not allowed to do that."
 msgstr ""
 
-#: class-my-apps.php:3706
+#: class-my-apps.php:3709
 msgid "Sorry, you are not allowed to delete plugins on this site."
 msgstr ""
 
-#: class-my-apps.php:3734
+#: class-my-apps.php:3737
 msgid "This app cannot be safely matched to one uninstallable plugin."
 msgstr ""
 
-#: class-my-apps.php:3749
-#: class-my-apps.php:3759
+#: class-my-apps.php:3752
+#: class-my-apps.php:3762
 msgid "This plugin cannot be uninstalled from My Apps."
 msgstr ""
 
-#: class-my-apps.php:3775
+#: class-my-apps.php:3778
 msgid "Network-active plugins must be deactivated from Network Admin before uninstalling."
 msgstr ""
 
-#: class-my-apps.php:3810
+#: class-my-apps.php:3813
 msgid "Sorry, you are not allowed to deactivate this plugin."
 msgstr ""
 
-#: class-my-apps.php:3823
+#: class-my-apps.php:3826
 msgid "The plugin could not be deactivated."
 msgstr ""
 
-#: class-my-apps.php:3845
+#: class-my-apps.php:3848
 msgid "Plugin could not be deleted."
 msgstr ""
 
-#: class-my-apps.php:4004
+#: class-my-apps.php:4007
 msgid "The My Apps App Store URL."
 msgstr ""
 
-#: class-my-apps.php:4008
+#: class-my-apps.php:4011
 msgid "The default apps.json URL used for this response."
 msgstr ""
 
-#: class-my-apps.php:4012
+#: class-my-apps.php:4015
 msgid "The default plugins.json URL used for plugin recommendations."
 msgstr ""
 
-#: class-my-apps.php:4016
+#: class-my-apps.php:4019
 msgid "Whether the response is limited to the default published App Store catalog."
 msgstr ""
 
-#: class-my-apps.php:4020
+#: class-my-apps.php:4023
 msgid "Whether browser-local custom blueprints are included."
 msgstr ""
 
-#: class-my-apps.php:4024
+#: class-my-apps.php:4027
 msgid "Whether browser-local alternate App Store catalog sources are included."
 msgstr ""
 
-#: class-my-apps.php:4028
+#: class-my-apps.php:4031
 msgid "Whether curated plugin recommendations are included in entries."
 msgstr ""
 
-#: class-my-apps.php:4032
+#: class-my-apps.php:4035
 msgid "Whether My Apps simplified WordPress mode currently hides plugin recommendations in the UI by default."
 msgstr ""
 
-#: class-my-apps.php:4039
+#: class-my-apps.php:4042
 msgid "The number of App Store entries returned."
 msgstr ""
 
-#: class-my-apps.php:4043
+#: class-my-apps.php:4046
 msgid "Categories available in the returned App Store catalog."
 msgstr ""
 
-#: class-my-apps.php:4050
+#: class-my-apps.php:4053
 msgid "App Store entries keyed by App Store path."
 msgstr ""
 
-#: class-my-apps.php:4055
+#: class-my-apps.php:4058
 msgid "Non-fatal catalog loading warnings."
 msgstr ""
 
-#: class-my-apps.php:4078
+#: class-my-apps.php:4081
 msgid "Whether this entry is a blueprint app or curated plugin recommendation."
 msgstr ""
 
-#: class-my-apps.php:4083
+#: class-my-apps.php:4086
 msgid "The catalog source for this entry."
 msgstr ""
 
-#: class-my-apps.php:4087
+#: class-my-apps.php:4090
 msgid "The App Store path used for deep links."
 msgstr ""
 
-#: class-my-apps.php:4091
+#: class-my-apps.php:4094
 msgid "The App Store entry title."
 msgstr ""
 
-#: class-my-apps.php:4095
+#: class-my-apps.php:4098
 msgid "The App Store entry description."
 msgstr ""
 
-#: class-my-apps.php:4099
+#: class-my-apps.php:4102
 msgid "The App Store entry author."
 msgstr ""
 
-#: class-my-apps.php:4103
+#: class-my-apps.php:4106
 msgid "The App Store entry categories."
 msgstr ""
 
-#: class-my-apps.php:4110
+#: class-my-apps.php:4113
 msgid "The WordPress Playground blueprint URL for app entries."
 msgstr ""
 
-#: class-my-apps.php:4114
+#: class-my-apps.php:4117
 msgid "The My Apps App Store detail URL."
 msgstr ""
 
-#: class-my-apps.php:4118
+#: class-my-apps.php:4121
 msgid "The WordPress.org plugin slug for wp.org plugin entries."
 msgstr ""
 
-#: class-my-apps.php:4122
+#: class-my-apps.php:4125
 msgid "The GitHub repository for GitHub plugin entries."
 msgstr ""
 
-#: class-my-apps.php:4126
+#: class-my-apps.php:4129
 msgid "The Git ref for GitHub plugin entries."
 msgstr ""
 
-#: class-my-apps.php:4131
+#: class-my-apps.php:4134
 msgid "The Git ref type for GitHub plugin entries."
 msgstr ""
 
-#: class-my-apps.php:4135
+#: class-my-apps.php:4138
 msgid "The public source URL for plugin entries."
 msgstr ""
 
-#: class-my-apps.php:4139
+#: class-my-apps.php:4142
 msgid "The install or plugin-information URL for plugin entries."
 msgstr ""
 
-#: class-my-apps.php:4143
+#: class-my-apps.php:4146
 msgid "The suggested site-relative landing page after installation."
 msgstr ""
 
-#: class-my-apps.php:4147
+#: class-my-apps.php:4150
 msgid "The launcher URL used to detect or open an installed plugin-provided app."
 msgstr ""
 
-#: class-my-apps.php:4277
+#: class-my-apps.php:4280
 msgid "Unable to load App Store catalog."
 msgstr ""
 
-#: class-my-apps.php:4282
+#: class-my-apps.php:4285
 msgid "Invalid App Store catalog."
 msgstr ""
 
-#: class-my-apps.php:4315
+#: class-my-apps.php:4318
 msgid "Unable to load App Store plugin recommendations."
 msgstr ""
 
-#: class-my-apps.php:4320
+#: class-my-apps.php:4323
 msgid "Invalid App Store plugin recommendations."
 msgstr ""
 
-#: class-my-apps.php:4758
+#: class-my-apps.php:4761
 msgid "Plugin"
 msgstr ""
 
-#: class-my-apps.php:4820
+#: class-my-apps.php:4823
 msgid "The default recipes.json URL used for this response."
 msgstr ""
 
-#: class-my-apps.php:4824
+#: class-my-apps.php:4827
 msgid "Whether the response is limited to the default published guide catalog."
 msgstr ""
 
-#: class-my-apps.php:4828
+#: class-my-apps.php:4831
 msgid "Whether browser-local custom blueprints or alternate catalog source overrides are included."
 msgstr ""
 
-#: class-my-apps.php:4835
+#: class-my-apps.php:4838
 msgid "The number of guides returned."
 msgstr ""
 
-#: class-my-apps.php:4839
+#: class-my-apps.php:4842
 msgid "Default What can I do? guide entries keyed by guide slug."
 msgstr ""
 
-#: class-my-apps.php:4859
+#: class-my-apps.php:4862
 msgid "The guide title."
 msgstr ""
 
-#: class-my-apps.php:4863
+#: class-my-apps.php:4866
 msgid "A short guide summary."
 msgstr ""
 
-#: class-my-apps.php:4867
+#: class-my-apps.php:4870
 msgid "The guide description."
 msgstr ""
 
-#: class-my-apps.php:4871
+#: class-my-apps.php:4874
 msgid "The guide icon."
 msgstr ""
 
-#: class-my-apps.php:4875
+#: class-my-apps.php:4878
 msgid "The guide display gradient."
 msgstr ""
 
-#: class-my-apps.php:4879
+#: class-my-apps.php:4882
 msgid "A URL with more information about the guide."
 msgstr ""
 
-#: class-my-apps.php:4883
+#: class-my-apps.php:4886
 msgid "Whether the guide primarily uses core WordPress features."
 msgstr ""
 
-#: class-my-apps.php:4887
+#: class-my-apps.php:4890
 msgid "Guide steps."
 msgstr ""
 
-#: class-my-apps.php:4908
+#: class-my-apps.php:4911
 msgid "The guide step type."
 msgstr ""
 
-#: class-my-apps.php:4912
+#: class-my-apps.php:4915
 msgid "The guide step title."
 msgstr ""
 
-#: class-my-apps.php:4916
+#: class-my-apps.php:4919
 msgid "The guide step description."
 msgstr ""
 
-#: class-my-apps.php:4920
+#: class-my-apps.php:4923
 msgid "Whether the guide step is optional."
 msgstr ""
 
-#: class-my-apps.php:4925
+#: class-my-apps.php:4928
 msgid "The environment where the step applies."
 msgstr ""
 
-#: class-my-apps.php:4929
+#: class-my-apps.php:4932
 msgid "The app blueprint path for app steps."
 msgstr ""
 
-#: class-my-apps.php:4933
+#: class-my-apps.php:4936
 msgid "The WordPress.org plugin slug for plugin steps."
 msgstr ""
 
-#: class-my-apps.php:4937
+#: class-my-apps.php:4940
 msgid "The GitHub repository for GitHub plugin steps."
 msgstr ""
 
-#: class-my-apps.php:4941
+#: class-my-apps.php:4944
 msgid "A supporting URL for the step."
 msgstr ""
 
-#: class-my-apps.php:4945
+#: class-my-apps.php:4948
 msgid "The label for the supporting URL."
 msgstr ""
 
-#: class-my-apps.php:4969
+#: class-my-apps.php:4972
 msgid "Guide not found."
 msgstr ""
 
-#: class-my-apps.php:5029
+#: class-my-apps.php:5032
 msgid "Unable to load guides."
 msgstr ""
 
-#: class-my-apps.php:5034
+#: class-my-apps.php:5037
 msgid "Invalid guide catalog."
 msgstr ""
 
-#: class-my-apps.php:5265
+#: class-my-apps.php:5268
 msgid "Current launcher background state."
 msgstr ""
 
-#: class-my-apps.php:5270
+#: class-my-apps.php:5273
 msgid "The selected launcher background slug."
 msgstr ""
 
-#: class-my-apps.php:5274
+#: class-my-apps.php:5277
 msgid "Custom CSS background value, when the selected background is custom."
 msgstr ""
 
-#: class-my-apps.php:5278
+#: class-my-apps.php:5281
 msgid "The selected custom background image URL."
 msgstr ""
 
-#: class-my-apps.php:5282
+#: class-my-apps.php:5285
 msgid "The selected custom background image attachment ID, when available."
 msgstr ""
 
-#: class-my-apps.php:5286
+#: class-my-apps.php:5289
 msgid "Preset background slugs accepted by the launcher background setter."
 msgstr ""
 
-#: class-my-apps.php:5310
+#: class-my-apps.php:5313
 msgid "Visible launcher app slugs in display order."
 msgstr ""
 
-#: class-my-apps.php:5317
+#: class-my-apps.php:5320
 msgid "Apps available to the launcher, keyed by launcher app slug."
 msgstr ""
 
-#: class-my-apps.php:5324
+#: class-my-apps.php:5327
 msgid "The launcher app display name."
 msgstr ""
 
-#: class-my-apps.php:5328
+#: class-my-apps.php:5331
 msgid "The launcher app URL."
 msgstr ""
 
-#: class-my-apps.php:5333
+#: class-my-apps.php:5336
 msgid "Whether the app comes from plugin registration or launcher customization."
 msgstr ""
 
-#: class-my-apps.php:5337
+#: class-my-apps.php:5340
 msgid "Whether the app is hidden from the launcher."
 msgstr ""
 
-#: class-my-apps.php:5341
+#: class-my-apps.php:5344
 msgid "Whether the app can be deleted from launcher customization."
 msgstr ""
 
-#: class-my-apps.php:5345
+#: class-my-apps.php:5348
 msgid "Whether the icon is customized by a launcher override."
 msgstr ""
 
-#: class-my-apps.php:5354
+#: class-my-apps.php:5357
 msgid "The app icon representation type."
 msgstr ""
 
-#: class-my-apps.php:5358
+#: class-my-apps.php:5361
 msgid "The app icon value."
 msgstr ""
 
-#: class-my-apps.php:5362
+#: class-my-apps.php:5365
 msgid "The generated letter icon background."
 msgstr ""
 
-#: class-my-apps.php:5719
+#: class-my-apps.php:5722
 msgid "No icon value provided."
 msgstr ""
 
-#: class-my-apps.php:5723
-#: class-my-apps.php:5735
+#: class-my-apps.php:5726
+#: class-my-apps.php:5738
 msgid "Invalid icon type."
 msgstr ""
 
-#: class-my-apps.php:5749
+#: class-my-apps.php:5752
 msgid "An icon is required."
 msgstr ""
 
-#: class-my-apps.php:5770
+#: class-my-apps.php:5773
 msgid "Invalid Dashicon."
 msgstr ""
 
-#: class-my-apps.php:5776
+#: class-my-apps.php:5779
 msgid "Invalid emoji."
 msgstr ""
 
-#: class-my-apps.php:5782
+#: class-my-apps.php:5785
 msgid "Invalid icon gradient."
 msgstr ""
 
-#: class-my-apps.php:5846
+#: class-my-apps.php:5849
 msgid "Name and URL are required."
 msgstr ""
 
@@ -986,6 +986,7 @@ msgid "Solid Colors"
 msgstr ""
 
 #: templates/launcher.php:294
+#: launcher.js:6188
 msgid "Custom"
 msgstr ""
 
@@ -1015,6 +1016,8 @@ msgid "Set"
 msgstr ""
 
 #: templates/launcher.php:320
+#: launcher.js:8925
+#: launcher.js:8928
 msgid "Open"
 msgstr ""
 
@@ -1086,14 +1089,19 @@ msgstr ""
 
 #: templates/launcher.php:391
 #: templates/launcher.php:410
+#: launcher.js:6182
 msgid "Apps"
 msgstr ""
 
 #: templates/launcher.php:394
+#: launcher.js:6161
+#: launcher.js:7452
 msgid "Add Admin Link"
 msgstr ""
 
 #: templates/launcher.php:395
+#: launcher.js:6164
+#: launcher.js:7458
 msgid "Add Web Link"
 msgstr ""
 
@@ -1127,4 +1135,235 @@ msgstr ""
 
 #: templates/launcher.php:465
 msgid "Add Link"
+msgstr ""
+
+#. translators: %d: Number of steps.
+#: launcher.js:109
+#, js-format
+msgid "%d step"
+msgid_plural "%d steps"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: App or plugin author name.
+#: launcher.js:114
+#, js-format
+msgid "by %s"
+msgstr ""
+
+#: launcher.js:4087
+msgid "Updated"
+msgstr ""
+
+#: launcher.js:4089
+msgid "Already up to date"
+msgstr ""
+
+#: launcher.js:4097
+#: launcher.js:4172
+#: launcher.js:4274
+#: launcher.js:4277
+#: launcher.js:4311
+#: launcher.js:4314
+#: launcher.js:4324
+#: launcher.js:4333
+#: launcher.js:4334
+msgid "Update failed"
+msgstr ""
+
+#: launcher.js:4234
+msgid "Checking..."
+msgstr ""
+
+#: launcher.js:4244
+msgid "All apps up to date"
+msgstr ""
+
+#. translators: %d: Number of apps.
+#: launcher.js:4249
+#, js-format
+msgid "Updating %d app..."
+msgid_plural "Updating %d apps..."
+msgstr[0] ""
+msgstr[1] ""
+
+#: launcher.js:4279
+#: launcher.js:4316
+msgid "Update complete"
+msgstr ""
+
+#: launcher.js:4295
+msgid "Plugin updates complete"
+msgstr ""
+
+#: launcher.js:4295
+msgid "No blueprint updates found"
+msgstr ""
+
+#: launcher.js:4299
+msgid "Update submitted"
+msgstr ""
+
+#: launcher.js:4321
+msgid "Update cancelled"
+msgstr ""
+
+#: launcher.js:6173
+#: launcher.js:6189
+#: launcher.js:7440
+msgid "Other Plugins"
+msgstr ""
+
+#: launcher.js:6175
+#: launcher.js:7416
+#: launcher.js:8640
+#: launcher.js:8821
+msgid "What can I do?"
+msgstr ""
+
+#: launcher.js:6183
+msgid "AI"
+msgstr ""
+
+#: launcher.js:6184
+msgid "Media"
+msgstr ""
+
+#: launcher.js:6185
+msgid "Productivity"
+msgstr ""
+
+#: launcher.js:6186
+msgid "Social"
+msgstr ""
+
+#: launcher.js:6187
+msgid "Utility"
+msgstr ""
+
+#: launcher.js:7473
+msgid "Plugin Directory"
+msgstr ""
+
+#: launcher.js:7488
+msgid "Submit an App"
+msgstr ""
+
+#: launcher.js:8405
+#: launcher.js:9130
+#: launcher.js:9347
+msgid "Free, open source"
+msgstr ""
+
+#: launcher.js:8513
+msgid "These plugins have been hand-picked as useful additions for a personal WordPress site."
+msgstr ""
+
+#: launcher.js:8519
+msgid "Loading recommendations…"
+msgstr ""
+
+#: launcher.js:8525
+msgid "Unable to load recommendations right now."
+msgstr ""
+
+#: launcher.js:8526
+msgid "No recommendations match your search."
+msgstr ""
+
+#: launcher.js:8537
+msgid "Browse all WordPress plugins →"
+msgstr ""
+
+#: launcher.js:8548
+msgid "No results found."
+msgstr ""
+
+#: launcher.js:8548
+msgid "No apps found."
+msgstr ""
+
+#: launcher.js:8667
+msgid "View"
+msgstr ""
+
+#: launcher.js:8702
+msgid "WordPress can do a lot more than blogging — but turning that into something useful takes knowing which pieces fit together. Each guide shows one useful thing you can build or set up."
+msgstr ""
+
+#: launcher.js:8708
+msgid "Loading guides…"
+msgstr ""
+
+#: launcher.js:8715
+msgid "Those guides are unavailable right now. Try Apps instead."
+msgstr ""
+
+#: launcher.js:8784
+msgid "Show guides that use WordPress directly"
+msgstr ""
+
+#: launcher.js:8797
+msgid "No guides match your search."
+msgstr ""
+
+#: launcher.js:8887
+msgid "Optional"
+msgstr ""
+
+#: launcher.js:8935
+msgid "Loading…"
+msgstr ""
+
+#: launcher.js:8935
+msgid "Reference unavailable."
+msgstr ""
+
+#: launcher.js:8950
+msgid "Read why this matters →"
+msgstr ""
+
+#: launcher.js:9180
+#: launcher.js:9403
+msgid "Copy link"
+msgstr ""
+
+#: launcher.js:9212
+msgid "About"
+msgstr ""
+
+#: launcher.js:9242
+msgid "Source"
+msgstr ""
+
+#: launcher.js:9439
+msgid "Description"
+msgstr ""
+
+#: launcher.js:9453
+msgid "How to install"
+msgstr ""
+
+#: launcher.js:9458
+msgid "Loading installation steps…"
+msgstr ""
+
+#: launcher.js:9498
+msgid "No installation steps required."
+msgstr ""
+
+#: launcher.js:9505
+msgid "This app is installed by running the following "
+msgstr ""
+
+#: launcher.js:9511
+msgid "blueprint"
+msgstr ""
+
+#: launcher.js:9519
+msgid "view in Step Library"
+msgstr ""
+
+#: launcher.js:9721
+msgid "Could not load installation steps."
 msgstr ""

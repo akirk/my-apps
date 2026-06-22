@@ -2579,10 +2579,12 @@ class My_Apps {
 		wp_enqueue_script(
 			'my-apps-launcher',
 			plugin_dir_url( __FILE__ ) . 'launcher.js',
-			array( 'sortablejs' ),
+			array( 'sortablejs', 'wp-i18n' ),
 			MY_APPS_VERSION,
 			true
 		);
+
+		wp_set_script_translations( 'my-apps-launcher', 'my-apps', plugin_dir_path( __FILE__ ) . 'languages' );
 
 		wp_enqueue_script(
 			'my-apps-ai-assistant-hooks',

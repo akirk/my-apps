@@ -1,0 +1,185 @@
+{
+    "translation-revision-date": "2026-06-22T16:10:00+00:00",
+    "generator": "WP-CLI\/2.12.0",
+    "source": "launcher.js",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "de_DE",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "Custom": [
+                "Eigene"
+            ],
+            "Open": [
+                "\u00d6ffnen"
+            ],
+            "Apps": [
+                "Apps"
+            ],
+            "Add Admin Link": [
+                "Admin-Link hinzuf\u00fcgen"
+            ],
+            "Add Web Link": [
+                "Web-Link hinzuf\u00fcgen"
+            ],
+            "%d step": [
+                "%d Schritt",
+                "%d Schritte"
+            ],
+            "by %s": [
+                "von %s"
+            ],
+            "Updated": [
+                "Aktualisiert"
+            ],
+            "Already up to date": [
+                "Bereits aktuell"
+            ],
+            "Update failed": [
+                "Aktualisierung fehlgeschlagen"
+            ],
+            "Checking...": [
+                "Wird gepr\u00fcft..."
+            ],
+            "All apps up to date": [
+                "Alle Apps sind aktuell"
+            ],
+            "Updating %d app...": [
+                "%d App wird aktualisiert...",
+                "%d Apps werden aktualisiert..."
+            ],
+            "Update complete": [
+                "Aktualisierung abgeschlossen"
+            ],
+            "Plugin updates complete": [
+                "Plugin-Aktualisierungen abgeschlossen"
+            ],
+            "No blueprint updates found": [
+                "Keine Blueprint-Aktualisierungen gefunden"
+            ],
+            "Update submitted": [
+                "Aktualisierung gesendet"
+            ],
+            "Update cancelled": [
+                "Aktualisierung abgebrochen"
+            ],
+            "Other Plugins": [
+                "Weitere Plugins"
+            ],
+            "What can I do?": [
+                "Was kann ich tun?"
+            ],
+            "AI": [
+                "KI"
+            ],
+            "Media": [
+                "Medien"
+            ],
+            "Productivity": [
+                "Produktivit\u00e4t"
+            ],
+            "Social": [
+                "Soziales"
+            ],
+            "Utility": [
+                "Dienstprogramme"
+            ],
+            "Plugin Directory": [
+                "Plugin-Verzeichnis"
+            ],
+            "Submit an App": [
+                "App einreichen"
+            ],
+            "Free, open source": [
+                "Kostenlos, Open Source"
+            ],
+            "These plugins have been hand-picked as useful additions for a personal WordPress site.": [
+                "Diese Plugins wurden als n\u00fctzliche Erg\u00e4nzungen f\u00fcr eine pers\u00f6nliche WordPress-Website ausgew\u00e4hlt."
+            ],
+            "Loading recommendations\u2026": [
+                "Empfehlungen werden geladen\u2026"
+            ],
+            "Unable to load recommendations right now.": [
+                "Empfehlungen k\u00f6nnen gerade nicht geladen werden."
+            ],
+            "No recommendations match your search.": [
+                "Keine Empfehlungen passen zu deiner Suche."
+            ],
+            "Browse all WordPress plugins \u2192": [
+                "Alle WordPress-Plugins durchsuchen \u2192"
+            ],
+            "No results found.": [
+                "Keine Ergebnisse gefunden."
+            ],
+            "No apps found.": [
+                "Keine Apps gefunden."
+            ],
+            "View": [
+                "Ansehen"
+            ],
+            "WordPress can do a lot more than blogging \u2014 but turning that into something useful takes knowing which pieces fit together. Each guide shows one useful thing you can build or set up.": [
+                "WordPress kann viel mehr als Bloggen \u2014 aber um daraus etwas N\u00fctzliches zu machen, muss man wissen, welche Teile zusammenpassen. Jede Anleitung zeigt eine n\u00fctzliche Sache, die du erstellen oder einrichten kannst."
+            ],
+            "Loading guides\u2026": [
+                "Anleitungen werden geladen\u2026"
+            ],
+            "Those guides are unavailable right now. Try Apps instead.": [
+                "Diese Anleitungen sind gerade nicht verf\u00fcgbar. Probiere stattdessen Apps."
+            ],
+            "Show guides that use WordPress directly": [
+                "Anleitungen anzeigen, die WordPress direkt verwenden"
+            ],
+            "No guides match your search.": [
+                "Keine Anleitungen passen zu deiner Suche."
+            ],
+            "Optional": [
+                "Optional"
+            ],
+            "Loading\u2026": [
+                "Wird geladen\u2026"
+            ],
+            "Reference unavailable.": [
+                "Referenz nicht verf\u00fcgbar."
+            ],
+            "Read why this matters \u2192": [
+                "Lies, warum das wichtig ist \u2192"
+            ],
+            "Copy link": [
+                "Link kopieren"
+            ],
+            "About": [
+                "\u00dcber"
+            ],
+            "Source": [
+                "Quelle"
+            ],
+            "Description": [
+                "Beschreibung"
+            ],
+            "How to install": [
+                "Installation"
+            ],
+            "Loading installation steps\u2026": [
+                "Installationsschritte werden geladen\u2026"
+            ],
+            "No installation steps required.": [
+                "Keine Installationsschritte erforderlich."
+            ],
+            "This app is installed by running the following ": [
+                "Diese App wird installiert, indem das folgende "
+            ],
+            "blueprint": [
+                "Blueprint"
+            ],
+            "view in Step Library": [
+                "in der Step Library ansehen"
+            ],
+            "Could not load installation steps.": [
+                "Installationsschritte konnten nicht geladen werden."
+            ]
+        }
+    }
+}

@@ -99,6 +99,10 @@ $is_app_store = isset( $_GET['app-store'] );
 				</button>
 				<?php if ( $is_playground ) : ?>
 				<div class="settings-dropdown-divider"></div>
+				<button type="button" class="settings-dropdown-item" data-action="update-all-apps">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5 0 .9-.24 1.74-.66 2.47l1.46 1.46C18.55 15.8 19 14.45 19 13c0-3.86-3.14-7-7-7zm-5.8 3.07C5.45 10.2 5 11.55 5 13c0 3.86 3.14 7 7 7v3l4-4-4-4v3c-2.76 0-5-2.24-5-5 0-.9.24-1.74.66-2.47L6.2 9.07z"/></svg>
+					<?php esc_html_e( 'Update All Apps', 'my-apps' ); ?>
+				</button>
 				<button type="button" class="settings-dropdown-item" data-action="update-my-apps">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
 					<?php esc_html_e( 'Update My Apps', 'my-apps' ); ?>
@@ -138,6 +142,11 @@ $is_app_store = isset( $_GET['app-store'] );
 			?>
 			<div class="app-icon" data-slug="<?php echo esc_attr( (string) $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>">
 				<button type="button" class="hide-btn" title="<?php esc_attr_e( 'Hide', 'my-apps' ); ?>"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#000" stroke="#fff" stroke-width="2"/><path d="M8 8l8 8M16 8l-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
+				<?php if ( $is_playground ) : ?>
+				<button type="button" class="app-update-btn" title="<?php esc_attr_e( 'Update', 'my-apps' ); ?>" aria-label="<?php esc_attr_e( 'Update', 'my-apps' ); ?>" hidden>
+					<span class="dashicons dashicons-update"></span>
+				</button>
+				<?php endif; ?>
 				<a href="<?php echo esc_url( $_plugin['url'] ); ?>" class="app-link">
 					<?php
 					echo $icon_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built above from esc_attr/esc_html pieces plus pre-escaped helper output.

@@ -1005,6 +1005,37 @@ body.edit-mode .add-app-btn {
 	min-width: 0;
 }
 
+.app-store-update-all {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	height: 32px;
+	padding: 0 12px;
+	border: 1px solid var(--ma-border);
+	border-radius: 8px;
+	background: var(--ma-bg-tinted);
+	color: var(--ma-fg);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.app-store-update-all:hover,
+.app-store-update-all:focus-visible {
+	background: var(--ma-button-bg);
+	outline: none;
+}
+
+.app-store-update-all .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+	line-height: 16px;
+}
+
 .app-store-source-badge {
 	display: inline-flex;
 	align-items: center;
@@ -1851,6 +1882,21 @@ body.my-apps-launcher .app-detail-share-btn:active {
 		flex-direction: column;
 		height: calc(100dvh - 46px);
 		max-height: calc(100dvh - 46px);
+	}
+
+	.app-store-main-header {
+		gap: 8px;
+		padding: 14px 16px 10px;
+	}
+
+	.app-store-main-header h2 {
+		font-size: 20px;
+	}
+
+	.app-store-update-all {
+		height: 30px;
+		padding: 0 10px;
+		font-size: 12px;
 	}
 
 	.app-store-sidebar {

@@ -34,6 +34,7 @@
 
 	const installSoftwareModal = document.getElementById('install-software-modal');
 	const appStoreContent = document.getElementById('app-store-content');
+	const appStoreUpdateAllBtn = document.getElementById('app-store-update-all');
 	const adminLinkView = document.getElementById('admin-link-view');
 	const webLinkView = document.getElementById('web-link-view');
 
@@ -1190,7 +1191,7 @@
 	function launcherUpdateAvailable(appIcon) {
 		if (!appIcon || !isPlayground) return false;
 		if (getUpdateableApp(appIcon.dataset.slug)) return true;
-		return !!getCachedBlueprintUpdateEntry(appIcon.dataset.url);
+		return !!(getCachedBlueprintUpdateEntry(appIcon.dataset.url) || getGitDirectoryPluginUpdateEntry(appIcon));
 	}
 
 	function updateLauncherUpdateButton(appIcon) {
@@ -1218,32 +1219,139 @@
 			blueprints: []
 		};
 		var seenBlueprints = {};
+		var seenPlugins = {};
+		var appIcons = container
+			? Array.prototype.slice.call(container.querySelectorAll('.app-icon:not(.add-app-btn)'))
+			: [];
 
-		if (!container || !isPlayground) return updates;
+		if (!isPlayground) return updates;
 
-		Array.prototype.forEach.call(container.querySelectorAll('.app-icon:not(.add-app-btn)'), function(appIcon) {
-			var plugin = getUpdateableApp(appIcon.dataset.slug);
-			if (plugin) {
-				updates.plugins.push({
-					appIcon: appIcon,
-					slug: appIcon.dataset.slug,
-					plugin: plugin
-				});
-				return;
-			}
+		function addPluginUpdate(slug, plugin, appIcon) {
+			if (!slug || seenPlugins[slug]) return;
+			seenPlugins[slug] = true;
+			updates.plugins.push({
+				appIcon: appIcon || null,
+				slug: slug,
+				plugin: plugin
+			});
+		}
 
-			var entry = getCachedBlueprintUpdateEntry(appIcon.dataset.url);
-			var key = entry && (entry.path || entry.launcherUrl || appIcon.dataset.url);
+		function addBlueprintUpdate(entry, appIcon, fallbackKey) {
+			var key = entry && (entry.path || entry.launcherUrl || fallbackKey);
 			if (!entry || seenBlueprints[key]) return;
 
 			seenBlueprints[key] = true;
 			updates.blueprints.push({
-				appIcon: appIcon,
+				appIcon: appIcon || null,
 				entry: entry
 			});
+		}
+
+		appIcons.forEach(function(appIcon) {
+			var plugin = getUpdateableApp(appIcon.dataset.slug);
+			if (plugin) {
+				addPluginUpdate(appIcon.dataset.slug, plugin, appIcon);
+				return;
+			}
+
+			var entry = getCachedBlueprintUpdateEntry(appIcon.dataset.url);
+			if (!entry) {
+				entry = getGitDirectoryPluginUpdateEntry(appIcon);
+			}
+			addBlueprintUpdate(entry, appIcon, appIcon.dataset.url);
+		});
+
+		if (!appIcons.length) {
+			var updateableApps = myAppsConfig.updateableApps || {};
+			Object.keys(updateableApps).forEach(function(slug) {
+				addPluginUpdate(slug, updateableApps[slug], null);
+			});
+
+			(Array.isArray(myAppsConfig.appUrls) ? myAppsConfig.appUrls : []).forEach(function(url) {
+				addBlueprintUpdate(getCachedBlueprintUpdateEntry(url), null, url);
+			});
+		}
+
+		collectInstalledGitDirectoryPluginUpdateEntries().forEach(function(entry) {
+			addBlueprintUpdate(entry, null, entry && entry.path);
 		});
 
 		return updates;
+	}
+
+	function getGitDirectoryPluginUpdateEntry(appIcon) {
+		if (!appIcon || !appStoreData) return null;
+
+		var plugin = getUninstallableApp(appIcon.dataset.slug) || {};
+		var launcherPluginSlug = normalizePluginSlug(plugin.pluginSlug || appIcon.dataset.slug);
+		var launcherUrl = normalizeLauncherMatchUrl(appIcon.dataset.url);
+		var matched = null;
+
+		Object.keys(appStoreData).some(function(path) {
+			var app = appStoreData[path];
+			var blueprint;
+			var pluginSlug;
+			var entryLauncherUrl;
+
+			if (!app || app._type !== 'plugin' || app._source !== 'github') return false;
+
+			blueprint = buildPluginBlueprint(app);
+			if (!blueprintHasGitDirectoryStep(blueprint)) return false;
+
+			pluginSlug = getSingleBlueprintPluginSlug(blueprint) || normalizePluginSlug(app._slug || path.replace(/^plugin\//, ''));
+			entryLauncherUrl = normalizeLauncherMatchUrl(app._launcherUrl || app.launcher_url || '');
+
+			if (
+				(pluginSlug && launcherPluginSlug && pluginSlug === launcherPluginSlug) ||
+				(entryLauncherUrl && launcherUrl && entryLauncherUrl === launcherUrl)
+			) {
+				matched = {
+					path: path,
+					app: app,
+					blueprint: blueprint,
+					blueprintUrl: '',
+					launcherUrl: entryLauncherUrl || launcherUrl
+				};
+				return true;
+			}
+
+			return false;
+		});
+
+		return matched;
+	}
+
+	function collectInstalledGitDirectoryPluginUpdateEntries() {
+		var entries = [];
+		var installed = myAppsConfig.installedPlugins || {};
+
+		if (!appStoreData || !installed || typeof installed !== 'object' || Array.isArray(installed)) {
+			return entries;
+		}
+
+		Object.keys(appStoreData).forEach(function(path) {
+			var app = appStoreData[path];
+			var blueprint;
+			var pluginSlug;
+
+			if (!app || app._type !== 'plugin' || app._source !== 'github') return;
+
+			blueprint = buildPluginBlueprint(app);
+			if (!blueprintHasGitDirectoryStep(blueprint)) return;
+
+			pluginSlug = getSingleBlueprintPluginSlug(blueprint) || normalizePluginSlug(app._slug || path.replace(/^plugin\//, ''));
+			if (!pluginSlug || !installed[pluginSlug]) return;
+
+			entries.push({
+				path: path,
+				app: app,
+				blueprint: blueprint,
+				blueprintUrl: '',
+				launcherUrl: normalizeLauncherMatchUrl(app._launcherUrl || app.launcher_url || '')
+			});
+		});
+
+		return entries;
 	}
 
 	function forgetUpdateableApp(slug) {
@@ -2384,6 +2492,9 @@
 
 	function init() {
 		bindAppStoreDocumentPaste();
+		if (appStoreUpdateAllBtn) {
+			appStoreUpdateAllBtn.addEventListener('click', updateAllApps);
+		}
 		updateBlueprintsSourceBadge();
 		if (new URL(window.location).searchParams.has('app-store')) {
 			checkDeepLink();
@@ -3652,8 +3763,6 @@
 					settingsDropdown.classList.remove('active');
 					if (action === 'open-settings') {
 						openSettingsModal();
-					} else if (action === 'update-all-apps') {
-						updateAllApps();
 					} else if (action === 'update-my-apps') {
 						updateMyApps();
 					}
@@ -3924,6 +4033,17 @@
 				launcherUrl: entry.launcherUrl
 			};
 		});
+	}
+
+	function blueprintHasGitDirectoryStep(blueprint) {
+		return !!(blueprint && Array.isArray(blueprint.steps) && blueprint.steps.some(function(step) {
+			var data;
+			if (!step) return false;
+			data = step.step === 'installPlugin' ? step.pluginData
+				: step.step === 'installTheme' ? step.themeData
+				: null;
+			return !!(data && data.resource === 'git:directory');
+		}));
 	}
 
 	function buildUpdateAllBlueprint(entries) {

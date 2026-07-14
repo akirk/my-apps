@@ -1007,6 +1007,132 @@
 		return BLUEPRINTS_BASE_URL + path;
 	}
 
+	function copyTextToClipboard(text) {
+		if (navigator.clipboard && navigator.clipboard.writeText) {
+			return navigator.clipboard.writeText(text);
+		}
+
+		return new Promise(function(resolve, reject) {
+			var textarea = document.createElement('textarea');
+			textarea.value = text;
+			textarea.setAttribute('readonly', 'readonly');
+			textarea.style.position = 'fixed';
+			textarea.style.left = '-9999px';
+			textarea.style.top = '0';
+			document.body.appendChild(textarea);
+			textarea.select();
+			try {
+				if (!document.execCommand('copy')) {
+					throw new Error('Copy command failed');
+				}
+				resolve();
+			} catch (e) {
+				reject(e);
+			} finally {
+				textarea.remove();
+			}
+		});
+	}
+
+	function appShareUrlForPath(path) {
+		var entry = getCustomBlueprintEntry(path);
+		var sharePath = path;
+		if (entry) {
+			if (!entry.overrides || !isCustomBlueprintOriginalVersion(entry.activeVersionId)) {
+				return '';
+			}
+			sharePath = entry.overrides;
+		}
+
+		var url = new URL(window.location.href);
+		url.pathname = url.pathname.replace(/(^|\/)scope:[^/]+(?=\/|$)/g, '') || '/';
+		url.searchParams.set('app', sharePath);
+		return url.toString();
+	}
+
+	function appShareBlueprintPromise(path, blueprintUrl) {
+		var entry = getCustomBlueprintEntry(path);
+		if (entry && (!entry.overrides || !isCustomBlueprintOriginalVersion(entry.activeVersionId))) {
+			return Promise.resolve(entry.blueprint);
+		}
+		return resolveBlueprintFromUrl(blueprintUrl);
+	}
+
+	function closeSharePopovers(except) {
+		document.querySelectorAll('.app-detail-share-popover').forEach(function(popover) {
+			if (popover !== except) {
+				popover.remove();
+			}
+		});
+	}
+
+	function createSharePopoverButton(label, action) {
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'app-detail-share-popover-btn';
+		btn.textContent = label;
+		btn.addEventListener('click', action);
+		return btn;
+	}
+
+	function showAppSharePopover(anchor, options) {
+		options = options || {};
+		var existing = anchor.parentNode && anchor.parentNode.querySelector('.app-detail-share-popover');
+		if (existing) {
+			existing.remove();
+			return;
+		}
+
+		closeSharePopovers();
+
+		var popover = document.createElement('div');
+		popover.className = 'app-detail-share-popover';
+		popover.setAttribute('role', 'menu');
+
+		if (options.shareUrl) {
+			popover.appendChild(createSharePopoverButton('Copy link', function() {
+				copyTextToClipboard(options.shareUrl).then(function() {
+					closeSharePopovers();
+					showToast('Link copied');
+				}, function() {
+					showToast('Could not copy link', { type: 'error' });
+				});
+			}));
+		}
+
+		popover.appendChild(createSharePopoverButton('Copy blueprint', function() {
+			if (!options.blueprintPromise) return;
+			options.blueprintPromise().then(function(blueprint) {
+				return copyTextToClipboard(JSON.stringify(blueprint || {}, null, '\t'));
+			}).then(function() {
+				closeSharePopovers();
+				showToast('Blueprint copied');
+			}, function() {
+				showToast('Could not copy blueprint', { type: 'error' });
+			});
+		}));
+
+		if (!options.shareUrl) {
+			var note = document.createElement('p');
+			note.className = 'app-detail-share-popover-note';
+			note.textContent = 'This custom app only exists in this browser. Copy the blueprint to share it.';
+			popover.appendChild(note);
+		}
+
+		anchor.parentNode.appendChild(popover);
+		setTimeout(function() {
+			document.addEventListener('click', function closeOnOutside(e) {
+				if (!popover.parentNode) {
+					document.removeEventListener('click', closeOnOutside);
+					return;
+				}
+				if (popover.contains(e.target) || anchor.contains(e.target)) return;
+				popover.remove();
+				document.removeEventListener('click', closeOnOutside);
+			});
+		}, 0);
+	}
+
 	function showToast(message, options) {
 		options = options || {};
 		var existing = document.querySelector('.my-apps-toast');
@@ -9436,16 +9562,14 @@
 		shareBtn.className = 'app-detail-share-btn';
 		shareBtn.title = t('copyLink', __( 'Copy link', 'my-apps' ));
 		shareBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>';
-		shareBtn.addEventListener('click', function() {
-			var shareUrl = window.location.href;
-			if (navigator.clipboard) {
-				navigator.clipboard.writeText(shareUrl).then(function() {
-					shareBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-					setTimeout(function() {
-						shareBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>';
-					}, 2000);
-				});
-			}
+		shareBtn.addEventListener('click', function(e) {
+			e.stopPropagation();
+			showAppSharePopover(shareBtn, {
+				shareUrl: appShareUrlForPath(appPath),
+				blueprintPromise: function() {
+					return appShareBlueprintPromise(appPath, blueprintUrl);
+				}
+			});
 		});
 
 		headerActions.appendChild(installBtn);

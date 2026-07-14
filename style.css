@@ -1559,6 +1559,7 @@ body.my-apps-launcher .app-detail-back:active {
 	gap: 10px;
 	flex-shrink: 0;
 	padding-top: 4px;
+	position: relative;
 }
 
 .app-detail-install-btn {
@@ -1592,6 +1593,51 @@ body.my-apps-launcher .app-detail-share-btn:active {
 
 .app-detail-share-btn svg {
 	fill: currentColor;
+}
+
+.app-detail-share-popover {
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	width: min(240px, calc(100vw - 32px));
+	padding: 8px;
+	background: var(--ma-bg, #fff);
+	border: 1px solid var(--ma-border, #dcdcde);
+	border-radius: 8px;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+}
+
+.app-detail-share-popover-btn {
+	display: block;
+	width: 100%;
+	padding: 8px 10px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--ma-fg, #1e1e1e);
+	font-size: 13px;
+	line-height: 1.3;
+	text-align: left;
+	cursor: pointer;
+}
+
+body.my-apps-launcher .app-detail-share-popover-btn:hover,
+body.my-apps-launcher .app-detail-share-popover-btn:focus {
+	background: var(--ma-bg-subtle, #f6f7f7);
+	color: var(--ma-fg, #1e1e1e);
+	outline: none;
+	box-shadow: none;
+}
+
+.app-detail-share-popover-note {
+	margin: 4px 2px 0;
+	color: var(--ma-fg-muted, #646970);
+	font-size: 12px;
+	line-height: 1.35;
 }
 
 /* Toast */

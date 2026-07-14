@@ -4681,6 +4681,15 @@
 		updateWallpaperHintCopy();
 	}
 
+	function getCurrentBackgroundPayload() {
+		return {
+			slug: myAppsConfig.background || '',
+			custom: myAppsConfig.customBackground || '',
+			image_url: myAppsConfig.backgroundImageUrl || '',
+			attachment_id: myAppsConfig.backgroundAttachmentId || 0
+		};
+	}
+
 	function saveBackground(value, options) {
 		options = options || {};
 
@@ -4937,11 +4946,15 @@
 		options = options || {};
 
 		var selection = pickWallpaperShuffleEntry(getCurrentWallpaperSlug());
+		var previousBackground;
 		if (!selection) return Promise.resolve(false);
 
 		if (wallpaperHintButton) {
 			wallpaperHintButton.disabled = true;
 		}
+
+		previousBackground = getCurrentBackgroundPayload();
+		applyBackgroundPayload({ slug: selection.slug });
 
 		return saveBackground(selection.slug, {
 			closePicker: false,
@@ -4949,6 +4962,8 @@
 		}).then(function(saved) {
 			if (saved) {
 				writeWallpaperShuffleBag(selection.paletteSlugs, selection.bag);
+			} else {
+				applyBackgroundPayload(previousBackground);
 			}
 			return saved;
 		}).finally(function() {

@@ -7077,6 +7077,59 @@
 		return String(step.step).replace(/([A-Z])/g, ' $1').toLowerCase().trim();
 	}
 
+	function isCompactBlueprintFileStep(step) {
+		return step && (step.step === 'mkdir' || step.step === 'writeFile');
+	}
+
+	function blueprintStepPath(step) {
+		if (!step) return '';
+
+		var pathKeys = ['path', 'file', 'filename', 'filePath', 'targetPath', 'target', 'directory'];
+		for (var i = 0; i < pathKeys.length; i++) {
+			if (typeof step[pathKeys[i]] === 'string' && step[pathKeys[i]]) {
+				return step[pathKeys[i]];
+			}
+		}
+
+		return '';
+	}
+
+	function blueprintPathBasename(path) {
+		path = String(path || '').replace(/[?#].*$/, '').replace(/[\/\\]+$/, '');
+		if (!path) return '';
+
+		var parts = path.split(/[\/\\]+/);
+		return parts[parts.length - 1] || path;
+	}
+
+	function compactBlueprintRecipeSteps(steps) {
+		var compacted = [];
+
+		(steps || []).forEach(function(step) {
+			var last = compacted[compacted.length - 1];
+			if (isCompactBlueprintFileStep(step) && last && last.type === 'compactFileSteps' && last.stepName === step.step) {
+				last.steps.push(step);
+				return;
+			}
+
+			if (isCompactBlueprintFileStep(step)) {
+				compacted.push({
+					type: 'compactFileSteps',
+					stepName: step.step,
+					steps: [step]
+				});
+				return;
+			}
+
+			compacted.push({
+				type: 'step',
+				step: step
+			});
+		});
+
+		return compacted;
+	}
+
 	function getHostBlueprintInstallPlan(blueprint) {
 		var plan = {
 			plugins: [],
@@ -9682,10 +9735,30 @@
 				var recipeList = document.createElement('ol');
 				recipeList.className = 'app-detail-recipe-list';
 
-				steps.forEach(function(step) {
+				compactBlueprintRecipeSteps(steps).forEach(function(recipeStep) {
 					var li = document.createElement('li');
+					var step = recipeStep.step;
 
-					if (step.step === 'installPlugin') {
+					if (recipeStep.type === 'compactFileSteps') {
+						li.appendChild(document.createTextNode(recipeStep.stepName + ' × ' + recipeStep.steps.length));
+
+						var basenameList = document.createElement('ul');
+						basenameList.className = 'app-detail-recipe-basename-list';
+						recipeStep.steps.forEach(function(fileStep) {
+							var basename = blueprintPathBasename(blueprintStepPath(fileStep));
+							if (!basename) return;
+
+							var basenameItem = document.createElement('li');
+							var basenameCode = document.createElement('code');
+							basenameCode.textContent = basename;
+							basenameItem.appendChild(basenameCode);
+							basenameList.appendChild(basenameItem);
+						});
+
+						if (basenameList.children.length) {
+							li.appendChild(basenameList);
+						}
+					} else if (step.step === 'installPlugin') {
 						var pluginInfo = resolvePluginInfo(step.pluginData);
 						li.appendChild(document.createTextNode('Install plugin '));
 						var link = document.createElement('a');

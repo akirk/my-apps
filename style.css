@@ -3479,6 +3479,64 @@ body.my-apps-launcher .recipe-card:active {
 	white-space: pre-line;
 }
 
+.recipe-alternatives {
+	margin: 0 0 24px;
+	overflow-x: auto;
+}
+
+.recipe-alternatives-table {
+	width: 100%;
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+.recipe-alternatives-table th {
+	padding: 0 0 8px;
+	text-align: left;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--ma-fg-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+	border-bottom: 1px solid var(--ma-border-subtle);
+}
+
+.recipe-alternatives-table th:first-child,
+.recipe-alternatives-table td:first-child {
+	width: 42%;
+	padding-right: 16px;
+}
+
+.recipe-alternatives-table td {
+	padding: 12px 0;
+	vertical-align: middle;
+	border-bottom: 1px solid var(--ma-border-subtle);
+}
+
+.recipe-alternatives-table tr:last-child td {
+	border-bottom: none;
+}
+
+.recipe-alternatives-known {
+	color: var(--ma-fg);
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.recipe-alternatives-known-item {
+	display: inline;
+	font-weight: 600;
+}
+
+.recipe-alternatives-known-item:not(:last-child)::after {
+	content: ",";
+	color: var(--ma-fg-muted);
+}
+
+.recipe-alternatives-app .recipe-step-card {
+	margin-top: 0;
+}
+
 .recipe-steps {
 	list-style: none;
 	counter-reset: recipe-step;
@@ -3675,6 +3733,40 @@ body.my-apps-launcher .recipe-card:active {
 	}
 	.recipe-hero-title {
 		font-size: 18px;
+	}
+	.recipe-alternatives {
+		overflow: visible;
+	}
+	.recipe-alternatives-table,
+	.recipe-alternatives-table thead,
+	.recipe-alternatives-table tbody,
+	.recipe-alternatives-table tr,
+	.recipe-alternatives-table th,
+	.recipe-alternatives-table td {
+		display: block;
+		width: 100%;
+	}
+	.recipe-alternatives-table thead {
+		display: none;
+	}
+	.recipe-alternatives-table tr {
+		padding: 12px 0;
+		border-bottom: 1px solid var(--ma-border-subtle);
+	}
+	.recipe-alternatives-table tr:last-child {
+		border-bottom: none;
+	}
+	.recipe-alternatives-table td {
+		padding: 0;
+		border-bottom: none;
+	}
+	.recipe-alternatives-table th:first-child,
+	.recipe-alternatives-table td:first-child {
+		width: 100%;
+		padding-right: 0;
+	}
+	.recipe-alternatives-known {
+		margin-bottom: 8px;
 	}
 }
 

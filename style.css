@@ -438,6 +438,35 @@ body.my-apps-launcher .wallpaper-hint-close:focus-visible {
 	padding-top: 24px;
 }
 
+@keyframes my-apps-home-settle {
+	0% { transform: translateY(0) scale(1); }
+	45% { transform: translateY(5px) scale(0.985); }
+	100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes my-apps-home-icon-press {
+	0% { transform: scale(1); }
+	45% { transform: scale(0.86); }
+	100% { transform: scale(1); }
+}
+
+body.my-apps-home-press .apps-container {
+	animation: my-apps-home-settle 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+	transform-origin: center top;
+}
+
+body.my-apps-home-press #wp-admin-bar-my-apps .ab-icon {
+	animation: my-apps-home-icon-press 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+	transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body.my-apps-home-press .apps-container,
+	body.my-apps-home-press #wp-admin-bar-my-apps .ab-icon {
+		animation: none;
+	}
+}
+
 /* App Icon */
 .app-icon {
 	width: calc(var(--app-size, 60px) + 30px);

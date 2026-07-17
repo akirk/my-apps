@@ -8824,8 +8824,11 @@
 
 	function findStoreEntryForStep(step) {
 		if (!appStoreData || !step) return null;
-		if (step.type === 'app' && step.path && appStoreData[step.path]) {
-			return { path: step.path, app: appStoreData[step.path] };
+		if (step.type === 'app' && step.path) {
+			var appPath = resolveAppStoreAppPath(step.path, appStoreData);
+			if (appPath && appStoreData[appPath]) {
+				return { path: appPath, app: appStoreData[appPath] };
+			}
 		}
 		if (step.type === 'plugin' && step.slug) {
 			if (areAppStorePluginsHidden()) return null;
@@ -8838,6 +8841,15 @@
 				if (appStoreData[p]._repo === step.repo) match = { path: p, app: appStoreData[p] };
 			});
 			return match;
+		}
+		return null;
+	}
+
+	function findStoreEntryForAlternative(row) {
+		if (!appStoreData || !row || !row.app) return null;
+		var appPath = resolveAppStoreAppPath(row.app, appStoreData);
+		if (appPath && appStoreData[appPath]) {
+			return { path: appPath, app: appStoreData[appPath] };
 		}
 		return null;
 	}
@@ -8859,12 +8871,22 @@
 			].filter(Boolean).join(' ');
 		});
 
+		var alternativesText = '';
+		(recipe.alternatives || []).forEach(function(row) {
+			if (!row) return;
+			alternativesText += ' ' + [
+				Array.isArray(row.known) ? row.known.join(' ') : '',
+				row.app
+			].filter(Boolean).join(' ');
+		});
+
 		return [
 			key,
 			recipe.title,
 			recipe.tagline,
 			recipe.description,
 			recipe.learn_more,
+			alternativesText,
 			stepText
 		].filter(Boolean).join(' ').toLowerCase();
 	}
@@ -9140,6 +9162,10 @@
 			appStoreContent.appendChild(descEl);
 		}
 
+		if (recipe.alternatives && recipe.alternatives.length) {
+			appStoreContent.appendChild(buildRecipeAlternativesTable(recipe.alternatives));
+		}
+
 		// Steps
 		var stepsEl = document.createElement('ol');
 		stepsEl.className = 'recipe-steps';
@@ -9226,6 +9252,67 @@
 			learnEl.appendChild(learnLink);
 			appStoreContent.appendChild(learnEl);
 		}
+	}
+
+	function buildRecipeAlternativesTable(alternatives) {
+		var wrap = document.createElement('div');
+		wrap.className = 'recipe-alternatives';
+
+		var table = document.createElement('table');
+		table.className = 'recipe-alternatives-table';
+
+		var thead = document.createElement('thead');
+		var headRow = document.createElement('tr');
+		var knownHead = document.createElement('th');
+		knownHead.scope = 'col';
+		knownHead.textContent = t('appsYouKnow', __( 'Apps you know', 'my-apps' ));
+		headRow.appendChild(knownHead);
+		var installHead = document.createElement('th');
+		installHead.scope = 'col';
+		installHead.textContent = t('installInWordPress', __( 'Install in WordPress', 'my-apps' ));
+		headRow.appendChild(installHead);
+		thead.appendChild(headRow);
+		table.appendChild(thead);
+
+		var tbody = document.createElement('tbody');
+		alternatives.forEach(function(row) {
+			if (!row || !Array.isArray(row.known) || !row.known.length) return;
+
+			var tr = document.createElement('tr');
+
+			var knownCell = document.createElement('td');
+			knownCell.className = 'recipe-alternatives-known';
+			row.known.forEach(function(name, index) {
+				if (!name) return;
+				if (index > 0) {
+					knownCell.appendChild(document.createTextNode(' '));
+				}
+				var chip = document.createElement('span');
+				chip.className = 'recipe-alternatives-known-item';
+				chip.textContent = name;
+				knownCell.appendChild(chip);
+			});
+			tr.appendChild(knownCell);
+
+			var appCell = document.createElement('td');
+			appCell.className = 'recipe-alternatives-app';
+			var entry = findStoreEntryForAlternative(row);
+			if (entry) {
+				appCell.appendChild(buildRecipeStepCard(entry.path, entry.app));
+			} else {
+				var pendingEl = document.createElement('div');
+				pendingEl.className = 'recipe-step-pending';
+				pendingEl.textContent = t('referenceUnavailable', __( 'Reference unavailable.', 'my-apps' ));
+				appCell.appendChild(pendingEl);
+			}
+			tr.appendChild(appCell);
+
+			tbody.appendChild(tr);
+		});
+
+		table.appendChild(tbody);
+		wrap.appendChild(table);
+		return wrap;
 	}
 
 	function buildRecipeStepCard(path, app) {

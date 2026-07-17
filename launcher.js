@@ -2741,6 +2741,7 @@
 
 	function init() {
 		bindAppStoreDocumentPaste();
+		bindLauncherHomeReloadFeedback();
 		if (appStoreUpdateAllBtn) {
 			appStoreUpdateAllBtn.addEventListener('click', updateAllApps);
 		}
@@ -2758,6 +2759,67 @@
 		checkDeepLink();
 		initGreeting();
 		initWallpaperHint();
+	}
+
+	function bindLauncherHomeReloadFeedback() {
+		var node = document.getElementById('wp-admin-bar-my-apps');
+		var link = node ? node.querySelector('a.ab-item') : null;
+		if (!link || !isLauncherHomeUrl(window.location.href, link.href)) {
+			return;
+		}
+
+		link.addEventListener('click', function(e) {
+			if (
+				e.defaultPrevented ||
+				e.button !== 0 ||
+				e.metaKey ||
+				e.ctrlKey ||
+				e.shiftKey ||
+				e.altKey
+			) {
+				return;
+			}
+
+			e.preventDefault();
+			restartLauncherHomePressAnimation(node);
+		});
+	}
+
+	function isLauncherHomeUrl(currentHref, targetHref) {
+		var currentUrl;
+		var targetUrl;
+		try {
+			currentUrl = new URL(currentHref);
+			targetUrl = new URL(targetHref);
+		} catch (e) {
+			return false;
+		}
+
+		if (currentUrl.origin !== targetUrl.origin || normalizePath(currentUrl.pathname) !== normalizePath(targetUrl.pathname)) {
+			return false;
+		}
+
+		return !Object.keys(AUTO_INSTALL_CONTROL_PARAMS).some(function(param) {
+			return currentUrl.searchParams.has(param);
+		});
+	}
+
+	function normalizePath(path) {
+		return String(path || '').replace(/\/+$/, '') || '/';
+	}
+
+	function restartLauncherHomePressAnimation(node) {
+		body.classList.remove('my-apps-home-press');
+		if (node) {
+			node.classList.remove('my-apps-home-press');
+		}
+
+		void body.offsetWidth;
+
+		body.classList.add('my-apps-home-press');
+		if (node) {
+			node.classList.add('my-apps-home-press');
+		}
 	}
 
 	var HIDE_GREETING_KEY = 'my_apps_hide_greeting';

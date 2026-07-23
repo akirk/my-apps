@@ -2578,6 +2578,10 @@ body.my-apps-launcher .settings-switch.active:active {
 	padding: 20px;
 }
 
+#feedback-form {
+	padding: 20px;
+}
+
 .form-group {
 	margin-bottom: 16px;
 }
@@ -2593,7 +2597,9 @@ body.my-apps-launcher .settings-switch.active:active {
 }
 
 .form-group input[type="text"],
-.form-group input[type="url"] {
+.form-group input[type="url"],
+.form-group select,
+.form-group textarea {
 	width: 100%;
 	padding: 10px 12px;
 	border: 1px solid var(--ma-border);
@@ -2604,10 +2610,60 @@ body.my-apps-launcher .settings-switch.active:active {
 	color: var(--ma-fg);
 }
 
-.form-group input:focus {
+.form-group textarea {
+	min-height: 150px;
+	resize: vertical;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
 	outline: none;
 	border-color: #667eea;
 	box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.feedback-modal {
+	max-width: 480px;
+}
+
+.feedback-context-option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: #555;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.feedback-context-option input {
+	margin: 0;
+}
+
+.feedback-preview {
+	margin-top: 14px;
+	border: 1px solid var(--ma-border);
+	border-radius: 6px;
+	background: var(--ma-bg-secondary);
+	color: var(--ma-fg);
+	font-size: 13px;
+}
+
+.feedback-preview summary {
+	cursor: pointer;
+	font-weight: 600;
+	padding: 10px 12px;
+}
+
+.feedback-preview pre {
+	max-height: 220px;
+	margin: 0;
+	overflow: auto;
+	padding: 0 12px 12px;
+	white-space: pre-wrap;
+	word-break: break-word;
+	color: #333;
+	font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 /* Icon Type Tabs */

@@ -8,6 +8,8 @@
 	const addAppForm = document.getElementById('add-app-form');
 	const iconEditModal = document.getElementById('icon-edit-modal');
 	const iconEditForm = document.getElementById('icon-edit-form');
+	const feedbackModal = document.getElementById('feedback-modal');
+	const feedbackForm = document.getElementById('feedback-form');
 	const bgPicker = document.getElementById('bg-picker');
 	const bgBtn = document.querySelector('.bg-btn');
 	const bgMediaBtn = document.getElementById('bg-media-btn');
@@ -77,6 +79,7 @@
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
 	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
 	const WALLPAPER_SHUFFLE_BAG_KEY = 'wallpaperShuffleBag';
+	const FEEDBACK_CONTACT_STORAGE_KEY = 'my_apps_feedback_contact';
 	const AUTO_INSTALL_CONTROL_PARAMS = {
 		'app-store': true,
 		'install': true,
@@ -2899,6 +2902,228 @@
 		settingsModal.classList.remove('active');
 	}
 
+	function openFeedbackModal() {
+		if (!feedbackModal) return;
+		restoreFeedbackContact();
+		updateFeedbackPreview();
+		feedbackModal.classList.add('active');
+		var message = document.getElementById('feedback-message');
+		if (message) {
+			message.focus();
+		}
+	}
+
+	function closeFeedbackModal() {
+		if (!feedbackModal) return;
+		feedbackModal.classList.remove('active');
+	}
+
+	function feedbackPromptForType(type) {
+		var prompts = {
+			Problem: {
+				label: 'What happened?',
+				placeholder: 'Describe the problem you ran into.'
+			},
+			Idea: {
+				label: 'What should improve?',
+				placeholder: 'Describe the idea or workflow you wish existed.'
+			},
+			Confusing: {
+				label: 'What was confusing?',
+				placeholder: 'Describe where you got stuck or what was unclear.'
+			},
+			Other: {
+				label: 'What would you like to share?',
+				placeholder: 'Share any other feedback.'
+			}
+		};
+
+		return prompts[type] || prompts.Other;
+	}
+
+	function updateFeedbackPrompt() {
+		var type = document.getElementById('feedback-type');
+		var label = document.getElementById('feedback-message-label');
+		var message = document.getElementById('feedback-message');
+		var prompt = feedbackPromptForType(type ? type.value : 'Other');
+
+		if (label) {
+			label.textContent = prompt.label;
+		}
+		if (message) {
+			message.placeholder = prompt.placeholder;
+		}
+	}
+
+	function storedFeedbackContact() {
+		try {
+			return localStorage.getItem(FEEDBACK_CONTACT_STORAGE_KEY) || '';
+		} catch (e) {
+			return '';
+		}
+	}
+
+	function saveFeedbackContact() {
+		var contact = document.getElementById('feedback-contact');
+		if (!contact) return;
+
+		try {
+			var value = contact.value.trim();
+			if (value) {
+				localStorage.setItem(FEEDBACK_CONTACT_STORAGE_KEY, value);
+			} else {
+				localStorage.removeItem(FEEDBACK_CONTACT_STORAGE_KEY);
+			}
+		} catch (e) {
+			// Storage may be disabled; feedback can still be sent.
+		}
+	}
+
+	function restoreFeedbackContact() {
+		var contact = document.getElementById('feedback-contact');
+		if (!contact || contact.value) return;
+		contact.value = storedFeedbackContact();
+	}
+
+	function launcherContextReport() {
+		var installedPlugins = myAppsConfig.installedPlugins || {};
+		var installedPluginLines = Object.keys(installedPlugins).sort().filter(function(slug) {
+			return !!(installedPlugins[slug] && installedPlugins[slug].active);
+		}).map(function(slug) {
+			var plugin = installedPlugins[slug] || {};
+			var label = plugin.name || slug;
+			var details = [];
+
+			if (plugin.version) {
+				details.push(plugin.version);
+			}
+			if (plugin.updateAvailable) {
+				details.push('update available' + (plugin.newVersion ? ' ' + plugin.newVersion : ''));
+			}
+
+			return '- ' + label + ' (' + details.join(', ') + ')';
+		});
+		var lines = [
+			'Layout: ' + (container.dataset.layout || localStorage.getItem('layout') || 'default'),
+			'WordPress version: ' + (myAppsConfig.wpVersion || 'unknown'),
+			'WordPress language: ' + (myAppsConfig.wpLanguage || document.documentElement.lang || 'unknown'),
+			'User language: ' + (myAppsConfig.userLanguage || 'unknown'),
+			'User agent: ' + navigator.userAgent
+		];
+
+		if (window.location.hostname === 'my.wordpress.net') {
+			lines.unshift('URL: ' + window.location.href);
+		}
+
+		if (installedPluginLines.length) {
+			lines.push('', 'Active plugins:', installedPluginLines.join('\n'));
+		}
+
+		return lines.join('\n');
+	}
+
+	function buildFeedbackReport() {
+		var type = document.getElementById('feedback-type');
+		var message = document.getElementById('feedback-message');
+		var contact = document.getElementById('feedback-contact');
+		var includeContext = document.getElementById('feedback-include-context');
+		var report = [
+			'Feedback type: ' + (type ? type.value : 'Other'),
+			'Contact: ' + (contact ? contact.value.trim() : ''),
+			'',
+			(message ? message.value.trim() : '')
+		];
+
+		if (includeContext && includeContext.checked) {
+			report.push('', 'Context:', launcherContextReport());
+		}
+
+		return report.join('\n');
+	}
+
+	function updateFeedbackPreview() {
+		var preview = document.getElementById('feedback-preview-output');
+		if (!preview) return;
+		preview.textContent = buildFeedbackReport();
+	}
+
+	function buildFeedbackPayload() {
+		var type = document.getElementById('feedback-type');
+		var message = document.getElementById('feedback-message');
+		var contact = document.getElementById('feedback-contact');
+		var includeContext = document.getElementById('feedback-include-context');
+		var payload = {
+			type: type ? type.value : 'Other',
+			message: message ? message.value.trim() : '',
+			contact: contact ? contact.value.trim() : '',
+			context: includeContext && includeContext.checked ? launcherContextReport() : '',
+			user_agent: navigator.userAgent
+		};
+
+		if (window.location.hostname === 'my.wordpress.net') {
+			payload.source_url = window.location.href;
+			payload.site_url = window.location.origin;
+		}
+
+		return payload;
+	}
+
+	function submitFeedbackReport(payload) {
+		if (!myAppsConfig.feedbackEndpoint) {
+			return Promise.reject(new Error('Feedback endpoint is not configured'));
+		}
+
+		return fetch(myAppsConfig.feedbackEndpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(payload)
+		}).then(function(res) {
+			if (!res.ok) {
+				throw new Error('Feedback request failed');
+			}
+			return res.json();
+		});
+	}
+
+	function resetFeedbackForm() {
+		if (!feedbackForm) return;
+		var contact = storedFeedbackContact();
+		feedbackForm.reset();
+		var contactInput = document.getElementById('feedback-contact');
+		if (contactInput) {
+			contactInput.value = contact;
+		}
+		updateFeedbackPrompt();
+		updateFeedbackPreview();
+	}
+
+	function handleFeedbackSubmit(e) {
+		e.preventDefault();
+		var message = document.getElementById('feedback-message');
+		if (!message || !message.value.trim()) {
+			showToast('Please describe what happened', { type: 'error' });
+			if (message) message.focus();
+			return;
+		}
+
+		saveFeedbackContact();
+		submitFeedbackReport(buildFeedbackPayload()).then(function() {
+			showToast('Feedback sent');
+			resetFeedbackForm();
+			closeFeedbackModal();
+		}).catch(function() {
+			copyTextToClipboard(buildFeedbackReport()).then(function() {
+				showToast('Could not send feedback, so the report was copied');
+				resetFeedbackForm();
+				closeFeedbackModal();
+			}).catch(function() {
+				showToast('Could not send or copy feedback report', { type: 'error' });
+			});
+		});
+	}
+
 	function toggleRootRedirect() {
 		var previous = rootRedirectEnabled;
 		var next = !rootRedirectEnabled;
@@ -3959,6 +4184,22 @@
 			document.getElementById('icon-edit-revert').addEventListener('click', handleRevertAppIcon);
 		}
 
+		if (feedbackModal && feedbackForm) {
+			feedbackModal.querySelector('.modal-close').addEventListener('click', closeFeedbackModal);
+			feedbackModal.addEventListener('click', function(e) {
+				if (e.target === feedbackModal) closeFeedbackModal();
+			});
+			feedbackForm.addEventListener('submit', handleFeedbackSubmit);
+			feedbackForm.addEventListener('input', updateFeedbackPreview);
+			feedbackForm.addEventListener('change', updateFeedbackPreview);
+			document.getElementById('feedback-contact').addEventListener('input', saveFeedbackContact);
+			document.getElementById('feedback-type').addEventListener('change', updateFeedbackPrompt);
+			document.getElementById('feedback-cancel').addEventListener('click', closeFeedbackModal);
+			restoreFeedbackContact();
+			updateFeedbackPrompt();
+			updateFeedbackPreview();
+		}
+
 		if (settingsModal) {
 			settingsModal.querySelector('.modal-close').addEventListener('click', closeSettingsModal);
 			settingsModal.addEventListener('close', function() {
@@ -3992,6 +4233,8 @@
 			if (e.key === 'Escape') {
 				if (iconEditModal && iconEditModal.classList.contains('active')) {
 					closeIconEditModal();
+				} else if (feedbackModal && feedbackModal.classList.contains('active')) {
+					closeFeedbackModal();
 				} else if (settingsModal && settingsModal.classList.contains('active')) {
 					closeSettingsModal();
 				} else if (installSoftwareModal.classList.contains('active')) {
@@ -5833,9 +6076,17 @@
 
 		switch (action) {
 			case 'open':
+				if (slug === 'feedback' || url === '#my-apps-feedback') {
+					openFeedbackModal();
+					break;
+				}
 				window.location.href = url;
 				break;
 			case 'open-new':
+				if (slug === 'feedback' || url === '#my-apps-feedback') {
+					openFeedbackModal();
+					break;
+				}
 				window.open(url, '_blank');
 				break;
 			case 'change-icon':
@@ -5947,10 +6198,21 @@
 	}
 
 	function handleAppClick(e) {
-		if (!isEditMode) return;
-
 		var link = e.target.closest('.app-link');
-		if (link) {
+		if (!link) return;
+
+		var appIcon = link.closest('.app-icon');
+		if (
+			appIcon &&
+			!isEditMode &&
+			(appIcon.dataset.slug === 'feedback' || appIcon.dataset.url === '#my-apps-feedback')
+		) {
+			e.preventDefault();
+			openFeedbackModal();
+			return;
+		}
+
+		if (isEditMode) {
 			e.preventDefault();
 		}
 	}

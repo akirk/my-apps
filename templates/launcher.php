@@ -19,7 +19,7 @@ $apps = My_Apps::get_apps();
 $hidden_apps = array_filter( $apps, function( $app ) {
 	return ! empty( $app['hide'] );
 } );
-$additional_apps = get_option( 'my_apps_additional_apps', array() );
+$additional_apps = My_Apps::get_additional_apps();
 $can_manage = current_user_can( 'manage_options' );
 $is_playground = My_Apps::is_playground();
 $redirect_root_enabled = My_Apps::is_root_redirect_enabled();
@@ -37,9 +37,10 @@ $hide_wp_admin_links = My_Apps::are_wp_admin_links_hidden();
 </head>
 
 <?php
-$background = get_option( 'my_apps_background', '' );
+$background_state = My_Apps::current_background_state_payload();
+$background = isset( $background_state['slug'] ) && is_string( $background_state['slug'] ) ? $background_state['slug'] : '';
 $background = is_string( $background ) && in_array( $background, My_Apps::VALID_BACKGROUNDS, true ) ? $background : '';
-$custom_bg = get_option( 'my_apps_background_custom', '' );
+$custom_bg = isset( $background_state['custom'] ) && is_string( $background_state['custom'] ) ? $background_state['custom'] : '';
 $custom_bg = is_string( $custom_bg ) ? $custom_bg : '';
 $body_style = ( My_Apps::CUSTOM_BACKGROUND === $background && $custom_bg ) ? 'background: ' . $custom_bg : '';
 $gradient_backgrounds = My_Apps::background_presets( 'gradient' );

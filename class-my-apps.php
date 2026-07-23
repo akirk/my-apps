@@ -682,6 +682,7 @@ class My_Apps {
 		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_ability_categories' ) );
 		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
 		add_filter( 'ai_assistant_ability_domains', array( $this, 'ai_assistant_ability_domains' ) );
+		add_filter( 'my_apps_plugins', array( $this, 'register_builtin_apps' ) );
 
 		// AJAX handlers for launcher
 		add_action( 'wp_ajax_my_apps_save_display_name', array( $this, 'ajax_save_display_name' ) );
@@ -704,6 +705,25 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_uninstall_plugin', array( $this, 'ajax_uninstall_plugin' ) );
 		add_action( 'admin_post_my_apps_enable_full_wordpress_mode', array( $this, 'admin_post_enable_full_wordpress_mode' ) );
 		add_action( 'admin_post_my_apps_disable_full_wordpress_mode', array( $this, 'admin_post_disable_full_wordpress_mode' ) );
+	}
+
+	/**
+	 * Register built-in launcher apps.
+	 *
+	 * @param array $apps Registered launcher apps.
+	 * @return array
+	 */
+	public function register_builtin_apps( $apps ) {
+		$apps['feedback'] = array(
+			'name'     => __( 'Feedback', 'my-apps' ),
+			'url'      => '#my-apps-feedback',
+			'dashicon' => 'dashicons-format-chat',
+			'icon_url' => false,
+			'emoji'    => false,
+			'gradient' => false,
+		);
+
+		return $apps;
 	}
 
 	/**
@@ -2607,7 +2627,11 @@ class My_Apps {
 				'aiAssistantBootstrapNonce' => wp_create_nonce( 'ai_assistant_bootstrap' ),
 				'pluginBlueprintUrl'        => plugin_dir_url( __FILE__ ) . 'blueprint.json',
 				'pluginInstallUrl'          => self_admin_url( 'plugin-install.php' ),
+				'feedbackEndpoint'          => apply_filters( 'my_apps_feedback_endpoint', 'https://alex.kirk.at/wp-json/my-apps-feedback/v1/reports' ),
 				'displayName'               => wp_get_current_user()->display_name,
+				'wpVersion'                 => get_bloginfo( 'version' ),
+				'wpLanguage'                => get_bloginfo( 'language' ),
+				'userLanguage'              => get_user_locale(),
 				'deletableSlugs'            => self::normalize_app_slug_list( array_keys( get_option( 'my_apps_additional_apps', array() ) ) ),
 				'appUrls'                   => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'          => self::get_installed_plugin_statuses(),

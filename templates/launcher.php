@@ -380,6 +380,46 @@ $is_app_store = isset( $_GET['app-store'] );
 		</div>
 	</div>
 
+	<div class="modal-overlay" id="feedback-modal">
+		<div class="modal feedback-modal">
+			<div class="modal-header">
+				<h2 id="feedback-heading"><?php esc_html_e( 'Feedback', 'my-apps' ); ?></h2>
+				<button type="button" class="modal-close" aria-label="<?php esc_attr_e( 'Close', 'my-apps' ); ?>">&times;</button>
+			</div>
+			<form id="feedback-form">
+				<div class="form-group">
+					<label for="feedback-type"><?php esc_html_e( 'Type', 'my-apps' ); ?></label>
+					<select id="feedback-type" name="type">
+						<option value="Problem"><?php esc_html_e( 'Problem', 'my-apps' ); ?></option>
+						<option value="Idea"><?php esc_html_e( 'Idea', 'my-apps' ); ?></option>
+						<option value="Confusing"><?php esc_html_e( 'Confusing', 'my-apps' ); ?></option>
+						<option value="Other"><?php esc_html_e( 'Other', 'my-apps' ); ?></option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="feedback-message" id="feedback-message-label"><?php esc_html_e( 'What happened?', 'my-apps' ); ?></label>
+					<textarea id="feedback-message" name="message" rows="7" required placeholder="<?php esc_attr_e( 'Describe the problem you ran into.', 'my-apps' ); ?>"></textarea>
+				</div>
+				<div class="form-group">
+					<label for="feedback-contact"><?php esc_html_e( 'How can we contact you?', 'my-apps' ); ?></label>
+					<input type="text" id="feedback-contact" name="contact" autocomplete="email" placeholder="<?php esc_attr_e( 'Email, website, or social handle', 'my-apps' ); ?>">
+				</div>
+				<label class="feedback-context-option">
+					<input type="checkbox" id="feedback-include-context" checked>
+					<span><?php esc_html_e( 'Include diagnostic context', 'my-apps' ); ?></span>
+				</label>
+				<details class="feedback-preview">
+					<summary><?php esc_html_e( 'Preview what will be sent', 'my-apps' ); ?></summary>
+					<pre id="feedback-preview-output"></pre>
+				</details>
+				<div class="form-actions">
+					<button type="button" class="btn-secondary" id="feedback-cancel"><?php esc_html_e( 'Cancel', 'my-apps' ); ?></button>
+					<button type="submit" class="btn-add"><?php esc_html_e( 'Send Report', 'my-apps' ); ?></button>
+				</div>
+			</form>
+		</div>
+	</div>
+
 	<div class="modal-overlay" id="install-software-modal">
 		<div class="modal modal-wide">
 			<div class="app-store-layout">

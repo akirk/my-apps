@@ -67,17 +67,12 @@ function desktop_mode_register() {
 		)
 	);
 
-	$registered = apply_filters( 'my_apps_plugins', array() );
-	$additional = get_option( 'my_apps_additional_apps', array() );
-	$hidden     = (array) get_option( 'my_apps_hide_plugins', array() );
-	$all_apps   = array_merge( $registered, $additional );
-
 	$position = 10;
-	foreach ( $all_apps as $slug => $app ) {
+	foreach ( My_Apps::get_apps() as $slug => $app ) {
 		if ( ! isset( $app['url'], $app['name'] ) ) {
 			continue;
 		}
-		if ( in_array( $slug, $hidden, true ) ) {
+		if ( ! empty( $app['hide'] ) ) {
 			continue;
 		}
 		$icon_args = desktop_mode_app_icon_args( $slug, $app );
@@ -151,10 +146,6 @@ function serve_desktop_mode_icon() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only SVG serve, no state change.
 	$slug = isset( $_GET['slug'] ) ? sanitize_text_field( wp_unslash( $_GET['slug'] ) ) : '';
 
-	$registered = apply_filters( 'my_apps_plugins', array() );
-	$additional = get_option( 'my_apps_additional_apps', array() );
-	$all_apps   = array_merge( $registered, $additional );
-
 	if ( '__add__' === $slug ) {
 		header( 'Content-Type: image/svg+xml; charset=utf-8' );
 		header( 'Cache-Control: public, max-age=86400' );
@@ -162,6 +153,7 @@ function serve_desktop_mode_icon() {
 		exit;
 	}
 
+	$all_apps = My_Apps::get_apps();
 	$app      = isset( $all_apps[ $slug ] ) ? $all_apps[ $slug ] : array();
 	$name     = ! empty( $app['name'] ) ? $app['name'] : $slug;
 	$emoji    = ! empty( $app['emoji'] ) ? $app['emoji'] : '';

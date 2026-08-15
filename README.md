@@ -17,7 +17,8 @@ Apps can be plugins that register their own icon, custom links you add yourself,
 
 ### Features
 
-- **Launcher** at `/my-apps/` with grid or flow layouts, drag-to-reorder, and an edit mode for customization.
+- **Launcher** at `/my-apps/` with flow, grid or search layouts, drag-to-reorder, and an edit mode for customization.
+- **Search layout**: a search field above the home screen. Empty, it shows the apps you pinned as icons; typing anywhere turns the home into a vertical result list of title and description, best matches first, with arrow keys to move and Enter to open. Search matches an app's name, its own `description` if it registers one, and the description of the plugin that registered it; description text matches at word starts from three characters up. The shown description is the app's own, falling back to the plugin's. Pin and unpin from the app's context menu, or from the pin badge that appears on hover and in edit mode.
 - **Display settings** live in the launcher itself (no admin page): icon size, spacing, grid columns, layout toggle, background color/image, optional personalized greeting, and, in WordPress Playground, a default-on per-user redirect from `/` to `/my-apps/` plus a default-on simplified WordPress mode that hides legacy admin shortcuts, plugin recommendations, manual add links, and core WordPress guides behind a reveal button. Device-specific display settings are stored per-device while in edit mode, and app-level options live in a dedicated App Launcher Settings window.
 - **App Store** for installing new apps: browse a curated catalog, view app detail pages, and install via WordPress Playground blueprints. Paste a custom blueprint JSON from the clipboard to install anything.
 - **Plugin-provided launcher icons**: installed apps appear in My Apps when the plugin registers through `my_apps_plugins`.
@@ -36,9 +37,15 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
             'icon_url' => 'https://ps.w.org/friends/assets/icon-256x256.png',
             // The URL this should link to.
             'url'      => home_url( '/friends/' ),
+            // Optional: shown and searched in the search layout. Without it,
+            // My Apps falls back to the description of the plugin that
+            // registered the app.
+            'description' => __( 'A self-hosted social reader.', 'friends' ),
         );
         return $apps;
     } );
+
+My Apps works out which plugin registered an app by tracing the filter callback back to its file. An app registered through a shared library — a Composer package in some plugin's `vendor/` directory — cannot be traced that way, because the library file belongs to whichever plugin the autoloader loaded it from. For those, My Apps matches the app slug against the installed plugin slugs instead, and gives up rather than guess when the two differ. Register a `description` yourself, or name the app after its plugin directory, if an app of yours ends up without one.
 
 ### Temporarily adding an app from a blueprint
 

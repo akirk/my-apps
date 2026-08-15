@@ -1610,7 +1610,7 @@
 			forgetAppUrl(visibleApp.dataset.url);
 			visibleApp.remove();
 		}
-		updateLauncherGroups();
+		updateLauncherView();
 	}
 
 	function refreshLauncherAfterPluginUninstall(visibleApp) {
@@ -3569,7 +3569,7 @@
 					var newApp = createAppElement(data.data);
 					var addBtn = document.querySelector('.add-app-btn');
 					container.insertBefore(newApp, addBtn);
-					updateLauncherGroups();
+					updateLauncherView();
 				} else if (data.data && data.data.url) {
 					rememberAppUrl(data.data.url);
 				}
@@ -3649,7 +3649,7 @@
 			filter: '.add-app-btn',
 			disabled: true,
 			onEnd: function() {
-				updateLauncherGroups();
+				updateLauncherView();
 				if (isEditMode) {
 					saveOrder();
 				}
@@ -4147,6 +4147,7 @@
 		contextMenu.addEventListener('click', handleContextAction);
 
 		container.addEventListener('click', handleHideClick);
+		container.addEventListener('click', handlePinClick);
 		container.addEventListener('click', handleAppClick);
 
 		document.querySelector('.add-app-btn').addEventListener('click', function(e) {
@@ -4310,8 +4311,8 @@
 				var item = e.target.closest('.settings-dropdown-item');
 				if (!item) return;
 				var action = item.dataset.action;
-				if (action === 'layout-flow' || action === 'layout-grid' || action === 'layout-list') {
-					setLayout(action.replace('layout-', ''));
+				if (action === 'layout-flow' || action === 'layout-grid' || action === 'layout-search') {
+					setLayout(action.replace('layout-', ''), { focusSearch: true });
 				} else {
 					settingsDropdown.classList.remove('active');
 					if (action === 'open-settings') {
@@ -4420,7 +4421,7 @@
 					var newApp = createAppElement(app);
 					var addBtn = document.querySelector('.add-app-btn');
 					container.insertBefore(newApp, addBtn);
-					updateLauncherGroups();
+					updateLauncherView();
 				} else if (app && app.url) {
 					rememberAppUrl(app.url);
 				}
@@ -5594,7 +5595,7 @@
 					container.appendChild(appEl);
 				}
 			});
-			updateLauncherGroups();
+			updateLauncherView();
 		}
 
 		if (hiddenAppsList) {
@@ -5717,17 +5718,31 @@
 		localStorage.setItem('my_apps_' + key, value);
 	}
 
-	function setLayout(mode) {
-		if (mode !== 'grid' && mode !== 'list') {
+	// The list layout became the search launcher; carry stored preferences over.
+	if (displaySettings.layout === 'list') {
+		saveDisplay('layout', 'search');
+	}
+
+	function setLayout(mode, options) {
+		if (mode !== 'grid' && mode !== 'search') {
 			mode = 'flow';
 		}
+		saveDisplay('layout', mode);
 		if (container) {
 			container.classList.toggle('layout-grid', mode === 'grid');
-			container.classList.toggle('layout-list', mode === 'list');
-			updateLauncherGroups();
+			container.classList.toggle('layout-search', mode === 'search');
 		}
-		saveDisplay('layout', mode);
+		if (mode !== 'search') {
+			setSearchQuery('');
+		}
+		if (searchBar) {
+			searchBar.hidden = mode !== 'search';
+		}
+		updateLauncherView();
 		updateLayoutButtons();
+		if (mode === 'search' && options && options.focusSearch && launcherSearchInput) {
+			launcherSearchInput.focus();
+		}
 	}
 
 	function applyGridColumns(cols) {
@@ -5743,8 +5758,8 @@
 				item.classList.toggle('active', mode === 'flow');
 			} else if (item.dataset.action === 'layout-grid') {
 				item.classList.toggle('active', mode === 'grid');
-			} else if (item.dataset.action === 'layout-list') {
-				item.classList.toggle('active', mode === 'list');
+			} else if (item.dataset.action === 'layout-search') {
+				item.classList.toggle('active', mode === 'search');
 			}
 		});
 		var gridOnly = document.getElementById('settings-grid-only');
@@ -5763,128 +5778,368 @@
 		container.style.setProperty('--app-gap', gap + 'px');
 	}
 
-	var LAUNCHER_GROUP_ORDER = ['Pinned', 'Create', 'Content', 'Customize', 'Manage', 'Settings', 'Tools', 'Explore', 'Links', 'Apps'];
+	// ── Search launcher ──────────────────────────────────────
+	//
+	// The search layout keeps every app in the DOM and only decides what is
+	// visible: with an empty query that is the pinned apps, otherwise the apps
+	// matching the query, ordered by how well they match.
 
-	function inferLauncherGroup(appEl) {
-		if (!appEl || appEl.classList.contains('add-app-btn')) {
-			return 'Apps';
-		}
+	var searchBar = document.getElementById('launcher-search');
+	var launcherSearchInput = document.getElementById('launcher-search-input');
+	var launcherSearchClear = document.getElementById('launcher-search-clear');
+	var launcherSearchEmpty = document.getElementById('launcher-search-empty');
+	var pinnedSlugs = (typeof myAppsConfig !== 'undefined' && Array.isArray(myAppsConfig.pinnedSlugs))
+		? myAppsConfig.pinnedSlugs.slice()
+		: [];
+	// Slug → { app, plugin } descriptions, so a rebuilt tile keeps its text.
+	var appDescriptions = (typeof myAppsConfig !== 'undefined' && myAppsConfig.appDescriptions)
+		? myAppsConfig.appDescriptions
+		: {};
+	var DESCRIPTION_MIN_QUERY = 3;
 
-		var slug = (appEl.dataset.slug || '').toLowerCase();
-		var titleEl = appEl.querySelector('.app-title');
-		var title = titleEl ? titleEl.textContent.toLowerCase() : '';
-		var url = appEl.dataset.url || '';
-		var parsed = null;
-
-		try {
-			parsed = new URL(url, window.location.href);
-		} catch (e) {
-			parsed = null;
-		}
-
-		if (!parsed) {
-			return 'Apps';
-		}
-
-		var sameOrigin = parsed.origin === window.location.origin;
-		var path = parsed.pathname.toLowerCase();
-		var query = parsed.search.toLowerCase();
-		var target = path + query;
-
-		if (!sameOrigin) {
-			return 'Links';
-		}
-		if (target.indexOf('/my-apps/') !== -1 || slug.indexOf('what_can_i_do') !== -1 || title.indexOf('what can i do') !== -1) {
-			return 'Explore';
-		}
-		if (target.indexOf('post-new.php') !== -1 || target.indexOf('site-editor.php?posttype=wp_template') !== -1) {
-			return 'Create';
-		}
-		if (
-			target.indexOf('edit.php') !== -1 ||
-			target.indexOf('upload.php') !== -1 ||
-			target.indexOf('edit-comments.php') !== -1
-		) {
-			return 'Content';
-		}
-		if (
-			target.indexOf('themes.php') !== -1 ||
-			target.indexOf('customize.php') !== -1 ||
-			target.indexOf('site-editor.php') !== -1 ||
-			target.indexOf('widgets.php') !== -1 ||
-			target.indexOf('nav-menus.php') !== -1
-		) {
-			return 'Customize';
-		}
-		if (
-			target.indexOf('users.php') !== -1 ||
-			target.indexOf('user-new.php') !== -1 ||
-			target.indexOf('plugins.php') !== -1 ||
-			target.indexOf('plugin-install.php') !== -1 ||
-			target.indexOf('update-core.php') !== -1
-		) {
-			return 'Manage';
-		}
-		if (target.indexOf('options-') !== -1 || target.indexOf('settings') !== -1) {
-			return 'Settings';
-		}
-		if (target.indexOf('tools.php') !== -1 || target.indexOf('export.php') !== -1 || target.indexOf('import.php') !== -1) {
-			return 'Tools';
-		}
-
-		return 'Apps';
+	// The app's own description describes the icon, the plugin's describes
+	// everything the plugin does, so only the former is worth showing.
+	function appDisplayDescription(slug) {
+		var entry = appDescriptions[slug];
+		if (!entry) return '';
+		return entry.app || entry.plugin || '';
 	}
 
-	function launcherGroupOrder(group) {
-		var idx = LAUNCHER_GROUP_ORDER.indexOf(group);
-		return idx === -1 ? LAUNCHER_GROUP_ORDER.length : idx;
+	// Search sees both, because either one can be where the word you remember is.
+	function appSearchDescription(slug) {
+		var entry = appDescriptions[slug];
+		if (!entry) return '';
+		return ((entry.app || '') + ' ' + (entry.plugin || '')).trim().toLowerCase();
+	}
+	var searchQuery = '';
+	var searchMatches = [];
+	var searchSelection = -1;
+
+	function isSearchLayout() {
+		return (displaySettings.layout || 'flow') === 'search';
 	}
 
-	function updateLauncherGroups() {
+	function isPinnedSlug(slug) {
+		return !!slug && pinnedSlugs.indexOf(slug) !== -1;
+	}
+
+	function pinLabel(pinned) {
+		return pinned ? __( 'Unpin from home', 'my-apps' ) : __( 'Pin to home', 'my-apps' );
+	}
+
+	function updatePinState(appEl) {
+		if (!appEl || appEl.classList.contains('add-app-btn')) return;
+
+		var pinned = isPinnedSlug(appEl.dataset.slug);
+		if (pinned) {
+			appEl.dataset.pinned = '1';
+		} else {
+			delete appEl.dataset.pinned;
+		}
+
+		var pinBtn = appEl.querySelector('.pin-btn');
+		if (pinBtn) {
+			pinBtn.title = pinLabel(pinned);
+			pinBtn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+		}
+	}
+
+	function setPinned(slug, pinned) {
+		if (!slug) return;
+
+		var index = pinnedSlugs.indexOf(slug);
+		if (pinned && index === -1) {
+			pinnedSlugs.push(slug);
+		} else if (!pinned && index !== -1) {
+			pinnedSlugs.splice(index, 1);
+		} else {
+			return;
+		}
+
+		if (container) {
+			container.querySelectorAll('.app-icon[data-slug]').forEach(function(appEl) {
+				if (appEl.dataset.slug === slug) {
+					updatePinState(appEl);
+				}
+			});
+		}
+
+		updateLauncherView();
+		savePinned(slug, pinned);
+	}
+
+	function savePinned(slug, pinned) {
+		var formData = new FormData();
+		formData.append('action', 'my_apps_pin');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('slug', slug);
+		formData.append('pinned', pinned ? '1' : '0');
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			body: formData
+		});
+	}
+
+	// Lower is a better match; -1 means the app does not match at all. Slugs
+	// only count as a prefix — matching them anywhere pulls in apps whose name
+	// has nothing to do with what was typed. Descriptions are prose, so they
+	// match at word starts only, and not at all for a query short enough to
+	// appear inside most sentences.
+	function searchRank(name, slug, description, query) {
+		if (name.indexOf(query) === 0) return 0;
+		if (slug.indexOf(query) === 0) return 1;
+		if (name.indexOf(' ' + query) !== -1) return 2;
+		if (name.indexOf(query) !== -1) return 3;
+		if (
+			description &&
+			query.length >= DESCRIPTION_MIN_QUERY &&
+			(description.indexOf(query) === 0 || description.indexOf(' ' + query) !== -1)
+		) {
+			return 4;
+		}
+		return -1;
+	}
+
+	function setSearchQuery(value) {
+		searchQuery = value || '';
+		if (launcherSearchInput && launcherSearchInput.value !== searchQuery) {
+			launcherSearchInput.value = searchQuery;
+		}
+		if (launcherSearchClear) {
+			launcherSearchClear.hidden = '' === searchQuery;
+		}
+	}
+
+	function updateSearchSelection() {
+		searchMatches.forEach(function(appEl, index) {
+			appEl.classList.toggle('search-active', index === searchSelection);
+		});
+	}
+
+	function moveSearchSelection(delta) {
+		if (!searchMatches.length) return;
+		var next = searchSelection + delta;
+		if (next < 0) next = searchMatches.length - 1;
+		if (next >= searchMatches.length) next = 0;
+		searchSelection = next;
+		updateSearchSelection();
+		if (searchMatches[searchSelection].scrollIntoView) {
+			searchMatches[searchSelection].scrollIntoView({ block: 'nearest' });
+		}
+	}
+
+	function updateSearchEmptyState(query, hasPinned) {
+		if (!launcherSearchEmpty) return;
+
+		if (searchMatches.length) {
+			launcherSearchEmpty.hidden = true;
+			launcherSearchEmpty.textContent = '';
+			return;
+		}
+
+		if (query) {
+			launcherSearchEmpty.textContent = sprintf(
+				t('noAppsMatch', __( 'No apps match “%s”.', 'my-apps' )),
+				query
+			);
+		} else if (!hasPinned) {
+			launcherSearchEmpty.textContent = t(
+				'noPinnedApps',
+				__( 'Start typing to find an app, or pin the ones you use most to keep them here.', 'my-apps' )
+			);
+		} else {
+			launcherSearchEmpty.textContent = '';
+		}
+
+		launcherSearchEmpty.hidden = '' === launcherSearchEmpty.textContent;
+	}
+
+	function updateLauncherView() {
 		if (!container) return;
 
 		var apps = Array.prototype.slice.call(container.querySelectorAll('.app-icon:not(.add-app-btn)'));
-		var seenGroups = {};
+		var addButton = container.querySelector('.add-app-btn');
+
+		apps.forEach(updatePinState);
+
+		if (!isSearchLayout()) {
+			container.classList.remove('searching');
+			apps.forEach(function(appEl) {
+				appEl.classList.remove('search-hidden', 'search-active');
+				appEl.style.order = '';
+			});
+			if (addButton) {
+				addButton.classList.remove('search-hidden');
+				addButton.style.order = '';
+			}
+			searchMatches = [];
+			searchSelection = -1;
+			if (launcherSearchEmpty) {
+				launcherSearchEmpty.hidden = true;
+				launcherSearchEmpty.textContent = '';
+			}
+			return;
+		}
+
+		var query = searchQuery.trim().toLowerCase();
+		// Edit mode shows every app so any of them can be pinned and dragged
+		// into order; ranking is left alone so dragging lands where it looks.
+		var showAll = !query && isEditMode;
+		var ranked = [];
+		var hasPinned = false;
+
+		// Results read as a vertical list with descriptions; the pinned home
+		// stays a row of icons.
+		container.classList.toggle('searching', '' !== query);
 
 		apps.forEach(function(appEl, index) {
-			var group = inferLauncherGroup(appEl);
-			appEl.dataset.group = group;
-			appEl.classList.remove('group-start');
-			appEl.style.order = container.classList.contains('layout-list')
-				? String((launcherGroupOrder(group) * 1000) + index)
-				: '';
+			var titleEl = appEl.querySelector('.app-title');
+			var name = (titleEl ? titleEl.textContent : '').toLowerCase();
+			var slug = (appEl.dataset.slug || '').toLowerCase();
+			var description = appSearchDescription(appEl.dataset.slug);
+			var rank = -1;
+
+			if (query) {
+				rank = searchRank(name, slug, description, query);
+			} else if (isPinnedSlug(appEl.dataset.slug)) {
+				rank = 0;
+				hasPinned = true;
+			} else if (showAll) {
+				rank = 0;
+			}
+
+			appEl.classList.toggle('search-hidden', rank === -1);
+			appEl.classList.remove('search-active');
+			appEl.style.order = (rank === -1 || showAll) ? '' : String((rank * 1000) + index);
+
+			if (rank !== -1) {
+				ranked.push({ el: appEl, rank: rank, index: index });
+			}
 		});
 
-		apps
-			.slice()
-			.sort(function(a, b) {
-				var orderA = parseInt(a.style.order || '0', 10);
-				var orderB = parseInt(b.style.order || '0', 10);
-				return orderA - orderB;
-			})
-			.forEach(function(appEl) {
-				var group = appEl.dataset.group || 'Apps';
-				if (seenGroups[group]) return;
-				seenGroups[group] = true;
-				appEl.classList.add('group-start');
-			});
-
-		var addButton = container.querySelector('.add-app-btn');
 		if (addButton) {
-			addButton.dataset.group = 'Apps';
-			addButton.classList.remove('group-start');
-			addButton.style.order = container.classList.contains('layout-list')
-				? String((launcherGroupOrder('Apps') * 1000) + apps.length + 1)
-				: '';
+			// The add tile belongs to the pinned home, not to a result list.
+			addButton.classList.toggle('search-hidden', '' !== query);
+			addButton.style.order = '';
+		}
+
+		searchMatches = ranked.sort(function(a, b) {
+			return a.rank - b.rank || a.index - b.index;
+		}).map(function(entry) {
+			return entry.el;
+		});
+		searchSelection = query && searchMatches.length ? 0 : -1;
+
+		updateSearchSelection();
+		updateSearchEmptyState(query, hasPinned || showAll);
+	}
+
+	function openSearchSelection(newTab) {
+		if (searchSelection < 0 || !searchMatches[searchSelection]) return;
+
+		var appEl = searchMatches[searchSelection];
+		var url = appEl.dataset.url;
+		var slug = appEl.dataset.slug;
+
+		if (slug === 'feedback' || url === '#my-apps-feedback') {
+			openFeedbackModal();
+			return;
+		}
+		if (newTab) {
+			window.open(url, '_blank');
+			return;
+		}
+		window.location.href = url;
+	}
+
+	function handleSearchKeydown(e) {
+		switch (e.key) {
+			case 'ArrowDown':
+			case 'ArrowRight':
+				if (!searchMatches.length) return;
+				e.preventDefault();
+				moveSearchSelection(1);
+				break;
+			case 'ArrowUp':
+			case 'ArrowLeft':
+				if (!searchMatches.length) return;
+				e.preventDefault();
+				moveSearchSelection(-1);
+				break;
+			case 'Enter':
+				if (searchSelection < 0) return;
+				e.preventDefault();
+				openSearchSelection(e.metaKey || e.ctrlKey);
+				break;
+			case 'Escape':
+				e.preventDefault();
+				if (searchQuery) {
+					setSearchQuery('');
+					updateLauncherView();
+				} else {
+					launcherSearchInput.blur();
+				}
+				break;
 		}
 	}
+
+	// Typing anywhere on the search home goes to the search field, the way a
+	// desktop launcher behaves.
+	function handleTypeToSearch(e) {
+		if (!isSearchLayout() || !launcherSearchInput || isEditMode) return;
+		if (e.metaKey || e.ctrlKey || e.altKey) return;
+		// Space scrolls the page; it is never how a search starts.
+		if (!e.key || e.key.length !== 1 || ' ' === e.key) return;
+		if (document.activeElement === launcherSearchInput) return;
+
+		var active = document.activeElement;
+		if (active && (active.isContentEditable || /^(input|textarea|select)$/i.test(active.tagName))) return;
+		if (document.querySelector('.modal-overlay.active') || document.querySelector('dialog[open]')) return;
+
+		launcherSearchInput.focus();
+	}
+
+	function handlePinClick(e) {
+		var pinBtn = e.target.closest('.pin-btn');
+		if (!pinBtn) return;
+
+		e.preventDefault();
+		e.stopPropagation();
+
+		var appEl = pinBtn.closest('.app-icon');
+		if (!appEl || !appEl.dataset.slug) return;
+
+		setPinned(appEl.dataset.slug, !isPinnedSlug(appEl.dataset.slug));
+	}
+
+	if (launcherSearchInput) {
+		launcherSearchInput.addEventListener('input', function() {
+			setSearchQuery(launcherSearchInput.value);
+			updateLauncherView();
+		});
+		launcherSearchInput.addEventListener('keydown', handleSearchKeydown);
+		document.addEventListener('keydown', handleTypeToSearch);
+	}
+
+	if (launcherSearchClear) {
+		launcherSearchClear.addEventListener('click', function() {
+			setSearchQuery('');
+			updateLauncherView();
+			if (launcherSearchInput) launcherSearchInput.focus();
+		});
+	}
+
 
 	// Restore settings on load
 	(function() {
 		if (!container) return;
 		container.classList.toggle('layout-grid', displaySettings.layout === 'grid');
-		container.classList.toggle('layout-list', displaySettings.layout === 'list');
-		updateLauncherGroups();
+		container.classList.toggle('layout-search', displaySettings.layout === 'search');
+		if (searchBar) {
+			searchBar.hidden = displaySettings.layout !== 'search';
+		}
+		updateLauncherView();
 		if (displaySettings.grid_columns) applyGridColumns(displaySettings.grid_columns);
 		if (displaySettings.icon_size) applyAppSize(displaySettings.icon_size);
 		if (displaySettings.spacing) applySpacing(displaySettings.spacing);
@@ -5982,6 +6237,8 @@
 		body.classList.add('edit-mode');
 		sortable.option('disabled', false);
 		showWallpaperHint({ showClose: false });
+		setSearchQuery('');
+		updateLauncherView();
 	}
 
 	function exitEditMode() {
@@ -5990,6 +6247,7 @@
 		sortable.option('disabled', true);
 		hideWallpaperHint();
 		saveOrder();
+		updateLauncherView();
 	}
 
 	function updateContextMenuActions(slug) {
@@ -5998,12 +6256,16 @@
 		var cachedBlueprintUpdate = isPlayground ? getLauncherBlueprintUpdateEntry(contextTarget) : null;
 		var canDelete = isDeletableSlug(slug);
 		var canUninstall = !!getUninstallableApp(slug);
+		var pinBtn = contextMenu.querySelector('[data-action="pin"]');
 		var updateBtn = contextMenu.querySelector('[data-action="update"]');
 		var deleteBtn = contextMenu.querySelector('[data-action="delete"]');
 		var uninstallBtn = contextMenu.querySelector('[data-action="uninstall"]');
 		var updateSeparator = contextMenu.querySelector('.context-update-separator');
 		var separator = contextMenu.querySelector('.context-delete-separator');
 
+		if (pinBtn) {
+			pinBtn.textContent = pinLabel(isPinnedSlug(slug));
+		}
 		if (updateBtn) {
 			updateBtn.hidden = !canUpdate && !cachedBlueprintUpdate;
 		}
@@ -6037,13 +6299,13 @@
 				if (updateSeparator) {
 					updateSeparator.hidden = false;
 				}
-				var menuHeight = 256 + (canDelete || canUninstall ? 90 : 0);
+				var menuHeight = 290 + (canDelete || canUninstall ? 90 : 0);
 				var currentTop = parseInt(contextMenu.style.top, 10) || 8;
 				contextMenu.style.top = Math.max(8, Math.min(currentTop, window.innerHeight - menuHeight)) + 'px';
 			});
 		}
 
-		return 210 + (canUpdate || cachedBlueprintUpdate ? 46 : 0) + (canDelete || canUninstall ? 90 : 0);
+		return 244 + (canUpdate || cachedBlueprintUpdate ? 46 : 0) + (canDelete || canUninstall ? 90 : 0);
 	}
 
 	function handleContextMenu(e) {
@@ -6095,12 +6357,15 @@
 			case 'update':
 				updateContextApp(contextTarget);
 				break;
+			case 'pin':
+				setPinned(slug, !isPinnedSlug(slug));
+				break;
 			case 'hide':
 				hideApp(slug, contextTarget);
 				break;
 			case 'move-front':
 				container.insertBefore(contextTarget, container.firstChild);
-				updateLauncherGroups();
+				updateLauncherView();
 				saveOrder();
 				break;
 			case 'delete':
@@ -6156,7 +6421,7 @@
 		element.classList.add('hiding');
 		setTimeout(function() {
 			element.remove();
-			updateLauncherGroups();
+			updateLauncherView();
 			saveHidden(slug);
 			addToHiddenList(slug, appName, iconHtml);
 		}, 300);
@@ -6391,7 +6656,7 @@
 		} else {
 			container.appendChild(newApp);
 		}
-		updateLauncherGroups();
+		updateLauncherView();
 		rememberAppUrl(app.url);
 		return highlightAppElement(newApp);
 	}
@@ -6520,6 +6785,19 @@
 		hideBtn.appendChild(svg);
 		div.appendChild(hideBtn);
 
+		var pinBtn = document.createElement('button');
+		pinBtn.type = 'button';
+		pinBtn.className = 'pin-btn';
+		var pinSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		pinSvg.setAttribute('viewBox', '0 0 24 24');
+		pinSvg.setAttribute('aria-hidden', 'true');
+		var pinPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		pinPath.setAttribute('d', 'M16 3v2l-1 1v4l3 3v2h-5v5l-1 1-1-1v-5H6v-2l3-3V6L8 5V3z');
+		pinSvg.appendChild(pinPath);
+		pinBtn.appendChild(pinSvg);
+		div.appendChild(pinBtn);
+		updatePinState(div);
+
 		var link = document.createElement('a');
 		link.href = app.url;
 		link.className = 'app-link';
@@ -6529,6 +6807,14 @@
 		title.className = 'app-title';
 		title.textContent = app.name;
 		link.appendChild(title);
+
+		var description = appDisplayDescription(app.slug);
+		if (description) {
+			var descriptionEl = document.createElement('span');
+			descriptionEl.className = 'app-description';
+			descriptionEl.textContent = description;
+			link.appendChild(descriptionEl);
+		}
 
 		div.appendChild(link);
 		return div;

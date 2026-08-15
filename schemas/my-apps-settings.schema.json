@@ -19,6 +19,14 @@
 				"minLength": 1
 			}
 		},
+		"pinned_apps": {
+			"type": "array",
+			"description": "Slugs pinned to the home screen of the search layout.",
+			"items": {
+				"type": "string",
+				"minLength": 1
+			}
+		},
 		"additional_apps": {
 			"type": "object",
 			"propertyNames": {
@@ -91,7 +99,8 @@
 					"type": "string",
 					"enum": [
 						"flow",
-						"grid"
+						"grid",
+						"search"
 					]
 				},
 				"icon_size": {

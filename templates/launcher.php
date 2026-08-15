@@ -75,9 +75,9 @@ $is_app_store = isset( $_GET['app-store'] );
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3zm0 10h8v8H3zm10-10h8v8h-8zm0 10h8v8h-8z"/></svg>
 					<?php esc_html_e( 'Grid', 'my-apps' ); ?>
 				</button>
-				<button type="button" class="settings-dropdown-item" data-action="layout-list">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5h3v3H4zm5 .5h11v2H9zM4 10.5h3v3H4zM9 11h11v2H9zM4 16h3v3H4zm5 .5h11v2H9z"/></svg>
-					<?php esc_html_e( 'List', 'my-apps' ); ?>
+				<button type="button" class="settings-dropdown-item" data-action="layout-search">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+					<?php esc_html_e( 'Search', 'my-apps' ); ?>
 				</button>
 				<div class="settings-grid-only" id="settings-grid-only">
 					<div class="settings-dropdown-section"><?php esc_html_e( 'Columns', 'my-apps' ); ?> <span id="grid-columns-value"></span></div>
@@ -118,8 +118,23 @@ $is_app_store = isset( $_GET['app-store'] );
 
 	<div class="greeting" id="greeting"></div>
 
+	<div class="launcher-search" id="launcher-search" hidden>
+		<svg class="launcher-search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+		<input
+			type="text"
+			id="launcher-search-input"
+			class="launcher-search-input"
+			placeholder="<?php esc_attr_e( 'Search apps…', 'my-apps' ); ?>"
+			aria-label="<?php esc_attr_e( 'Search apps', 'my-apps' ); ?>"
+			autocomplete="off"
+			spellcheck="false"
+		>
+		<button type="button" class="launcher-search-clear" id="launcher-search-clear" aria-label="<?php esc_attr_e( 'Clear search', 'my-apps' ); ?>" hidden>&times;</button>
+	</div>
+
 	<div class="apps-container" id="apps-container">
 		<?php
+		$pinned_apps = My_Apps::get_pinned_apps();
 		foreach ( $apps as $slug => $_plugin ) :
 			if ( isset( $_plugin['hide'] ) && $_plugin['hide'] ) {
 				continue;
@@ -137,8 +152,13 @@ $is_app_store = isset( $_GET['app-store'] );
 				$icon_html = My_Apps::letter_icon_html( $_plugin['name'] );
 			}
 			?>
-			<div class="app-icon" data-slug="<?php echo esc_attr( (string) $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>">
+			<?php
+			$is_pinned = in_array( (string) $slug, $pinned_apps, true );
+			$app_description = My_Apps::app_description( $_plugin );
+			?>
+			<div class="app-icon" data-slug="<?php echo esc_attr( (string) $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>"<?php echo $is_pinned ? ' data-pinned="1"' : ''; ?>>
 				<button type="button" class="hide-btn" title="<?php esc_attr_e( 'Hide', 'my-apps' ); ?>"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#000" stroke="#fff" stroke-width="2"/><path d="M8 8l8 8M16 8l-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
+				<button type="button" class="pin-btn" title="<?php echo esc_attr( $is_pinned ? __( 'Unpin from home', 'my-apps' ) : __( 'Pin to home', 'my-apps' ) ); ?>" aria-pressed="<?php echo esc_attr( $is_pinned ? 'true' : 'false' ); ?>"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3v2l-1 1v4l3 3v2h-5v5l-1 1-1-1v-5H6v-2l3-3V6L8 5V3z"/></svg></button>
 				<?php if ( $is_playground ) : ?>
 				<button type="button" class="app-update-btn" title="<?php esc_attr_e( 'Update', 'my-apps' ); ?>" aria-label="<?php esc_attr_e( 'Update', 'my-apps' ); ?>" hidden>
 					<span class="dashicons dashicons-update"></span>
@@ -149,6 +169,9 @@ $is_app_store = isset( $_GET['app-store'] );
 					echo $icon_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built above from esc_attr/esc_html pieces plus pre-escaped helper output.
 					?>
 					<p class="app-title"><?php echo esc_html( $_plugin['name'] ); ?></p>
+					<?php if ( '' !== $app_description ) : ?>
+					<span class="app-description"><?php echo esc_html( $app_description ); ?></span>
+					<?php endif; ?>
 				</a>
 			</div>
 		<?php endforeach; ?>
@@ -158,6 +181,7 @@ $is_app_store = isset( $_GET['app-store'] );
 			<p class="app-title"><?php esc_html_e( 'Add', 'my-apps' ); ?></p>
 		</div>
 	</div>
+	<div class="launcher-search-empty" id="launcher-search-empty" hidden></div>
 	<div class="wallpaper-hint" id="wallpaper-hint" hidden>
 		<span id="wallpaper-hint-text"><?php esc_html_e( 'Not feeling this?', 'my-apps' ); ?></span>
 		<button type="button" class="wallpaper-hint-button" id="wallpaper-hint-button" aria-label="<?php esc_attr_e( 'Try another wallpaper', 'my-apps' ); ?>">
@@ -215,7 +239,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				<div class="settings-setting settings-setting-stacked">
 					<div class="settings-setting-copy">
 						<h3><?php esc_html_e( 'App launcher settings file', 'my-apps' ); ?></h3>
-						<p><?php esc_html_e( 'Import or export this launcher setup, including app order, hidden apps, custom apps, icons, backgrounds, display preferences, and custom App Store entries. This does not include WordPress posts, pages, media, users, or other site content.', 'my-apps' ); ?></p>
+						<p><?php esc_html_e( 'Import or export this launcher setup, including app order, hidden apps, pinned apps, custom apps, icons, backgrounds, display preferences, and custom App Store entries. This does not include WordPress posts, pages, media, users, or other site content.', 'my-apps' ); ?></p>
 					</div>
 					<div class="settings-action-row">
 						<button type="button" class="settings-action-button" data-action="export">
@@ -322,6 +346,7 @@ $is_app_store = isset( $_GET['app-store'] );
 		<button type="button" data-action="open-new"><?php esc_html_e( 'Open in New Tab', 'my-apps' ); ?></button>
 		<hr>
 		<button type="button" data-action="change-icon"><?php esc_html_e( 'Change Icon', 'my-apps' ); ?></button>
+		<button type="button" data-action="pin"><?php esc_html_e( 'Pin to home', 'my-apps' ); ?></button>
 		<button type="button" data-action="hide"><?php esc_html_e( 'Hide', 'my-apps' ); ?></button>
 		<button type="button" data-action="move-front"><?php esc_html_e( 'Move to Front', 'my-apps' ); ?></button>
 		<hr class="context-update-separator" hidden>

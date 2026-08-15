@@ -19,7 +19,7 @@ $apps = My_Apps::get_apps();
 $hidden_apps = array_filter( $apps, function( $app ) {
 	return ! empty( $app['hide'] );
 } );
-$additional_apps = My_Apps::get_additional_apps();
+$deletable_apps = My_Apps::deletable_custom_app_slugs();
 $can_manage = current_user_can( 'manage_options' );
 $is_playground = My_Apps::is_playground();
 $redirect_root_enabled = My_Apps::is_root_redirect_enabled();
@@ -251,7 +251,7 @@ $is_app_store = isset( $_GET['app-store'] );
 				} else {
 					$icon_html = My_Apps::letter_icon_html( $app['name'], 'app-letter-icon-small' );
 				}
-				$is_deletable = isset( $additional_apps[ $slug ] );
+				$is_deletable = in_array( (string) $slug, $deletable_apps, true );
 			?>
 			<div class="hidden-app-row">
 				<button type="button" class="hidden-app-item" data-slug="<?php echo esc_attr( (string) $slug ); ?>">

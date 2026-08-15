@@ -1373,8 +1373,7 @@ class My_Apps {
 	 */
 	public static function get_additional_apps() {
 		$user_id     = get_current_user_id();
-		$shared_apps = get_option( self::ADDITIONAL_APPS_OPTION, array() );
-		$shared_apps = is_array( $shared_apps ) ? $shared_apps : array();
+		$shared_apps = self::get_shared_additional_apps();
 		$user_apps   = false;
 
 		if ( $user_id ) {
@@ -1400,6 +1399,69 @@ class My_Apps {
 	}
 
 	/**
+	 * Get the additional launcher apps shared by every user on the site.
+	 *
+	 * @return array
+	 */
+	private static function get_shared_additional_apps() {
+		$shared_apps = get_option( self::ADDITIONAL_APPS_OPTION, array() );
+
+		return is_array( $shared_apps ) ? $shared_apps : array();
+	}
+
+	/**
+	 * Get the additional launcher apps owned by the current user.
+	 *
+	 * Legacy entries still stored in the shared option are included, so that
+	 * writing the result back migrates them into the user's own storage.
+	 *
+	 * @return array
+	 */
+	private static function get_user_additional_apps() {
+		$user_apps = array();
+
+		foreach ( self::get_additional_apps() as $slug => $app ) {
+			if ( self::is_current_user_custom_app( $app ) ) {
+				$user_apps[ $slug ] = $app;
+			}
+		}
+
+		return $user_apps;
+	}
+
+	/**
+	 * Store the current user's custom apps.
+	 *
+	 * Apps used to live in the shared site option with a `user` key. Ownership
+	 * now lives in user meta, so any entry of the current user left in the
+	 * shared option is moved out of it — otherwise a deleted app would come
+	 * back on the next merge.
+	 *
+	 * @param array $user_apps Apps owned by the current user, keyed by slug.
+	 */
+	private static function save_user_additional_apps( $user_apps ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return;
+		}
+
+		self::update_launcher_user_option( self::ADDITIONAL_APPS_OPTION, $user_apps );
+
+		$shared_apps = self::get_shared_additional_apps();
+		$remaining   = array();
+		foreach ( $shared_apps as $slug => $app ) {
+			if ( self::is_current_user_custom_app( $app ) ) {
+				continue;
+			}
+			$remaining[ $slug ] = $app;
+		}
+
+		if ( count( $remaining ) !== count( $shared_apps ) ) {
+			update_option( self::ADDITIONAL_APPS_OPTION, $remaining );
+		}
+	}
+
+	/**
 	 * Determine whether an additional app belongs to the current user.
 	 *
 	 * @param array $app App record.
@@ -1411,15 +1473,38 @@ class My_Apps {
 	}
 
 	/**
+	 * Determine whether the current user may delete an additional app.
+	 *
+	 * Own apps are always deletable. Shared entries — seeded defaults and
+	 * apps added before apps were owned — affect everyone, so removing them
+	 * takes site administration rights.
+	 *
+	 * @param string $slug App slug.
+	 * @return bool
+	 */
+	private static function can_delete_app( $slug ) {
+		$additional_apps = self::get_additional_apps();
+		if ( ! isset( $additional_apps[ $slug ] ) ) {
+			return false;
+		}
+
+		if ( self::is_current_user_custom_app( $additional_apps[ $slug ] ) ) {
+			return true;
+		}
+
+		return ! isset( $additional_apps[ $slug ]['user'] ) && current_user_can( 'manage_options' );
+	}
+
+	/**
 	 * Return custom app slugs the current user can delete.
 	 *
 	 * @return string[]
 	 */
-	private static function deletable_custom_app_slugs() {
+	public static function deletable_custom_app_slugs() {
 		$slugs = array();
 
-		foreach ( self::get_additional_apps() as $slug => $app ) {
-			if ( self::is_current_user_custom_app( $app ) ) {
+		foreach ( array_keys( self::get_additional_apps() ) as $slug ) {
+			if ( self::can_delete_app( $slug ) ) {
 				$slugs[] = $slug;
 			}
 		}
@@ -1430,6 +1515,10 @@ class My_Apps {
 	/**
 	 * Ensure imported custom apps are owned by the current user.
 	 *
+	 * Slugs that already exist as shared apps are dropped: they are visible to
+	 * the importing user anyway, and a private copy would shadow later changes
+	 * to the shared entry.
+	 *
 	 * @param array $additional_apps Imported additional apps.
 	 * @return array
 	 */
@@ -1439,8 +1528,11 @@ class My_Apps {
 			return array();
 		}
 
+		$shared_apps = self::get_shared_additional_apps();
+
 		foreach ( $additional_apps as $slug => $app ) {
-			if ( ! is_array( $app ) ) {
+			$is_shared = isset( $shared_apps[ $slug ] ) && ! isset( $shared_apps[ $slug ]['user'] );
+			if ( ! is_array( $app ) || $is_shared ) {
 				unset( $additional_apps[ $slug ] );
 				continue;
 			}
@@ -1746,6 +1838,9 @@ class My_Apps {
 
 	/**
 	 * Reset the launcher background to its unset first-run state.
+	 *
+	 * Stored as empty user values rather than deleted: an absent user value
+	 * means "fall back to the site background", which would undo the reset.
 	 *
 	 * @return array
 	 */
@@ -3458,8 +3553,9 @@ class My_Apps {
 	public function ajax_save_wp_admin_links() {
 		check_ajax_referer( 'my_apps_launcher', 'nonce' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( 'Not allowed' );
+		// The setting only affects the acting user's own launcher.
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
 		}
 
 		$enabled_raw = isset( $_POST['enabled'] ) ? sanitize_text_field( wp_unslash( $_POST['enabled'] ) ) : '0';
@@ -3480,7 +3576,7 @@ class My_Apps {
 	public function admin_post_enable_full_wordpress_mode() {
 		check_admin_referer( 'my_apps_enable_full_wordpress_mode' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_user_logged_in() ) {
 			wp_die(
 				esc_html__( 'Sorry, you are not allowed to do that.', 'my-apps' ),
 				'',
@@ -3507,7 +3603,7 @@ class My_Apps {
 	public function admin_post_disable_full_wordpress_mode() {
 		check_admin_referer( 'my_apps_disable_full_wordpress_mode' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_user_logged_in() ) {
 			wp_die(
 				esc_html__( 'Sorry, you are not allowed to do that.', 'my-apps' ),
 				'',
@@ -3848,16 +3944,20 @@ class My_Apps {
 			wp_send_json_error( 'Invalid slug' );
 		}
 
-		$additional_apps = self::get_additional_apps();
-		if ( ! isset( $additional_apps[ $slug ] ) ) {
-			wp_send_json_error( 'App cannot be deleted' );
-		}
-		if ( ! self::is_current_user_custom_app( $additional_apps[ $slug ] ) ) {
+		if ( ! self::can_delete_app( $slug ) ) {
 			wp_send_json_error( 'App cannot be deleted' );
 		}
 
-		unset( $additional_apps[ $slug ] );
-		self::update_launcher_user_option( self::ADDITIONAL_APPS_OPTION, $additional_apps );
+		$user_apps = self::get_user_additional_apps();
+		unset( $user_apps[ $slug ] );
+		self::save_user_additional_apps( $user_apps );
+
+		// Shared entries live in the site option; only administrators get here for those.
+		$shared_apps = self::get_shared_additional_apps();
+		if ( isset( $shared_apps[ $slug ] ) ) {
+			unset( $shared_apps[ $slug ] );
+			update_option( self::ADDITIONAL_APPS_OPTION, $shared_apps );
+		}
 
 		self::remove_app_customization_state( $slug );
 
@@ -4102,7 +4202,7 @@ class My_Apps {
 			self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, $data['hide_plugins'] );
 		}
 		if ( isset( $data['additional_apps'] ) && is_array( $data['additional_apps'] ) ) {
-			self::update_launcher_user_option( self::ADDITIONAL_APPS_OPTION, self::prepare_imported_additional_apps( $data['additional_apps'] ) );
+			self::save_user_additional_apps( self::prepare_imported_additional_apps( $data['additional_apps'] ) );
 		}
 		if ( isset( $data['app_overrides'] ) && is_array( $data['app_overrides'] ) ) {
 			self::update_launcher_user_option( self::APP_OVERRIDES_OPTION, $data['app_overrides'] );
@@ -5551,6 +5651,7 @@ class My_Apps {
 	private static function customization_payload() {
 		$hidden          = self::normalize_app_slug_list( self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ) );
 		$additional_apps = self::get_additional_apps();
+		$deletable       = self::deletable_custom_app_slugs();
 		$launcher_apps   = self::get_apps();
 		$icon_overrides  = self::get_app_icon_overrides();
 		$apps            = array();
@@ -5570,7 +5671,8 @@ class My_Apps {
 				$app,
 				array_key_exists( $slug, $additional_apps ),
 				in_array( $slug, $hidden, true ),
-				isset( $icon_overrides[ $slug ] )
+				isset( $icon_overrides[ $slug ] ),
+				in_array( $slug, $deletable, true )
 			);
 
 			if ( ! in_array( $slug, $hidden, true ) ) {
@@ -5593,9 +5695,10 @@ class My_Apps {
 	 * @param bool   $is_custom Whether the app is stored as an additional app.
 	 * @param bool   $is_hidden Whether the app is hidden.
 	 * @param bool   $icon_customized Whether the app icon has a stored override.
+	 * @param bool   $is_deletable Whether the current user may delete the app.
 	 * @return array
 	 */
-	private static function customization_app_payload( $slug, $app, $is_custom, $is_hidden, $icon_customized = false ) {
+	private static function customization_app_payload( $slug, $app, $is_custom, $is_hidden, $icon_customized = false, $is_deletable = false ) {
 		$slug = self::normalize_app_slug( $slug );
 
 		return array(
@@ -5603,7 +5706,7 @@ class My_Apps {
 			'url'             => isset( $app['url'] ) ? (string) $app['url'] : '',
 			'source'          => $is_custom ? 'custom' : 'registered',
 			'hidden'          => (bool) $is_hidden,
-			'deletable'       => (bool) $is_custom,
+			'deletable'       => (bool) $is_deletable,
 			'icon_customized' => (bool) $icon_customized,
 			'icon'            => self::customization_app_icon_payload( $app ),
 		);
@@ -6085,8 +6188,9 @@ class My_Apps {
 			)
 		);
 
-		$additional_apps[ $slug ] = $new_app;
-		self::update_launcher_user_option( self::ADDITIONAL_APPS_OPTION, $additional_apps );
+		$user_apps          = self::get_user_additional_apps();
+		$user_apps[ $slug ] = $new_app;
+		self::save_user_additional_apps( $user_apps );
 
 		$sort   = self::get_launcher_user_option( self::SORT_OPTION, array() );
 		$sort   = is_array( $sort ) ? $sort : array();
@@ -6179,6 +6283,9 @@ class My_Apps {
 		$registered_plugins = apply_filters( 'my_apps_plugins', array() );
 
 		global $wp_filter;
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
 		$plugins = \get_plugins();
 		$which_app = array();
 		$my_apps_filters = isset( $wp_filter['my_apps_plugins'] ) ? $wp_filter['my_apps_plugins'] : array();
@@ -6273,6 +6380,12 @@ class My_Apps {
 
 		$hide_plugins = self::normalize_app_slug_list( self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ) );
 		foreach ( $hide_plugins as $plugin ) {
+			// A user can carry a hidden slug for an app that is gone — another
+			// user's app, or one an administrator removed. Do not resurrect it
+			// as a nameless entry.
+			if ( ! isset( $plugins[ $plugin ] ) ) {
+				continue;
+			}
 			$plugins[ $plugin ]['hide'] = true;
 		}
 

@@ -17,6 +17,13 @@ class My_Apps {
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const ROOT_REDIRECT_USER_OPTION = 'my_apps_redirect_root';
 	const HIDE_WP_ADMIN_LINKS_OPTION = 'my_apps_hide_wp_admin_links';
+	const SORT_OPTION = 'my_apps_sort';
+	const HIDDEN_APPS_OPTION = 'my_apps_hide_plugins';
+	const ADDITIONAL_APPS_OPTION = 'my_apps_additional_apps';
+	const BACKGROUND_OPTION = 'my_apps_background';
+	const BACKGROUND_CUSTOM_OPTION = 'my_apps_background_custom';
+	const BACKGROUND_IMAGE_URL_OPTION = 'my_apps_background_image_url';
+	const BACKGROUND_ATTACHMENT_ID_OPTION = 'my_apps_background_attachment_id';
 	const PRESET_BACKGROUNDS = array(
 		'gradient-dawn',
 		'gradient-coral',
@@ -1324,6 +1331,218 @@ class My_Apps {
 	}
 
 	/**
+	 * Get a launcher setting for the current user, falling back to the legacy site option.
+	 *
+	 * @param string $option        Option name.
+	 * @param mixed  $default_value Default value.
+	 * @return mixed
+	 */
+	private static function get_launcher_user_option( $option, $default_value = false ) {
+		$user_id = get_current_user_id();
+		if ( $user_id ) {
+			$value = get_user_option( $option, $user_id );
+			if ( false !== $value ) {
+				return $value;
+			}
+		}
+
+		return get_option( $option, $default_value );
+	}
+
+	/**
+	 * Store a launcher setting for the current user.
+	 *
+	 * @param string $option Option name.
+	 * @param mixed  $value  Option value.
+	 */
+	private static function update_launcher_user_option( $option, $value ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return;
+		}
+
+		update_user_option( $user_id, $option, $value );
+	}
+
+	/**
+	 * Get additional launcher apps visible to the current user.
+	 *
+	 * Apps without a stored user are shared legacy/default entries.
+	 *
+	 * @return array
+	 */
+	public static function get_additional_apps() {
+		$user_id     = get_current_user_id();
+		$shared_apps = self::get_shared_additional_apps();
+		$user_apps   = false;
+
+		if ( $user_id ) {
+			$user_apps = get_user_option( self::ADDITIONAL_APPS_OPTION, $user_id );
+		}
+
+		$additional_apps = is_array( $user_apps ) ? array_merge( $shared_apps, $user_apps ) : $shared_apps;
+		$visible         = array();
+
+		foreach ( $additional_apps as $slug => $data ) {
+			if ( ! is_array( $data ) ) {
+				continue;
+			}
+
+			if ( isset( $data['user'] ) && ( ! $user_id || (int) $data['user'] !== (int) $user_id ) ) {
+				continue;
+			}
+
+			$visible[ $slug ] = $data;
+		}
+
+		return $visible;
+	}
+
+	/**
+	 * Get the additional launcher apps shared by every user on the site.
+	 *
+	 * @return array
+	 */
+	private static function get_shared_additional_apps() {
+		$shared_apps = get_option( self::ADDITIONAL_APPS_OPTION, array() );
+
+		return is_array( $shared_apps ) ? $shared_apps : array();
+	}
+
+	/**
+	 * Get the additional launcher apps owned by the current user.
+	 *
+	 * Legacy entries still stored in the shared option are included, so that
+	 * writing the result back migrates them into the user's own storage.
+	 *
+	 * @return array
+	 */
+	private static function get_user_additional_apps() {
+		$user_apps = array();
+
+		foreach ( self::get_additional_apps() as $slug => $app ) {
+			if ( self::is_current_user_custom_app( $app ) ) {
+				$user_apps[ $slug ] = $app;
+			}
+		}
+
+		return $user_apps;
+	}
+
+	/**
+	 * Store the current user's custom apps.
+	 *
+	 * Apps used to live in the shared site option with a `user` key. Ownership
+	 * now lives in user meta, so any entry of the current user left in the
+	 * shared option is moved out of it — otherwise a deleted app would come
+	 * back on the next merge.
+	 *
+	 * @param array $user_apps Apps owned by the current user, keyed by slug.
+	 */
+	private static function save_user_additional_apps( $user_apps ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return;
+		}
+
+		self::update_launcher_user_option( self::ADDITIONAL_APPS_OPTION, $user_apps );
+
+		$shared_apps = self::get_shared_additional_apps();
+		$remaining   = array();
+		foreach ( $shared_apps as $slug => $app ) {
+			if ( self::is_current_user_custom_app( $app ) ) {
+				continue;
+			}
+			$remaining[ $slug ] = $app;
+		}
+
+		if ( count( $remaining ) !== count( $shared_apps ) ) {
+			update_option( self::ADDITIONAL_APPS_OPTION, $remaining );
+		}
+	}
+
+	/**
+	 * Determine whether an additional app belongs to the current user.
+	 *
+	 * @param array $app App record.
+	 * @return bool
+	 */
+	private static function is_current_user_custom_app( $app ) {
+		$user_id = get_current_user_id();
+		return $user_id && is_array( $app ) && isset( $app['user'] ) && (int) $app['user'] === (int) $user_id;
+	}
+
+	/**
+	 * Determine whether the current user may delete an additional app.
+	 *
+	 * Own apps are always deletable. Shared entries — seeded defaults and
+	 * apps added before apps were owned — affect everyone, so removing them
+	 * takes site administration rights.
+	 *
+	 * @param string $slug App slug.
+	 * @return bool
+	 */
+	private static function can_delete_app( $slug ) {
+		$additional_apps = self::get_additional_apps();
+		if ( ! isset( $additional_apps[ $slug ] ) ) {
+			return false;
+		}
+
+		if ( self::is_current_user_custom_app( $additional_apps[ $slug ] ) ) {
+			return true;
+		}
+
+		return ! isset( $additional_apps[ $slug ]['user'] ) && current_user_can( 'manage_options' );
+	}
+
+	/**
+	 * Return custom app slugs the current user can delete.
+	 *
+	 * @return string[]
+	 */
+	public static function deletable_custom_app_slugs() {
+		$slugs = array();
+
+		foreach ( array_keys( self::get_additional_apps() ) as $slug ) {
+			if ( self::can_delete_app( $slug ) ) {
+				$slugs[] = $slug;
+			}
+		}
+
+		return self::normalize_app_slug_list( $slugs );
+	}
+
+	/**
+	 * Ensure imported custom apps are owned by the current user.
+	 *
+	 * Slugs that already exist as shared apps are dropped: they are visible to
+	 * the importing user anyway, and a private copy would shadow later changes
+	 * to the shared entry.
+	 *
+	 * @param array $additional_apps Imported additional apps.
+	 * @return array
+	 */
+	private static function prepare_imported_additional_apps( $additional_apps ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return array();
+		}
+
+		$shared_apps = self::get_shared_additional_apps();
+
+		foreach ( $additional_apps as $slug => $app ) {
+			$is_shared = isset( $shared_apps[ $slug ] ) && ! isset( $shared_apps[ $slug ]['user'] );
+			if ( ! is_array( $app ) || $is_shared ) {
+				unset( $additional_apps[ $slug ] );
+				continue;
+			}
+			$additional_apps[ $slug ]['user'] = $user_id;
+		}
+
+		return $additional_apps;
+	}
+
+	/**
 	 * Normalize and validate a user-provided list of known app slugs.
 	 *
 	 * @param array|string $slugs App slugs, or a JSON-encoded slug list.
@@ -1407,8 +1626,8 @@ class My_Apps {
 		$hidden = array_values( array_diff( self::current_app_slugs( $apps ), $visible ) );
 		$sort   = array_merge( $visible, $hidden );
 
-		update_option( 'my_apps_sort', $sort );
-		update_option( 'my_apps_hide_plugins', $hidden );
+		self::update_launcher_user_option( self::SORT_OPTION, $sort );
+		self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, $hidden );
 
 		return self::customization_payload();
 	}
@@ -1435,7 +1654,7 @@ class My_Apps {
 		$overrides = self::get_app_overrides();
 		if ( ! empty( $input['revert'] ) ) {
 			unset( $overrides[ $slug ] );
-			update_option( self::APP_OVERRIDES_OPTION, $overrides );
+			self::update_launcher_user_option( self::APP_OVERRIDES_OPTION, $overrides );
 			return self::customization_payload();
 		}
 
@@ -1477,7 +1696,7 @@ class My_Apps {
 		}
 
 		$overrides[ $slug ] = $app_override;
-		update_option( self::APP_OVERRIDES_OPTION, $overrides );
+		self::update_launcher_user_option( self::APP_OVERRIDES_OPTION, $overrides );
 
 		return self::customization_payload();
 	}
@@ -1506,7 +1725,7 @@ class My_Apps {
 		}
 
 		$hidden = wp_validate_boolean( $input['hidden'] );
-		$hidden_apps = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
+		$hidden_apps = self::normalize_app_slug_list( self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ) );
 
 		if ( $hidden ) {
 			if ( ! in_array( $slug, $hidden_apps, true ) ) {
@@ -1523,7 +1742,7 @@ class My_Apps {
 			);
 		}
 
-		update_option( 'my_apps_hide_plugins', $hidden_apps );
+		self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, $hidden_apps );
 
 		return self::customization_payload();
 	}
@@ -1550,7 +1769,7 @@ class My_Apps {
 		$overrides = self::get_app_icon_overrides();
 		if ( ! empty( $input['revert'] ) ) {
 			unset( $overrides[ $slug ] );
-			update_option( self::APP_ICON_OVERRIDES_OPTION, $overrides );
+			self::update_launcher_user_option( self::APP_ICON_OVERRIDES_OPTION, $overrides );
 			return self::customization_payload();
 		}
 
@@ -1571,7 +1790,7 @@ class My_Apps {
 		}
 
 		$overrides[ $slug ] = $icon_data;
-		update_option( self::APP_ICON_OVERRIDES_OPTION, $overrides );
+		self::update_launcher_user_option( self::APP_ICON_OVERRIDES_OPTION, $overrides );
 
 		return self::customization_payload();
 	}
@@ -1594,11 +1813,11 @@ class My_Apps {
 		}
 
 		if ( in_array( $value, self::VALID_BACKGROUNDS, true ) ) {
-			if ( self::CUSTOM_BACKGROUND === $value && '' === get_option( 'my_apps_background_custom', '' ) ) {
+			if ( self::CUSTOM_BACKGROUND === $value && '' === self::get_launcher_user_option( self::BACKGROUND_CUSTOM_OPTION, '' ) ) {
 				return new \WP_Error( 'my_apps_invalid_background', __( 'Choose or set a custom background.', 'my-apps' ) );
 			}
 
-			update_option( 'my_apps_background', $value );
+			self::update_launcher_user_option( self::BACKGROUND_OPTION, $value );
 			return self::current_background_payload();
 		}
 
@@ -1620,13 +1839,16 @@ class My_Apps {
 	/**
 	 * Reset the launcher background to its unset first-run state.
 	 *
+	 * Stored as empty user values rather than deleted: an absent user value
+	 * means "fall back to the site background", which would undo the reset.
+	 *
 	 * @return array
 	 */
 	private static function reset_background_value() {
-		delete_option( 'my_apps_background' );
-		delete_option( 'my_apps_background_custom' );
-		delete_option( 'my_apps_background_image_url' );
-		delete_option( 'my_apps_background_attachment_id' );
+		self::update_launcher_user_option( self::BACKGROUND_OPTION, '' );
+		self::update_launcher_user_option( self::BACKGROUND_CUSTOM_OPTION, '' );
+		self::update_launcher_user_option( self::BACKGROUND_IMAGE_URL_OPTION, '' );
+		self::update_launcher_user_option( self::BACKGROUND_ATTACHMENT_ID_OPTION, 0 );
 
 		return self::current_background_payload();
 	}
@@ -1706,10 +1928,10 @@ class My_Apps {
 	private static function store_custom_background_image( $url, $attachment_id = 0 ) {
 		$url = esc_url_raw( $url );
 
-		update_option( 'my_apps_background', self::CUSTOM_BACKGROUND );
-		update_option( 'my_apps_background_custom', self::image_background_css( $url ) );
-		update_option( 'my_apps_background_image_url', $url );
-		update_option( 'my_apps_background_attachment_id', absint( $attachment_id ) );
+		self::update_launcher_user_option( self::BACKGROUND_OPTION, self::CUSTOM_BACKGROUND );
+		self::update_launcher_user_option( self::BACKGROUND_CUSTOM_OPTION, self::image_background_css( $url ) );
+		self::update_launcher_user_option( self::BACKGROUND_IMAGE_URL_OPTION, $url );
+		self::update_launcher_user_option( self::BACKGROUND_ATTACHMENT_ID_OPTION, absint( $attachment_id ) );
 	}
 
 	/**
@@ -1718,10 +1940,10 @@ class My_Apps {
 	 * @param string $css CSS background value.
 	 */
 	private static function store_custom_background_css( $css ) {
-		update_option( 'my_apps_background', self::CUSTOM_BACKGROUND );
-		update_option( 'my_apps_background_custom', $css );
-		update_option( 'my_apps_background_image_url', '' );
-		update_option( 'my_apps_background_attachment_id', 0 );
+		self::update_launcher_user_option( self::BACKGROUND_OPTION, self::CUSTOM_BACKGROUND );
+		self::update_launcher_user_option( self::BACKGROUND_CUSTOM_OPTION, $css );
+		self::update_launcher_user_option( self::BACKGROUND_IMAGE_URL_OPTION, '' );
+		self::update_launcher_user_option( self::BACKGROUND_ATTACHMENT_ID_OPTION, 0 );
 	}
 
 	/**
@@ -1829,8 +2051,8 @@ class My_Apps {
 	 *
 	 * @return array
 	 */
-	private static function current_background_state_payload() {
-		$background = get_option( 'my_apps_background', '' );
+	public static function current_background_state_payload() {
+		$background = self::get_launcher_user_option( self::BACKGROUND_OPTION, '' );
 		$background = is_string( $background ) && in_array( $background, self::VALID_BACKGROUNDS, true ) ? $background : '';
 
 		$state = array(
@@ -1839,9 +2061,9 @@ class My_Apps {
 		);
 
 		if ( self::CUSTOM_BACKGROUND === $background ) {
-			$custom_bg     = get_option( 'my_apps_background_custom', '' );
-			$image_url     = get_option( 'my_apps_background_image_url', '' );
-			$attachment_id = absint( get_option( 'my_apps_background_attachment_id', 0 ) );
+			$custom_bg     = self::get_launcher_user_option( self::BACKGROUND_CUSTOM_OPTION, '' );
+			$image_url     = self::get_launcher_user_option( self::BACKGROUND_IMAGE_URL_OPTION, '' );
+			$attachment_id = absint( self::get_launcher_user_option( self::BACKGROUND_ATTACHMENT_ID_OPTION, 0 ) );
 
 			if ( is_string( $custom_bg ) && '' !== $custom_bg ) {
 				$state['custom'] = $custom_bg;
@@ -2363,7 +2585,7 @@ class My_Apps {
 	public static function are_wp_admin_links_hidden() {
 		$default = self::is_playground() ? '1' : '0';
 
-		return '1' === get_option( self::HIDE_WP_ADMIN_LINKS_OPTION, $default );
+		return '1' === self::get_launcher_user_option( self::HIDE_WP_ADMIN_LINKS_OPTION, $default );
 	}
 
 	/**
@@ -2584,7 +2806,7 @@ class My_Apps {
 			}
 		}
 
-		$stored_background          = get_option( 'my_apps_background', '' );
+		$stored_background          = self::get_launcher_user_option( self::BACKGROUND_OPTION, '' );
 		$has_customized_wallpaper   = is_string( $stored_background ) && '' !== $stored_background;
 		$background_state           = self::current_background_state_payload();
 
@@ -2632,7 +2854,7 @@ class My_Apps {
 				'wpVersion'                 => get_bloginfo( 'version' ),
 				'wpLanguage'                => get_bloginfo( 'language' ),
 				'userLanguage'              => get_user_locale(),
-				'deletableSlugs'            => self::normalize_app_slug_list( array_keys( get_option( 'my_apps_additional_apps', array() ) ) ),
+				'deletableSlugs'            => self::deletable_custom_app_slugs(),
 				'appUrls'                   => array_values( array_unique( array_filter( $app_urls ) ) ),
 				'installedPlugins'          => self::get_installed_plugin_statuses(),
 				'updateableApps'            => self::get_launcher_updateable_plugin_apps(),
@@ -3210,7 +3432,7 @@ class My_Apps {
 		}
 
 		$sort = self::normalize_app_slug_list( array_values( $order ) );
-		update_option( 'my_apps_sort', $sort );
+		self::update_launcher_user_option( self::SORT_OPTION, $sort );
 		wp_send_json_success();
 	}
 
@@ -3230,10 +3452,10 @@ class My_Apps {
 			wp_send_json_error( 'Invalid slug' );
 		}
 
-		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
+		$hide_plugins = self::normalize_app_slug_list( self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ) );
 		if ( ! in_array( $slug, $hide_plugins, true ) ) {
 			$hide_plugins[] = $slug;
-			update_option( 'my_apps_hide_plugins', $hide_plugins );
+			self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, $hide_plugins );
 		}
 
 		wp_send_json_success();
@@ -3331,14 +3553,15 @@ class My_Apps {
 	public function ajax_save_wp_admin_links() {
 		check_ajax_referer( 'my_apps_launcher', 'nonce' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( 'Not allowed' );
+		// The setting only affects the acting user's own launcher.
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
 		}
 
 		$enabled_raw = isset( $_POST['enabled'] ) ? sanitize_text_field( wp_unslash( $_POST['enabled'] ) ) : '0';
 		$enabled     = wp_validate_boolean( $enabled_raw );
 
-		update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, $enabled ? '1' : '0' );
+		self::update_launcher_user_option( self::HIDE_WP_ADMIN_LINKS_OPTION, $enabled ? '1' : '0' );
 
 		wp_send_json_success(
 			array(
@@ -3353,7 +3576,7 @@ class My_Apps {
 	public function admin_post_enable_full_wordpress_mode() {
 		check_admin_referer( 'my_apps_enable_full_wordpress_mode' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_user_logged_in() ) {
 			wp_die(
 				esc_html__( 'Sorry, you are not allowed to do that.', 'my-apps' ),
 				'',
@@ -3363,7 +3586,7 @@ class My_Apps {
 			);
 		}
 
-		update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, '0' );
+		self::update_launcher_user_option( self::HIDE_WP_ADMIN_LINKS_OPTION, '0' );
 
 		$redirect = wp_get_referer();
 		if ( ! $redirect ) {
@@ -3380,7 +3603,7 @@ class My_Apps {
 	public function admin_post_disable_full_wordpress_mode() {
 		check_admin_referer( 'my_apps_disable_full_wordpress_mode' );
 
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_user_logged_in() ) {
 			wp_die(
 				esc_html__( 'Sorry, you are not allowed to do that.', 'my-apps' ),
 				'',
@@ -3390,7 +3613,7 @@ class My_Apps {
 			);
 		}
 
-		update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, '1' );
+		self::update_launcher_user_option( self::HIDE_WP_ADMIN_LINKS_OPTION, '1' );
 
 		$redirect = wp_get_referer();
 		if ( ! $redirect ) {
@@ -3621,11 +3844,14 @@ class My_Apps {
 			wp_send_json_error( 'Invalid slug' );
 		}
 
-		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
-		$hide_plugins = array_filter( $hide_plugins, function( $s ) use ( $slug ) {
-			return $s !== $slug;
-		} );
-		update_option( 'my_apps_hide_plugins', array_values( $hide_plugins ) );
+		$hide_plugins = self::normalize_app_slug_list( self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ) );
+		$hide_plugins = array_filter(
+			$hide_plugins,
+			function ( $s ) use ( $slug ) {
+				return $s !== $slug;
+			}
+		);
+		self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, array_values( $hide_plugins ) );
 
 		$apps = self::get_apps();
 		if ( isset( $apps[ $slug ] ) ) {
@@ -3663,28 +3889,38 @@ class My_Apps {
 			return;
 		}
 
-		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
-		$hide_plugins = array_values( array_filter( $hide_plugins, function( $s ) use ( $slug ) {
-			return $s !== $slug;
-		} ) );
-		update_option( 'my_apps_hide_plugins', $hide_plugins );
+		$hide_plugins = self::normalize_app_slug_list( self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ) );
+		$hide_plugins = array_values(
+			array_filter(
+				$hide_plugins,
+				function ( $s ) use ( $slug ) {
+					return $s !== $slug;
+				}
+			)
+		);
+		self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, $hide_plugins );
 
-		$sort = self::normalize_app_slug_list( get_option( 'my_apps_sort', array() ) );
-		$sort = array_values( array_filter( $sort, function( $s ) use ( $slug ) {
-			return $s !== $slug;
-		} ) );
-		update_option( 'my_apps_sort', $sort );
+		$sort = self::normalize_app_slug_list( self::get_launcher_user_option( self::SORT_OPTION, array() ) );
+		$sort = array_values(
+			array_filter(
+				$sort,
+				function ( $s ) use ( $slug ) {
+					return $s !== $slug;
+				}
+			)
+		);
+		self::update_launcher_user_option( self::SORT_OPTION, $sort );
 
 		$icon_overrides = self::get_app_icon_overrides();
 		if ( isset( $icon_overrides[ $slug ] ) ) {
 			unset( $icon_overrides[ $slug ] );
-			update_option( self::APP_ICON_OVERRIDES_OPTION, $icon_overrides );
+			self::update_launcher_user_option( self::APP_ICON_OVERRIDES_OPTION, $icon_overrides );
 		}
 
 		$app_overrides = self::get_app_overrides();
 		if ( isset( $app_overrides[ $slug ] ) ) {
 			unset( $app_overrides[ $slug ] );
-			update_option( self::APP_OVERRIDES_OPTION, $app_overrides );
+			self::update_launcher_user_option( self::APP_OVERRIDES_OPTION, $app_overrides );
 		}
 	}
 
@@ -3708,13 +3944,20 @@ class My_Apps {
 			wp_send_json_error( 'Invalid slug' );
 		}
 
-		$additional_apps = get_option( 'my_apps_additional_apps', array() );
-		if ( ! isset( $additional_apps[ $slug ] ) ) {
+		if ( ! self::can_delete_app( $slug ) ) {
 			wp_send_json_error( 'App cannot be deleted' );
 		}
 
-		unset( $additional_apps[ $slug ] );
-		update_option( 'my_apps_additional_apps', $additional_apps );
+		$user_apps = self::get_user_additional_apps();
+		unset( $user_apps[ $slug ] );
+		self::save_user_additional_apps( $user_apps );
+
+		// Shared entries live in the site option; only administrators get here for those.
+		$shared_apps = self::get_shared_additional_apps();
+		if ( isset( $shared_apps[ $slug ] ) ) {
+			unset( $shared_apps[ $slug ] );
+			update_option( self::ADDITIONAL_APPS_OPTION, $shared_apps );
+		}
 
 		self::remove_app_customization_state( $slug );
 
@@ -3916,9 +4159,9 @@ class My_Apps {
 		}
 
 		$settings_export = array(
-			'sort'               => get_option( 'my_apps_sort', array() ),
-			'hide_plugins'       => get_option( 'my_apps_hide_plugins', array() ),
-			'additional_apps'    => get_option( 'my_apps_additional_apps', array() ),
+			'sort'               => self::get_launcher_user_option( self::SORT_OPTION, array() ),
+			'hide_plugins'       => self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ),
+			'additional_apps'    => self::get_additional_apps(),
 			'app_overrides'      => self::get_app_overrides(),
 			'app_icon_overrides' => self::get_app_icon_overrides(),
 		);
@@ -3953,19 +4196,19 @@ class My_Apps {
 		}
 
 		if ( isset( $data['sort'] ) && is_array( $data['sort'] ) ) {
-			update_option( 'my_apps_sort', $data['sort'] );
+			self::update_launcher_user_option( self::SORT_OPTION, $data['sort'] );
 		}
 		if ( isset( $data['hide_plugins'] ) && is_array( $data['hide_plugins'] ) ) {
-			update_option( 'my_apps_hide_plugins', $data['hide_plugins'] );
+			self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, $data['hide_plugins'] );
 		}
 		if ( isset( $data['additional_apps'] ) && is_array( $data['additional_apps'] ) ) {
-			update_option( 'my_apps_additional_apps', $data['additional_apps'] );
+			self::save_user_additional_apps( self::prepare_imported_additional_apps( $data['additional_apps'] ) );
 		}
 		if ( isset( $data['app_overrides'] ) && is_array( $data['app_overrides'] ) ) {
-			update_option( self::APP_OVERRIDES_OPTION, $data['app_overrides'] );
+			self::update_launcher_user_option( self::APP_OVERRIDES_OPTION, $data['app_overrides'] );
 		}
 		if ( isset( $data['app_icon_overrides'] ) && is_array( $data['app_icon_overrides'] ) ) {
-			update_option( self::APP_ICON_OVERRIDES_OPTION, $data['app_icon_overrides'] );
+			self::update_launcher_user_option( self::APP_ICON_OVERRIDES_OPTION, $data['app_icon_overrides'] );
 		}
 		if ( self::is_playground() && isset( $data['redirect_root'] ) && is_scalar( $data['redirect_root'] ) ) {
 			update_user_option(
@@ -3975,15 +4218,15 @@ class My_Apps {
 			);
 		}
 		if ( isset( $data['hide_wp_admin_links'] ) && is_scalar( $data['hide_wp_admin_links'] ) ) {
-			update_option( self::HIDE_WP_ADMIN_LINKS_OPTION, wp_validate_boolean( $data['hide_wp_admin_links'] ) ? '1' : '0' );
+			self::update_launcher_user_option( self::HIDE_WP_ADMIN_LINKS_OPTION, wp_validate_boolean( $data['hide_wp_admin_links'] ) ? '1' : '0' );
 		}
 		if ( isset( $data['background'] ) && is_scalar( $data['background'] ) ) {
 			$background = trim( (string) $data['background'] );
 			if ( '' === $background ) {
-				delete_option( 'my_apps_background' );
-				delete_option( 'my_apps_background_custom' );
-				delete_option( 'my_apps_background_image_url' );
-				delete_option( 'my_apps_background_attachment_id' );
+				self::update_launcher_user_option( self::BACKGROUND_OPTION, '' );
+				self::update_launcher_user_option( self::BACKGROUND_CUSTOM_OPTION, '' );
+				self::update_launcher_user_option( self::BACKGROUND_IMAGE_URL_OPTION, '' );
+				self::update_launcher_user_option( self::BACKGROUND_ATTACHMENT_ID_OPTION, 0 );
 			} elseif ( 'image' === $background && ! empty( $data['background_image_id'] ) ) {
 				$background_result = self::save_background_value( (string) absint( $data['background_image_id'] ) );
 				if ( is_wp_error( $background_result ) ) {
@@ -3991,10 +4234,10 @@ class My_Apps {
 				}
 			} elseif ( self::CUSTOM_BACKGROUND === $background && ! empty( $data['custom_background'] ) ) {
 				if ( ! empty( $data['image_url'] ) ) {
-					update_option( 'my_apps_background', self::CUSTOM_BACKGROUND );
-					update_option( 'my_apps_background_custom', sanitize_text_field( $data['custom_background'] ) );
-					update_option( 'my_apps_background_image_url', esc_url_raw( $data['image_url'] ) );
-					update_option( 'my_apps_background_attachment_id', ! empty( $data['attachment_id'] ) ? absint( $data['attachment_id'] ) : 0 );
+					self::update_launcher_user_option( self::BACKGROUND_OPTION, self::CUSTOM_BACKGROUND );
+					self::update_launcher_user_option( self::BACKGROUND_CUSTOM_OPTION, sanitize_text_field( $data['custom_background'] ) );
+					self::update_launcher_user_option( self::BACKGROUND_IMAGE_URL_OPTION, esc_url_raw( $data['image_url'] ) );
+					self::update_launcher_user_option( self::BACKGROUND_ATTACHMENT_ID_OPTION, ! empty( $data['attachment_id'] ) ? absint( $data['attachment_id'] ) : 0 );
 				} else {
 					$background_result = self::save_custom_background_css( $data['custom_background'] );
 					if ( is_wp_error( $background_result ) ) {
@@ -5406,8 +5649,9 @@ class My_Apps {
 	 * @return array
 	 */
 	private static function customization_payload() {
-		$hidden          = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
-		$additional_apps = get_option( 'my_apps_additional_apps', array() );
+		$hidden          = self::normalize_app_slug_list( self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ) );
+		$additional_apps = self::get_additional_apps();
+		$deletable       = self::deletable_custom_app_slugs();
 		$launcher_apps   = self::get_apps();
 		$icon_overrides  = self::get_app_icon_overrides();
 		$apps            = array();
@@ -5427,7 +5671,8 @@ class My_Apps {
 				$app,
 				array_key_exists( $slug, $additional_apps ),
 				in_array( $slug, $hidden, true ),
-				isset( $icon_overrides[ $slug ] )
+				isset( $icon_overrides[ $slug ] ),
+				in_array( $slug, $deletable, true )
 			);
 
 			if ( ! in_array( $slug, $hidden, true ) ) {
@@ -5450,9 +5695,10 @@ class My_Apps {
 	 * @param bool   $is_custom Whether the app is stored as an additional app.
 	 * @param bool   $is_hidden Whether the app is hidden.
 	 * @param bool   $icon_customized Whether the app icon has a stored override.
+	 * @param bool   $is_deletable Whether the current user may delete the app.
 	 * @return array
 	 */
-	private static function customization_app_payload( $slug, $app, $is_custom, $is_hidden, $icon_customized = false ) {
+	private static function customization_app_payload( $slug, $app, $is_custom, $is_hidden, $icon_customized = false, $is_deletable = false ) {
 		$slug = self::normalize_app_slug( $slug );
 
 		return array(
@@ -5460,7 +5706,7 @@ class My_Apps {
 			'url'             => isset( $app['url'] ) ? (string) $app['url'] : '',
 			'source'          => $is_custom ? 'custom' : 'registered',
 			'hidden'          => (bool) $is_hidden,
-			'deletable'       => (bool) $is_custom,
+			'deletable'       => (bool) $is_deletable,
 			'icon_customized' => (bool) $icon_customized,
 			'icon'            => self::customization_app_icon_payload( $app ),
 		);
@@ -5606,7 +5852,7 @@ class My_Apps {
 	 * @return array
 	 */
 	private static function get_app_overrides() {
-		$overrides = get_option( self::APP_OVERRIDES_OPTION, array() );
+		$overrides = self::get_launcher_user_option( self::APP_OVERRIDES_OPTION, array() );
 		$overrides = is_array( $overrides ) ? $overrides : array();
 		$sanitized = array();
 
@@ -5820,7 +6066,7 @@ class My_Apps {
 	 * @return array
 	 */
 	private static function get_app_icon_overrides() {
-		$overrides = get_option( self::APP_ICON_OVERRIDES_OPTION, array() );
+		$overrides = self::get_launcher_user_option( self::APP_ICON_OVERRIDES_OPTION, array() );
 		$overrides = is_array( $overrides ) ? $overrides : array();
 		$sanitized = array();
 
@@ -5889,8 +6135,7 @@ class My_Apps {
 			$icon_data['icon_url'] = $favicon_url;
 		}
 
-		$additional_apps = get_option( 'my_apps_additional_apps', array() );
-		$additional_apps = is_array( $additional_apps ) ? $additional_apps : array();
+		$additional_apps = self::get_additional_apps();
 		$user_id         = get_current_user_id();
 		$normalized_url  = self::normalize_app_url( $url );
 
@@ -5943,13 +6188,14 @@ class My_Apps {
 			)
 		);
 
-		$additional_apps[ $slug ] = $new_app;
-		update_option( 'my_apps_additional_apps', $additional_apps );
+		$user_apps          = self::get_user_additional_apps();
+		$user_apps[ $slug ] = $new_app;
+		self::save_user_additional_apps( $user_apps );
 
-		$sort   = get_option( 'my_apps_sort', array() );
+		$sort   = self::get_launcher_user_option( self::SORT_OPTION, array() );
 		$sort   = is_array( $sort ) ? $sort : array();
 		$sort[] = $slug;
-		update_option( 'my_apps_sort', $sort );
+		self::update_launcher_user_option( self::SORT_OPTION, $sort );
 
 		return array(
 			'slug'      => $slug,
@@ -6037,6 +6283,9 @@ class My_Apps {
 		$registered_plugins = apply_filters( 'my_apps_plugins', array() );
 
 		global $wp_filter;
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
 		$plugins = \get_plugins();
 		$which_app = array();
 		$my_apps_filters = isset( $wp_filter['my_apps_plugins'] ) ? $wp_filter['my_apps_plugins'] : array();
@@ -6109,7 +6358,7 @@ class My_Apps {
 			$plugins[ $plugin ] = $data;
 		}
 
-		$additional_apps = get_option( 'my_apps_additional_apps', array() );
+		$additional_apps = self::get_additional_apps();
 		foreach ( $additional_apps as $slug => $data ) {
 			if ( ! isset( $data['url'], $data['name'] ) ) {
 				continue;
@@ -6129,18 +6378,24 @@ class My_Apps {
 		$plugins = self::apply_app_overrides( $plugins );
 		$plugins = self::apply_app_icon_overrides( $plugins );
 
-		$hide_plugins = self::normalize_app_slug_list( get_option( 'my_apps_hide_plugins', array() ) );
+		$hide_plugins = self::normalize_app_slug_list( self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ) );
 		foreach ( $hide_plugins as $plugin ) {
+			// A user can carry a hidden slug for an app that is gone — another
+			// user's app, or one an administrator removed. Do not resurrect it
+			// as a nameless entry.
+			if ( ! isset( $plugins[ $plugin ] ) ) {
+				continue;
+			}
 			$plugins[ $plugin ]['hide'] = true;
 		}
 
-		$sort = get_option( 'my_apps_sort', array() );
-		// Support both array format [slug, slug, ...] and legacy hash {slug: position}
+		$sort = self::get_launcher_user_option( self::SORT_OPTION, array() );
+		// Support both array format [slug, slug, ...] and legacy hash {slug: position}.
 		if ( ! empty( $sort ) && ! isset( $sort[0] ) ) {
-			// Legacy hash format — convert to array
+			// Legacy hash format — convert to array.
 			asort( $sort );
 			$sort = array_keys( $sort );
-			update_option( 'my_apps_sort', $sort );
+			self::update_launcher_user_option( self::SORT_OPTION, $sort );
 		}
 		$sort = self::normalize_app_slug_list( $sort );
 		$sort_index = array_flip( $sort );

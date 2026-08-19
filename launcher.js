@@ -3928,7 +3928,7 @@
 		return null;
 	}
 
-	function appendAppStoreIcon(parent, app, name, gradient) {
+	function appendAppStoreIcon(parent, app, name) {
 		var icon = normalizeAppStoreIcon(app && (app._icon || app.icon));
 		if (icon && icon.type === 'image') {
 			parent.classList.add('app-store-icon-image');
@@ -3941,7 +3941,7 @@
 		}
 
 		if (icon && icon.type === 'dashicon') {
-			parent.style.background = gradient;
+			parent.classList.add('app-store-icon-dashicon');
 			var dashicon = document.createElement('span');
 			dashicon.className = 'dashicons ' + icon.value;
 			parent.appendChild(dashicon);
@@ -3949,13 +3949,13 @@
 		}
 
 		if (icon && icon.type === 'text') {
-			parent.style.background = gradient;
+			parent.style.background = letterIconDataForName(name).background;
 			parent.classList.add('app-store-icon-text');
 			parent.textContent = icon.value;
 			return;
 		}
 
-		parent.style.background = gradient;
+		parent.style.background = letterIconDataForName(name).background;
 		appendGradientIconLetter(parent, name);
 	}
 
@@ -7902,8 +7902,7 @@
 			if (!appStoreData[appPath]) return false;
 			var app = appStoreData[appPath];
 			var blueprintUrl = getBlueprintUrl(appPath);
-			var gradient = getCategoryGradient(app.categories);
-			renderAppDetail(appPath, app, blueprintUrl, gradient);
+			renderAppDetail(appPath, app, blueprintUrl);
 			pendingDeepLink = null;
 			deepLinkRendered = true;
 			return true;
@@ -8780,26 +8779,8 @@
 		filterAppStore();
 	}
 
-	var categoryGradients = {
-		'Productivity': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-		'Social':       'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-		'AI':           'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-		'Media':        'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-		'Utility':      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-		'Apps':         'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-	};
-
+	// Fallback background for recipes that don't specify their own gradient.
 	var defaultGradient = 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)';
-
-	function getCategoryGradient(categories) {
-		var cats = Array.isArray(categories) ? categories : [];
-		for (var i = cats.length - 1; i >= 0; i--) {
-			if (categoryGradients[cats[i]]) {
-				return categoryGradients[cats[i]];
-			}
-		}
-		return defaultGradient;
-	}
 
 	// When the same software ships as both a richer "app" entry (apps.json)
 	// and a curated plugin (plugins.json), the app
@@ -8893,9 +8874,7 @@
 			var iconEl = document.createElement('div');
 			iconEl.className = 'app-store-icon';
 
-			var gradient = getCategoryGradient(app.categories);
-
-			appendAppStoreIcon(iconEl, app, app.title, gradient);
+			appendAppStoreIcon(iconEl, app, app.title);
 
 			var infoEl = document.createElement('div');
 			infoEl.className = 'app-store-info';
@@ -8994,12 +8973,12 @@
 				hostedInstallBtn.type = 'button';
 				hostedInstallBtn.className = 'app-store-install-btn';
 				prepareInstallButton(hostedInstallBtn, app);
-				(function(p, a, bUrl, g) {
+				(function(p, a, bUrl) {
 					hostedInstallBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
-						openAppDetail(p, a, bUrl, g);
+						openAppDetail(p, a, bUrl);
 					});
-				})(path, app, blueprintUrl, gradient);
+				})(path, app, blueprintUrl);
 				actionsEl.appendChild(hostedInstallBtn);
 			}
 
@@ -9012,18 +8991,18 @@
 			// recipe), plugins render a slimmer plugin detail.
 			titleEl.classList.add('app-store-title-link');
 			iconEl.classList.add('app-store-icon-link');
-			(function(p, a, bUrl, g) {
+			(function(p, a, bUrl) {
 				var openDetail = function(e) {
 					e.stopPropagation();
 					if (isPluginEntry) {
 						openPluginDetail(p, a, { autoOpenInstallInfo: true });
 					} else {
-						openAppDetail(p, a, bUrl, g);
+						openAppDetail(p, a, bUrl);
 					}
 				};
 				titleEl.addEventListener('click', openDetail);
 				iconEl.addEventListener('click', openDetail);
-			})(path, app, blueprintUrl, gradient);
+			})(path, app, blueprintUrl);
 
 			listEl.appendChild(itemEl);
 		});
@@ -9582,15 +9561,13 @@
 		var isPluginEntry = app._type === 'plugin';
 		var blueprintUrl = isPluginEntry ? '' : getBlueprintUrl(path);
 
-		var gradient = getCategoryGradient(app.categories);
-
 		var card = document.createElement('div');
 		card.className = 'recipe-step-card' + (isPluginEntry ? ' recipe-step-card-plugin' : '');
 
 		var iconEl = document.createElement('div');
 		iconEl.className = 'recipe-step-icon';
 
-		appendAppStoreIcon(iconEl, app, app.title, gradient);
+		appendAppStoreIcon(iconEl, app, app.title);
 		card.appendChild(iconEl);
 
 		var info = document.createElement('div');
@@ -9645,12 +9622,12 @@
 			hostedInstallBtn.type = 'button';
 			hostedInstallBtn.className = 'app-store-install-btn';
 			prepareInstallButton(hostedInstallBtn, app);
-			(function(p, a, bUrl, g) {
+			(function(p, a, bUrl) {
 				hostedInstallBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
-					openAppDetail(p, a, bUrl, g);
+					openAppDetail(p, a, bUrl);
 				});
-			})(path, app, blueprintUrl, gradient);
+			})(path, app, blueprintUrl);
 			actions.appendChild(hostedInstallBtn);
 		}
 		card.appendChild(actions);
@@ -9659,18 +9636,18 @@
 		// blueprint steps, plugins get the slimmer plugin detail.
 		titleEl.classList.add('app-store-title-link');
 		iconEl.classList.add('app-store-icon-link');
-		(function(p, a, bUrl, g) {
+		(function(p, a, bUrl) {
 			var openDetail = function(e) {
 				e.stopPropagation();
 				if (isPluginEntry) {
 					openPluginDetail(p, a);
 				} else {
-					openAppDetail(p, a, bUrl, g);
+					openAppDetail(p, a, bUrl);
 				}
 			};
 			titleEl.addEventListener('click', openDetail);
 			iconEl.addEventListener('click', openDetail);
-		})(path, app, blueprintUrl, gradient);
+		})(path, app, blueprintUrl);
 
 		return card;
 	}
@@ -9723,8 +9700,6 @@
 		backBtn.addEventListener('click', closePluginDetail);
 		appStoreHeading.appendChild(backBtn);
 
-		var gradient = getCategoryGradient(plugin.categories);
-
 		var detail = document.createElement('div');
 		detail.className = 'app-detail';
 
@@ -9734,7 +9709,7 @@
 
 		var iconEl = document.createElement('div');
 		iconEl.className = 'app-detail-icon';
-		appendAppStoreIcon(iconEl, plugin, plugin.title, gradient);
+		appendAppStoreIcon(iconEl, plugin, plugin.title);
 
 		var headerInfo = document.createElement('div');
 		headerInfo.className = 'app-detail-header-info';
@@ -9885,13 +9860,13 @@
 
 	// ── App Detail Page ──────────────────────────────────────
 
-	function openAppDetail(appPath, app, blueprintUrl, gradient) {
+	function openAppDetail(appPath, app, blueprintUrl) {
 		// Push URL state so the detail page is shareable
 		var url = new URL(window.location);
 		url.searchParams.set('app', appPath);
 		history.pushState({ appDetail: appPath }, '', url.toString());
 
-		renderAppDetail(appPath, app, blueprintUrl, gradient);
+		renderAppDetail(appPath, app, blueprintUrl);
 	}
 
 	function closeAppDetail() {
@@ -9918,7 +9893,7 @@
 		sidebar.classList.remove('app-store-sidebar-hidden');
 	}
 
-	function renderAppDetail(appPath, app, blueprintUrl, gradient) {
+	function renderAppDetail(appPath, app, blueprintUrl) {
 		app._path = appPath;
 
 		// Hide sidebar — detail page is full-width in the main area
@@ -9950,7 +9925,7 @@
 
 		var iconEl = document.createElement('div');
 		iconEl.className = 'app-detail-icon';
-		appendAppStoreIcon(iconEl, app, app.title, gradient);
+		appendAppStoreIcon(iconEl, app, app.title);
 
 		var headerInfo = document.createElement('div');
 		headerInfo.className = 'app-detail-header-info';
@@ -9977,7 +9952,7 @@
 				renderAppStore(appStoreData, activeCategory, currentAppStoreSearch());
 			}));
 			var detailVersionSwitcher = createCustomVersionSwitcher(appPath, app, function(updatedApp) {
-				renderAppDetail(appPath, updatedApp, getBlueprintUrl(appPath), getCategoryGradient(updatedApp.categories));
+				renderAppDetail(appPath, updatedApp, getBlueprintUrl(appPath));
 			});
 			if (detailVersionSwitcher) {
 				metaRow.appendChild(detailVersionSwitcher);
@@ -10523,8 +10498,7 @@
 		if (resolvedAppParam && appStoreData && appStoreData[resolvedAppParam]) {
 			var app = appStoreData[resolvedAppParam];
 			var blueprintUrl = getBlueprintUrl(resolvedAppParam);
-			var gradient = getCategoryGradient(app.categories);
-			renderAppDetail(resolvedAppParam, app, blueprintUrl, gradient);
+			renderAppDetail(resolvedAppParam, app, blueprintUrl);
 		} else if (pluginParam && !areAppStorePluginsHidden() && appStoreData && appStoreData[pluginParam]) {
 			renderPluginDetail(pluginParam, appStoreData[pluginParam]);
 		} else if (appStoreData) {

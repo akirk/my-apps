@@ -501,7 +501,7 @@ body.my-apps-home-press #wp-admin-bar-my-apps .ab-icon {
 	width: var(--app-size, 60px);
 	height: var(--app-size, 60px);
 	border-radius: 14px;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
 	background-color: #fff;
 	display: block;
 	margin: 0 auto;
@@ -517,7 +517,7 @@ body.my-apps-home-press #wp-admin-bar-my-apps .ab-icon {
 	width: var(--app-size, 60px);
 	height: var(--app-size, 60px);
 	border-radius: 14px;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -556,7 +556,7 @@ svg.app-letter-icon {
 	height: var(--app-size, 60px);
 	margin: 0 auto;
 	border-radius: 14px;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
 }
 
 svg.app-letter-icon.app-letter-icon-small {
@@ -1162,13 +1162,19 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	width: 52px;
 	height: 52px;
 	border-radius: 12px;
-	background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
 	color: #fff;
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+/* Dashicon apps render like the installed-apps launcher grid: white tile,
+   dark glyph — same as .app-icon div.dashicons. */
+.app-store-icon-dashicon {
+	background: #fff;
+	color: #333;
 }
 
 .app-store-icon svg {
@@ -1181,10 +1187,9 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 }
 
 .app-store-icon-image {
-	background: transparent;
+	background: #fff;
 	border: 0;
 	overflow: hidden;
-	box-shadow: none;
 }
 
 .app-store-icon-image img {
@@ -1441,16 +1446,11 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 
 .app-store-icon-link {
 	cursor: pointer;
-	transition: transform 0.15s, box-shadow 0.15s;
+	transition: box-shadow 0.15s;
 }
 
 .app-store-icon-link:hover {
-	transform: scale(1.08);
-	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
-}
-
-.app-store-icon-image.app-store-icon-link:hover {
-	box-shadow: none;
+	box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
 }
 
 /* Clickable category labels */
@@ -3683,7 +3683,7 @@ body.my-apps-launcher .recipe-card:active {
 	flex-shrink: 0;
 	color: #fff;
 	overflow: hidden;
-	background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .recipe-step-icon svg {
@@ -3707,7 +3707,7 @@ body.my-apps-launcher .recipe-card:active {
 }
 
 .recipe-step-icon.app-store-icon-image {
-	background: transparent;
+	background: #fff;
 }
 
 .recipe-step-icon.app-store-icon-image img {

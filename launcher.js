@@ -67,6 +67,7 @@
 	let APPS_INDEX_URL = '';
 	let RECIPES_URL = '';
 	let PLUGINS_URL = '';
+	let GALLERY_INDEX_URL = '';
 	const WP_ORG_PLUGIN_INFO_URL = 'https://api.wordpress.org/plugins/info/1.2/';
 	const isPlayground = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.isPlayground);
 	const i18n = (typeof myAppsConfig !== 'undefined' && myAppsConfig.i18n) ? myAppsConfig.i18n : {};
@@ -167,6 +168,7 @@
 		APPS_INDEX_URL = BLUEPRINTS_BASE_URL + 'apps.json';
 		RECIPES_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/recipes.json';
 		PLUGINS_URL = BLUEPRINTS_BASE_URL + 'blueprints/my-wordpress/plugins.json';
+		GALLERY_INDEX_URL = BLUEPRINTS_BASE_URL + 'index.json';
 	}
 
 	function rawGithubBaseUrl(owner, repo, ref) {
@@ -587,6 +589,9 @@
 		hasRecipes = false;
 		recipesLoadState = 'idle';
 		recipesLoadPromise = null;
+		galleryScreenshots = null;
+		galleryScreenshotsPromise = null;
+		savedAppStoreScrollTop = 0;
 		activeRecipe = null;
 		pendingRecipe = null;
 		pendingDeepLink = null;
@@ -663,6 +668,10 @@
 	let hasRecipes = false;
 	let recipesLoadState = 'idle'; // idle | loading | loaded | failed
 	let recipesLoadPromise = null;
+	// Screenshots for the app detail page come from the blueprints gallery
+	// index (path -> screenshot_url), not from apps.json itself.
+	let galleryScreenshots = null;
+	let galleryScreenshotsPromise = null;
 	let coreWordPressRecipesExpanded = false;
 	const CORE_WORDPRESS_RECIPE_KEYS = {
 		'family-blog': true,
@@ -6579,6 +6588,9 @@
 	var activeRecipe = null;
 	var appStoreEventsBound = false;
 	var appStoreDocumentPasteBound = false;
+	// app-store-content's scroll position just before opening an app/plugin
+	// detail page, so going back can restore it instead of snapping to top.
+	var savedAppStoreScrollTop = 0;
 
 	function updateBlueprintsSourceBadge() {
 		if (!appStoreSourceBadge) return;
@@ -7812,6 +7824,38 @@
 		return recipesLoadPromise;
 	}
 
+	// The gallery index (index.json) lists a screenshot_url for blueprints
+	// that have one. It's generated for the public gallery page, not for
+	// this plugin, so a missing or unreachable index just means no
+	// screenshots — never block app store loading on it.
+	function fetchGalleryScreenshots() {
+		if (galleryScreenshotsPromise) {
+			return galleryScreenshotsPromise;
+		}
+
+		galleryScreenshotsPromise = fetch(GALLERY_INDEX_URL)
+			.then(function(res) { return res.ok ? res.json() : {}; })
+			.then(function(data) {
+				var map = {};
+				if (data && typeof data === 'object') {
+					Object.keys(data).forEach(function(path) {
+						var url = data[path] && data[path].screenshot_url;
+						if (url) {
+							map[path] = url;
+						}
+					});
+				}
+				galleryScreenshots = map;
+				return map;
+			})
+			.catch(function() {
+				galleryScreenshots = {};
+				return galleryScreenshots;
+			});
+
+		return galleryScreenshotsPromise;
+	}
+
 	function loadAppStore() {
 		var loadId = ++appStoreLoadId;
 		appStoreContent.innerHTML = '<div class="app-store-loading">Loading apps\u2026</div>';
@@ -7819,6 +7863,7 @@
 
 		var pluginsPromise = fetchRecommendedPlugins();
 		var recipesPromise = fetchRecipesCatalog();
+		fetchGalleryScreenshots();
 
 		appStoreLoadPromise = fetch(APPS_INDEX_URL)
 			.then(function(res) { return res.json(); })
@@ -9655,6 +9700,7 @@
 	// ── Plugin Detail Page ──────────────────────────────────
 
 	function openPluginDetail(pluginPath, plugin, options) {
+		savedAppStoreScrollTop = appStoreContent.scrollTop;
 		var url = new URL(window.location);
 		url.searchParams.set('plugin', pluginPath);
 		history.pushState({ pluginDetail: pluginPath }, '', url.toString());
@@ -9680,6 +9726,8 @@
 
 		var sidebar = document.getElementById('app-store-sidebar');
 		sidebar.classList.remove('app-store-sidebar-hidden');
+
+		appStoreContent.scrollTop = savedAppStoreScrollTop;
 	}
 
 	function renderPluginDetail(pluginPath, plugin, options) {
@@ -9861,6 +9909,8 @@
 	// ── App Detail Page ──────────────────────────────────────
 
 	function openAppDetail(appPath, app, blueprintUrl) {
+		savedAppStoreScrollTop = appStoreContent.scrollTop;
+
 		// Push URL state so the detail page is shareable
 		var url = new URL(window.location);
 		url.searchParams.set('app', appPath);
@@ -9891,6 +9941,8 @@
 		// Show sidebar
 		var sidebar = document.getElementById('app-store-sidebar');
 		sidebar.classList.remove('app-store-sidebar-hidden');
+
+		appStoreContent.scrollTop = savedAppStoreScrollTop;
 	}
 
 	function renderAppDetail(appPath, app, blueprintUrl) {
@@ -10022,10 +10074,10 @@
 		detail.appendChild(headerEl);
 		detail.appendChild(blueprintInfoEl);
 
-		// ── Screenshots placeholder ──
+		// ── Screenshots ── populated once the blueprint (or gallery index)
+		// fetch below resolves; empty until then.
 		var screenshotsEl = document.createElement('div');
 		screenshotsEl.className = 'app-detail-screenshots';
-		// Future: populate from blueprint meta.screenshots array
 		detail.appendChild(screenshotsEl);
 
 		// ── Description ──
@@ -10329,9 +10381,19 @@
 
 				recipeSection.appendChild(recipeList);
 
-				// Check for screenshots in blueprint meta
+				// Prefer screenshots declared in the blueprint itself; fall
+				// back to the blueprints gallery index, which has a
+				// screenshot_url for blueprints that were shot for the
+				// public gallery but don't list it in their own meta.
 				if (blueprint.meta && blueprint.meta.screenshots && blueprint.meta.screenshots.length) {
 					renderScreenshots(screenshotsEl, blueprint.meta.screenshots);
+				} else {
+					fetchGalleryScreenshots().then(function(map) {
+						var url = map && map[appPath];
+						if (url) {
+							renderScreenshots(screenshotsEl, [url]);
+						}
+					});
 				}
 			})
 			.catch(function() {
@@ -10471,6 +10533,7 @@
 			img.src = src;
 			img.alt = 'Screenshot';
 			img.loading = 'lazy';
+			img.addEventListener('error', function() { img.remove(); });
 			container.appendChild(img);
 		});
 	}
@@ -10513,6 +10576,7 @@
 				appStoreHeading.textContent = categoryLabel(activeCategory);
 			}
 			renderAppStore(appStoreData, activeCategory, (appStoreSearchInput.value || '').toLowerCase());
+			appStoreContent.scrollTop = savedAppStoreScrollTop;
 		}
 	});
 

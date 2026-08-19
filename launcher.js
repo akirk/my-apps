@@ -6056,6 +6056,8 @@
 	}
 
 	function handleContextMenu(e) {
+		if (e.ctrlKey) return;
+
 		var appIcon = e.target.closest('.app-icon:not(.add-app-btn)');
 		if (!appIcon) return;
 

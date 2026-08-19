@@ -1550,6 +1550,11 @@ body.my-apps-launcher .app-detail-back:active {
 	line-height: 1;
 }
 
+.app-detail-icon.app-store-icon-dashicon {
+	background: #fff;
+	color: #333;
+}
+
 .app-detail-header-info {
 	flex: 1;
 	min-width: 0;
@@ -1583,7 +1588,9 @@ body.my-apps-launcher .app-detail-back:active {
 
 .app-detail-header-actions {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: flex-end;
 	align-items: center;
 	gap: 10px;
 	flex-shrink: 0;
@@ -3704,6 +3711,11 @@ body.my-apps-launcher .recipe-card:active {
 .recipe-step-icon.app-store-icon-text {
 	font-size: 21px;
 	line-height: 1;
+}
+
+.recipe-step-icon.app-store-icon-dashicon {
+	background: #fff;
+	color: #333;
 }
 
 .recipe-step-icon.app-store-icon-image {

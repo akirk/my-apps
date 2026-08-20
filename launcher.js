@@ -9031,6 +9031,36 @@
 			}
 			filterAppStore();
 		});
+		document.addEventListener('keydown', handleAppStoreTypeToSearch);
+	}
+
+	function isAppDetailOpen() {
+		var sidebar = document.getElementById('app-store-sidebar');
+		return !!(sidebar && sidebar.classList.contains('app-store-sidebar-hidden'));
+	}
+
+	// While the App Store is open, typing a printable character starts a
+	// search there, mirroring handleTypeToSearch for the launcher itself.
+	function handleAppStoreTypeToSearch(e) {
+		if (!appStoreSearchInput || !isAppStoreOpenForPaste()) return;
+		if (activeView !== 'apps') return;
+		if (e.metaKey || e.ctrlKey || e.altKey) return;
+		if (!e.key || e.key.length !== 1 || ' ' === e.key) return;
+		if (document.activeElement === appStoreSearchInput) return;
+
+		var active = document.activeElement;
+		if (active && (active.isContentEditable || /^(input|textarea|select)$/i.test(active.tagName))) return;
+		// Another modal stacked on top of the App Store owns the keyboard.
+		var activeOverlays = document.querySelectorAll('.modal-overlay.active');
+		for (var i = 0; i < activeOverlays.length; i++) {
+			if (activeOverlays[i] !== installSoftwareModal) return;
+		}
+		if (document.querySelector('dialog[open]')) return;
+
+		if (isAppDetailOpen()) {
+			closeAppDetail();
+		}
+		appStoreSearchInput.focus();
 	}
 
 	function filterAppStore() {

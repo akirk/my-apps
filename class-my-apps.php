@@ -19,6 +19,7 @@ class My_Apps {
 	const HIDE_WP_ADMIN_LINKS_OPTION = 'my_apps_hide_wp_admin_links';
 	const SORT_OPTION = 'my_apps_sort';
 	const HIDDEN_APPS_OPTION = 'my_apps_hide_plugins';
+	const PINNED_APPS_OPTION = 'my_apps_pinned_apps';
 	const ADDITIONAL_APPS_OPTION = 'my_apps_additional_apps';
 	const BACKGROUND_OPTION = 'my_apps_background';
 	const BACKGROUND_CUSTOM_OPTION = 'my_apps_background_custom';
@@ -702,6 +703,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_get_customization', array( $this, 'ajax_get_customization' ) );
 		add_action( 'wp_ajax_my_apps_save_app_icon', array( $this, 'ajax_save_app_icon' ) );
 		add_action( 'wp_ajax_my_apps_unhide', array( $this, 'ajax_unhide_app' ) );
+		add_action( 'wp_ajax_my_apps_pin', array( $this, 'ajax_pin_app' ) );
 		add_action( 'wp_ajax_my_apps_delete', array( $this, 'ajax_delete_app' ) );
 		add_action( 'wp_ajax_my_apps_get_admin_menu', array( $this, 'ajax_get_admin_menu' ) );
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
@@ -1362,6 +1364,69 @@ class My_Apps {
 		}
 
 		update_user_option( $user_id, $option, $value );
+	}
+
+	/**
+	 * Slugs the current user pinned to the search launcher home.
+	 *
+	 * @return string[]
+	 */
+	public static function get_pinned_apps() {
+		return self::normalize_app_slug_list( self::get_launcher_user_option( self::PINNED_APPS_OPTION, array() ) );
+	}
+
+	/**
+	 * Both descriptions a launcher app can have: the one the app registered for
+	 * itself, and the one from the plugin that registered it, which get_apps()
+	 * already carries along. An app can have either, both, or neither.
+	 *
+	 * Search matches against both. Only the app's own description is shown when
+	 * it has one, because it describes the icon rather than the whole plugin.
+	 *
+	 * @param array $app Launcher app.
+	 * @return array{app:string,plugin:string} Plain text, '' where absent.
+	 */
+	public static function app_descriptions( $app ) {
+		$own    = ( ! empty( $app['description'] ) && is_string( $app['description'] ) ) ? $app['description'] : '';
+		$plugin = ( isset( $app['plugin'] ) && is_array( $app['plugin'] ) && ! empty( $app['plugin']['Description'] ) )
+			? $app['plugin']['Description']
+			: '';
+
+		$own    = self::normalize_description_text( $own );
+		$plugin = self::normalize_description_text( $plugin );
+
+		return array(
+			'app'    => $own,
+			'plugin' => $own === $plugin ? '' : $plugin,
+		);
+	}
+
+	/**
+	 * The description shown for a launcher app.
+	 *
+	 * @param array $app Launcher app.
+	 * @return string Plain text, empty when the app has nothing to say.
+	 */
+	public static function app_description( $app ) {
+		$descriptions = self::app_descriptions( $app );
+
+		return '' !== $descriptions['app'] ? $descriptions['app'] : $descriptions['plugin'];
+	}
+
+	/**
+	 * Flatten description markup to a single line of plain text.
+	 *
+	 * @param string $description Raw description.
+	 * @return string
+	 */
+	private static function normalize_description_text( $description ) {
+		if ( ! is_string( $description ) || '' === $description ) {
+			return '';
+		}
+
+		$description = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $description ) ) );
+
+		return wp_html_excerpt( $description, 240 );
 	}
 
 	/**
@@ -2799,10 +2864,15 @@ class My_Apps {
 			wp_enqueue_media();
 		}
 
-		$app_urls = array();
-		foreach ( self::get_apps() as $app ) {
+		$app_urls         = array();
+		$app_descriptions = array();
+		foreach ( self::get_apps() as $slug => $app ) {
 			if ( ! empty( $app['url'] ) ) {
 				$app_urls[] = self::normalize_app_url( $app['url'] );
+			}
+			$descriptions = array_filter( self::app_descriptions( $app ) );
+			if ( $descriptions ) {
+				$app_descriptions[ (string) $slug ] = $descriptions;
 			}
 		}
 
@@ -2855,7 +2925,9 @@ class My_Apps {
 				'wpLanguage'                => get_bloginfo( 'language' ),
 				'userLanguage'              => get_user_locale(),
 				'deletableSlugs'            => self::deletable_custom_app_slugs(),
+				'pinnedSlugs'               => self::get_pinned_apps(),
 				'appUrls'                   => array_values( array_unique( array_filter( $app_urls ) ) ),
+				'appDescriptions'           => $app_descriptions,
 				'installedPlugins'          => self::get_installed_plugin_statuses(),
 				'updateableApps'            => self::get_launcher_updateable_plugin_apps(),
 				'uninstallablePlugins'      => self::get_uninstallable_plugins(),
@@ -3124,6 +3196,36 @@ class My_Apps {
 		}
 
 		return sanitize_key( $slug );
+	}
+
+	/**
+	 * Find the installed plugin whose slug matches an app slug.
+	 *
+	 * Used when the registering callback cannot be traced back to a plugin,
+	 * which is what happens when apps register through a shared library.
+	 *
+	 * @param string $slug              App slug.
+	 * @param array  $installed_plugins Plugins keyed by plugin file, from get_plugins().
+	 * @return array|string Plugin data with plugin_file and slug added, or 'unknown'.
+	 */
+	private static function installed_plugin_for_slug( $slug, $installed_plugins ) {
+		$slug = self::normalize_app_slug( $slug );
+		if ( '' === $slug ) {
+			return 'unknown';
+		}
+
+		foreach ( $installed_plugins as $plugin_file => $data ) {
+			if ( self::plugin_slug_from_file( $plugin_file ) !== $slug ) {
+				continue;
+			}
+
+			$data['plugin_file'] = $plugin_file;
+			$data['slug']        = $slug;
+
+			return $data;
+		}
+
+		return 'unknown';
 	}
 
 	/**
@@ -3879,6 +3981,45 @@ class My_Apps {
 	}
 
 	/**
+	 * AJAX: Pin or unpin an app on the search launcher home.
+	 */
+	public function ajax_pin_app() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not logged in' );
+		}
+
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
+
+		if ( '' === $slug ) {
+			wp_send_json_error( 'Invalid slug' );
+		}
+
+		$pin    = isset( $_POST['pinned'] ) ? wp_validate_boolean( wp_unslash( $_POST['pinned'] ) ) : false; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Cast to a boolean.
+		$pinned = self::get_pinned_apps();
+
+		if ( $pin ) {
+			if ( ! in_array( $slug, $pinned, true ) ) {
+				$pinned[] = $slug;
+			}
+		} else {
+			$pinned = array_values(
+				array_filter(
+					$pinned,
+					function ( $s ) use ( $slug ) {
+						return $s !== $slug;
+					}
+				)
+			);
+		}
+
+		self::update_launcher_user_option( self::PINNED_APPS_OPTION, $pinned );
+
+		wp_send_json_success( array( 'pinned' => $pinned ) );
+	}
+
+	/**
 	 * Remove stored launcher preferences for an app slug.
 	 *
 	 * @param string $slug App slug.
@@ -3899,6 +4040,16 @@ class My_Apps {
 			)
 		);
 		self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, $hide_plugins );
+
+		$pinned = array_values(
+			array_filter(
+				self::get_pinned_apps(),
+				function ( $s ) use ( $slug ) {
+					return $s !== $slug;
+				}
+			)
+		);
+		self::update_launcher_user_option( self::PINNED_APPS_OPTION, $pinned );
 
 		$sort = self::normalize_app_slug_list( self::get_launcher_user_option( self::SORT_OPTION, array() ) );
 		$sort = array_values(
@@ -4161,6 +4312,7 @@ class My_Apps {
 		$settings_export = array(
 			'sort'               => self::get_launcher_user_option( self::SORT_OPTION, array() ),
 			'hide_plugins'       => self::get_launcher_user_option( self::HIDDEN_APPS_OPTION, array() ),
+			'pinned_apps'        => self::get_pinned_apps(),
 			'additional_apps'    => self::get_additional_apps(),
 			'app_overrides'      => self::get_app_overrides(),
 			'app_icon_overrides' => self::get_app_icon_overrides(),
@@ -4200,6 +4352,9 @@ class My_Apps {
 		}
 		if ( isset( $data['hide_plugins'] ) && is_array( $data['hide_plugins'] ) ) {
 			self::update_launcher_user_option( self::HIDDEN_APPS_OPTION, $data['hide_plugins'] );
+		}
+		if ( isset( $data['pinned_apps'] ) && is_array( $data['pinned_apps'] ) ) {
+			self::update_launcher_user_option( self::PINNED_APPS_OPTION, self::normalize_app_slug_list( $data['pinned_apps'] ) );
 		}
 		if ( isset( $data['additional_apps'] ) && is_array( $data['additional_apps'] ) ) {
 			self::save_user_additional_apps( self::prepare_imported_additional_apps( $data['additional_apps'] ) );
@@ -6286,7 +6441,7 @@ class My_Apps {
 		if ( ! function_exists( 'get_plugins' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
-		$plugins = \get_plugins();
+		$installed_plugins = \get_plugins();
 		$which_app = array();
 		$my_apps_filters = isset( $wp_filter['my_apps_plugins'] ) ? $wp_filter['my_apps_plugins'] : array();
 		foreach ( $my_apps_filters as $priority => $callbacks ) {
@@ -6321,22 +6476,34 @@ class My_Apps {
 				}
 
 				if ( str_ends_with( $which, '.php' ) ) {
-					$which        = ltrim( str_replace( WP_PLUGIN_DIR, '', $which ), '/' );
-					$which_prefix = false === strpos( $which, '/' ) ? $which : strtok( $which, '/' ) . '/';
+					$which = ltrim( str_replace( WP_PLUGIN_DIR, '', $which ), '/' );
 
-					// Look up the plugin name from the file path via the plugins array.
-					foreach ( $plugins as $plugin => $data ) {
-						if ( $plugin === $which_prefix || str_starts_with( $plugin, $which_prefix ) ) {
-							$which = $data;
-							$which['plugin_file'] = $plugin;
-							$which['slug']        = self::plugin_slug_from_file( $plugin );
-							break;
+					// A registration made from a shared library says nothing about
+					// which plugin the app belongs to: the library sits in whichever
+					// plugin's vendor directory the autoloader happened to load it
+					// from, so every app registered through it would be attributed
+					// to that one plugin. Fall back to the app slug instead.
+					if ( false !== strpos( $which, '/vendor/' ) ) {
+						$which = 'unknown';
+					} else {
+						$which_prefix = false === strpos( $which, '/' ) ? $which : strtok( $which, '/' ) . '/';
+
+						// Look up the plugin name from the file path via the plugins array.
+						foreach ( $installed_plugins as $plugin => $data ) {
+							if ( $plugin === $which_prefix || str_starts_with( $plugin, $which_prefix ) ) {
+								$which = $data;
+								$which['plugin_file'] = $plugin;
+								$which['slug']        = self::plugin_slug_from_file( $plugin );
+								break;
+							}
 						}
 					}
 				}
 
 				foreach ( $function( array() ) as $plugin => $data ) {
-					$which_app[ $plugin ] = $which;
+					$which_app[ $plugin ] = is_array( $which )
+						? $which
+						: self::installed_plugin_for_slug( $plugin, $installed_plugins );
 				}
 			}
 		}
@@ -6349,7 +6516,7 @@ class My_Apps {
 			if ( ! empty( $data['icon_url'] ) && ! empty( $data['dashicon'] ) && ! empty( $data['emoji'] ) ) {
 				continue;
 			}
-			if ( isset( $which_app[ $plugin ] ) ) {
+			if ( isset( $which_app[ $plugin ] ) && is_array( $which_app[ $plugin ] ) ) {
 				$data['plugin'] = $which_app[ $plugin ];
 			} else {
 				$data['plugin'] = 'unknown';

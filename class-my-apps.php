@@ -5307,6 +5307,11 @@ class My_Apps {
 					'type'        => 'boolean',
 					'description' => __( 'Whether the guide primarily uses core WordPress features.', 'my-apps' ),
 				),
+				'context'        => array(
+					'type'        => 'string',
+					'enum'        => self::recipe_contexts(),
+					'description' => __( 'The environment where the whole guide applies.', 'my-apps' ),
+				),
 				'steps'       => array(
 					'type'        => 'array',
 					'description' => __( 'Guide steps.', 'my-apps' ),
@@ -5315,6 +5320,33 @@ class My_Apps {
 			),
 			'additionalProperties' => false,
 		);
+	}
+
+	/**
+	 * Environments a recipe or recipe step can be restricted to.
+	 *
+	 * `self-hosted` is any regular WordPress install, `playground` is any
+	 * WordPress Playground instance, and `my-wordpress-net` is only the
+	 * persistent Playground at my.wordpress.net.
+	 *
+	 * @return string[]
+	 */
+	public static function recipe_contexts() {
+		return array( 'self-hosted', 'playground', 'my-wordpress-net' );
+	}
+
+	/**
+	 * Sanitize a recipe or step context value.
+	 *
+	 * @param mixed $context Raw context value.
+	 * @return string A known context, or an empty string.
+	 */
+	private static function sanitize_recipe_context( $context ) {
+		if ( ! is_scalar( $context ) ) {
+			return '';
+		}
+		$context = sanitize_key( (string) $context );
+		return in_array( $context, self::recipe_contexts(), true ) ? $context : '';
 	}
 
 	/**
@@ -5346,7 +5378,7 @@ class My_Apps {
 				),
 				'context'     => array(
 					'type'        => 'string',
-					'enum'        => array( 'self-hosted', 'playground' ),
+					'enum'        => self::recipe_contexts(),
 					'description' => __( 'The environment where the step applies.', 'my-apps' ),
 				),
 				'path'        => array(
@@ -5543,6 +5575,11 @@ class My_Apps {
 			$payload['core_wordpress'] = wp_validate_boolean( $recipe['core_wordpress'] );
 		}
 
+		$context = self::sanitize_recipe_context( isset( $recipe['context'] ) ? $recipe['context'] : null );
+		if ( '' !== $context ) {
+			$payload['context'] = $context;
+		}
+
 		if ( isset( $recipe['steps'] ) && is_array( $recipe['steps'] ) ) {
 			foreach ( $recipe['steps'] as $step ) {
 				$step = self::sanitize_recipe_step_payload( $step );
@@ -5588,11 +5625,9 @@ class My_Apps {
 			$payload['optional'] = wp_validate_boolean( $step['optional'] );
 		}
 
-		if ( isset( $step['context'] ) && is_scalar( $step['context'] ) ) {
-			$context = sanitize_key( (string) $step['context'] );
-			if ( in_array( $context, array( 'self-hosted', 'playground' ), true ) ) {
-				$payload['context'] = $context;
-			}
+		$context = self::sanitize_recipe_context( isset( $step['context'] ) ? $step['context'] : null );
+		if ( '' !== $context ) {
+			$payload['context'] = $context;
 		}
 
 		if ( isset( $step['path'] ) && is_scalar( $step['path'] ) ) {

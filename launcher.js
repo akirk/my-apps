@@ -8085,6 +8085,29 @@
 	var appStoreLoadId = 0;
 	var appStoreLoadPromise = null;
 
+	// Recipes and steps can be limited to an environment: "self-hosted"
+	// (a regular WordPress), "playground" (any Playground, including
+	// my.wordpress.net) or "my-wordpress-net" (only the persistent
+	// Playground at my.wordpress.net). No context means always.
+	function recipeContextApplies(context) {
+		if (context === 'self-hosted') return !isPlayground;
+		if (context === 'playground') return isPlayground;
+		if (context === 'my-wordpress-net') return isPlayground && window.location.hostname === 'my.wordpress.net';
+		return true;
+	}
+
+	// Drop recipes whose context doesn't match this site so every view —
+	// grid, search, detail, nav — agrees on which guides exist here.
+	function filterRecipesForContext(data) {
+		var result = {};
+		Object.keys(data).forEach(function(key) {
+			var recipe = data[key];
+			if (recipe && typeof recipe === 'object' && !recipeContextApplies(recipe.context)) return;
+			result[key] = recipe;
+		});
+		return result;
+	}
+
 	function fetchRecipesCatalog() {
 		if (recipesLoadState === 'loading' && recipesLoadPromise) {
 			return recipesLoadPromise;
@@ -8096,7 +8119,7 @@
 			.then(function(data) {
 				data = adaptBlueprintsSourceUrls(data);
 				if (data && typeof data === 'object' && !Array.isArray(data)) {
-					recipes = data;
+					recipes = filterRecipesForContext(data);
 					hasRecipes = Object.keys(recipes).length > 0;
 					recipesLoadState = 'loaded';
 				} else {
@@ -9777,8 +9800,7 @@
 		(recipe.steps || []).forEach(function(step) {
 			// On my.wordpress.net / Playground a site is private by default, so
 			// steps tagged "self-hosted" (e.g., the privacy plugins) don't apply.
-			if (step.context === 'self-hosted' && isPlayground) return;
-			if (step.context === 'playground' && !isPlayground) return;
+			if (!recipeContextApplies(step.context)) return;
 
 			var stepLi = document.createElement('li');
 			stepLi.className = 'recipe-step' + (step.optional ? ' recipe-step-optional' : '');

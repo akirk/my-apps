@@ -12,6 +12,15 @@
 		"$ref": "#/$defs/recipe"
 	},
 	"$defs": {
+		"recipeContext": {
+			"type": "string",
+			"description": "Environment a recipe or step is limited to: any regular WordPress install, any WordPress Playground, or only my.wordpress.net.",
+			"enum": [
+				"self-hosted",
+				"playground",
+				"my-wordpress-net"
+			]
+		},
 		"recipe": {
 			"type": "object",
 			"required": [
@@ -41,6 +50,9 @@
 				},
 				"core_wordpress": {
 					"type": "boolean"
+				},
+				"context": {
+					"$ref": "#/$defs/recipeContext"
 				},
 				"alternatives": {
 					"type": "array",
@@ -83,11 +95,7 @@
 					"type": "boolean"
 				},
 				"context": {
-					"type": "string",
-					"enum": [
-						"self-hosted",
-						"playground"
-					]
+					"$ref": "#/$defs/recipeContext"
 				},
 				"path": {
 					"type": "string",

@@ -5,7 +5,7 @@
 - Requires at least: 5.0
 - Tested up to: 7.0
 - License: GPL-2.0-or-later
-- Stable tag: 2.0.0
+- Stable tag: 2.1.0
 
 A WordPress app launcher.
 

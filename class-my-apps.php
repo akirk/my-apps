@@ -304,7 +304,7 @@ class My_Apps {
 	}
 
 	public static function icon_data_uri() {
-		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- SVG data URI for Desktop Mode dock rendering.
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- SVG data URI for icon rendering.
 		return 'data:image/svg+xml;base64,' . base64_encode( self::icon_svg() );
 	}
 

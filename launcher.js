@@ -119,9 +119,8 @@
 	}
 
 	// Walk up the parent chain until we reach a cross-origin frame.
-	// In the normal case window.parent is already cross-origin (Playground).
-	// When running inside a Desktop Mode native window, window.parent is a
-	// same-origin intermediate frame, so we need to go one level higher.
+	// In the normal case window.parent is already cross-origin (Playground);
+	// same-origin intermediate frames are skipped.
 	function getPlaygroundTarget() {
 		var w = window.parent;
 		try {
@@ -133,26 +132,6 @@
 			// w is the first cross-origin ancestor: Playground
 		}
 		return w;
-	}
-
-	function getDesktopModeShell() {
-		try {
-			if (
-				window.parent &&
-				window.parent !== window &&
-				window.parent.wp &&
-				window.parent.wp.desktop
-			) {
-				return window.parent;
-			}
-		} catch (e) {
-			// The parent is cross-origin, so this is not a Desktop Mode shell.
-		}
-		return null;
-	}
-
-	function isDesktopModeEmbedded() {
-		return !!getDesktopModeShell();
 	}
 
 	function getBlueprintsBaseUrl() {
@@ -633,27 +612,6 @@
 			return true;
 		}
 		return /(?:^\?|&)app-store(?:=|&|$)/.test(window.location.search);
-	}
-
-	function shouldUseDesktopModeAppStoreInstallFlow() {
-		return isDesktopModeEmbedded() && isAppStoreEmbeddedView();
-	}
-
-	function refreshDesktopModeShell() {
-		var shell = getDesktopModeShell();
-		if (
-			!shell ||
-			!shell.wp ||
-			!shell.wp.desktop ||
-			typeof shell.wp.desktop.refreshMenu !== 'function'
-		) {
-			return Promise.resolve();
-		}
-		try {
-			return Promise.resolve(shell.wp.desktop.refreshMenu()).catch(function() {});
-		} catch (e) {
-			return Promise.resolve();
-		}
 	}
 
 	function getPostMessageTargetOrigin(target) {
@@ -2101,13 +2059,6 @@
 		var openUrl = getInstallOpenUrl(install);
 		if (!openUrl) return false;
 
-		if (install && install.desktopMode) {
-			var desktopInstall = Object.assign({}, install, { landingUrl: openUrl });
-			if (openDesktopModeLandingPage(desktopInstall)) {
-				return true;
-			}
-		}
-
 		window.location.href = openUrl;
 		return true;
 	}
@@ -2201,23 +2152,12 @@
 			link.setAttribute('aria-label', 'Open ' + install.app.title);
 		}
 
-		if (install && install.desktopMode) {
-			link.addEventListener('click', function(e) {
-				if (openDesktopModeLandingPage({
-					app: install.app,
-					landingUrl: openUrl
-				})) {
-					e.preventDefault();
-				}
-			});
-		} else {
-			try {
-				if ((new URL(openUrl, window.location.href)).origin !== window.location.origin) {
-					link.target = '_blank';
-					link.rel = 'noopener noreferrer';
-				}
-			} catch (e) {}
-		}
+		try {
+			if ((new URL(openUrl, window.location.href)).origin !== window.location.origin) {
+				link.target = '_blank';
+				link.rel = 'noopener noreferrer';
+			}
+		} catch (e) {}
 
 		btn.replaceWith(link);
 		return true;
@@ -2226,95 +2166,6 @@
 	function finishInstallButton(btn, label, install) {
 		if (!replaceInstallButtonWithOpenLink(btn, install)) {
 			setInstallButtonState(btn, label, true);
-		}
-	}
-
-	function getDesktopModeWindowUrl(url) {
-		try {
-			var parsed = new URL(url, window.location.origin);
-			if (parsed.origin === window.location.origin) {
-				parsed.searchParams.set('desktop_mode_chromeless', '1');
-			}
-			return parsed.toString();
-		} catch (e) {
-			return '';
-		}
-	}
-
-	function fallbackDesktopWindowId(url) {
-		var slug = String(url || '')
-			.toLowerCase()
-			.replace(/^https?:\/\//, '')
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/^-+|-+$/g, '')
-			.slice(0, 80);
-		return 'my-apps-' + (slug || 'installed-app');
-	}
-
-	function openDesktopModeLandingPage(install) {
-		var shell = getDesktopModeShell();
-		var desktop = shell && shell.wp && shell.wp.desktop;
-		var windowManager = desktop && desktop.windowManager;
-		var windowUrl = getDesktopModeWindowUrl(install && install.landingUrl);
-
-		if (!windowUrl || !windowManager || typeof windowManager.open !== 'function') {
-			return false;
-		}
-
-		var windowId = '';
-		try {
-			windowId = typeof desktop.deriveWindowId === 'function' ? desktop.deriveWindowId(windowUrl) : '';
-		} catch (e) {
-			windowId = '';
-		}
-
-		if (!windowId) {
-			windowId = fallbackDesktopWindowId(windowUrl);
-		}
-
-		try {
-			windowManager.open({
-				id: windowId,
-				baseId: windowId,
-				url: windowUrl,
-				title: install.app && install.app.title ? install.app.title : 'App',
-				icon: install.app && install.app._icon ? install.app._icon : 'dashicons-admin-generic',
-				width: 900,
-				height: 640
-			});
-			return true;
-		} catch (e) {
-			return false;
-		}
-	}
-
-	function openDesktopModeUrl(url, options) {
-		options = options || {};
-		var shell = getDesktopModeShell();
-		var desktop = shell && shell.wp && shell.wp.desktop;
-		var windowManager = desktop && desktop.windowManager;
-		var windowUrl = getDesktopModeWindowUrl(url);
-		if (!windowUrl || !windowManager || typeof windowManager.open !== 'function') {
-			return false;
-		}
-
-		try {
-			var windowId = typeof desktop.deriveWindowId === 'function' ? desktop.deriveWindowId(windowUrl) : '';
-			if (!windowId) {
-				windowId = 'my-apps-link-' + String(windowUrl).replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 64);
-			}
-			windowManager.open({
-				id: windowId,
-				baseId: windowId,
-				url: windowUrl,
-				title: options.title || 'Open',
-				icon: options.icon || 'dashicons-admin-generic',
-				width: options.width || 900,
-				height: options.height || 640
-			});
-			return true;
-		} catch (e) {
-			return false;
 		}
 	}
 
@@ -2419,7 +2270,6 @@
 
 	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, btn, options) {
 		options = options || {};
-		var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 		var blueprintUrl = getPlaygroundBlueprintUrlForInstall(blueprint, originalBlueprintUrl);
 
 		setInstallButtonState(btn, 'Installing...', true);
@@ -2428,7 +2278,6 @@
 			app: app || null,
 			blueprint: blueprint || null,
 			btn: btn || null,
-			desktopMode: desktopMode,
 			landingUrl: getInstallLandingUrl(app, blueprint),
 			blueprintUrl: blueprintUrl,
 			autoOpenAfterInstall: !!options.autoOpenAfterInstall,
@@ -2445,22 +2294,11 @@
 			.then(function(blueprint) {
 				return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, btn, options);
 			})
-			.catch(function(error) {
-				var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
-				if (desktopMode) {
-					var message = 'Install failed: Could not load the blueprint before sending it to Playground.';
-					if (error && error.message) {
-						message += ' ' + error.message;
-					}
-					resetInstallButtonState(btn);
-					showToast(message);
-					return null;
-				}
+			.catch(function() {
 				return startPlaygroundBlueprintInstall(blueprintUrl, {
 					app: app || null,
 					blueprint: null,
 					btn: btn || null,
-					desktopMode: desktopMode,
 					landingUrl: '',
 					blueprintUrl: blueprintUrl,
 					autoOpenAfterInstall: !!options.autoOpenAfterInstall,
@@ -2471,10 +2309,8 @@
 			});
 	}
 
-	function completeInstalledBlueprint(install) {
-		var launcherRefresh = reloadApps();
-		var shellRefresh = install.desktopMode ? refreshDesktopModeShell() : Promise.resolve();
-		return Promise.all([launcherRefresh, shellRefresh]);
+	function completeInstalledBlueprint() {
+		return reloadApps();
 	}
 
 	function shouldReloadAfterPlaygroundInstall(install) {
@@ -4515,12 +4351,7 @@
 			.then(function(result) {
 				rememberInstalledPlugin(pluginSlug, result);
 				forgetUpdateableApp(slug);
-				return completeInstalledBlueprint({
-					app: null,
-					blueprint: null,
-					btn: null,
-					desktopMode: shouldUseDesktopModeAppStoreInstallFlow()
-				}).then(function() {
+				return completeInstalledBlueprint().then(function() {
 					return result;
 				});
 			})
@@ -6138,7 +5969,6 @@
 			if (launcherSearchInput) launcherSearchInput.focus();
 		});
 	}
-
 
 	// Restore settings on load
 	(function() {
@@ -7889,12 +7719,10 @@
 					});
 				}, Promise.resolve())
 					.then(function() {
-						var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 						var install = {
 							app: app,
 							blueprint: blueprint,
 							btn: btn,
-							desktopMode: desktopMode,
 							landingUrl: getInstallLandingUrl(app, blueprint),
 							autoOpenAfterInstall: !!options.autoOpenAfterInstall,
 							forwardParams: options.forwardParams || []
@@ -7977,12 +7805,10 @@
 					rememberInstalledPlugin(app._slug, result);
 					if (result.activated || result.alreadyActive) {
 						var blueprint = buildPluginBlueprint(app);
-						var desktopMode = shouldUseDesktopModeAppStoreInstallFlow();
 						var install = {
 							app: app,
 							blueprint: blueprint,
 							btn: btn,
-							desktopMode: desktopMode,
 							landingUrl: getInstallLandingUrl(app, blueprint)
 						};
 						return completeInstalledBlueprint(install).then(function() {
@@ -8056,7 +7882,6 @@
 						app: app,
 						blueprint: blueprint,
 						btn: installBtn,
-						desktopMode: shouldUseDesktopModeAppStoreInstallFlow(),
 						landingUrl: getInstallLandingUrl(app, blueprint),
 						forwardParams: options.forwardParams
 					});
@@ -9841,16 +9666,6 @@
 				if (isExternalStepUrl) {
 					linkEl.target = '_blank';
 					linkEl.rel = 'noopener noreferrer';
-				} else {
-					if (shouldUseDesktopModeAppStoreInstallFlow()) {
-						(function(url, title) {
-							linkEl.addEventListener('click', function(e) {
-								if (openDesktopModeUrl(url, { title: title })) {
-									e.preventDefault();
-								}
-							});
-						})(stepUrl, step.url_label || step.title || t('open', __( 'Open', 'my-apps' )));
-					}
 				}
 				linkEl.textContent = (step.url_label || t('open', __( 'Open', 'my-apps' ))) + ' →';
 				linkWrap.appendChild(linkEl);
@@ -10707,12 +10522,6 @@
 						if ((new URL(landingUrl, window.location.href)).origin !== window.location.origin) {
 							landingLink.target = '_blank';
 							landingLink.rel = 'noopener noreferrer';
-						} else if (shouldUseDesktopModeAppStoreInstallFlow()) {
-							landingLink.addEventListener('click', function(e) {
-								if (openDesktopModeUrl(landingUrl, { title: blueprint.landingPage })) {
-									e.preventDefault();
-								}
-							});
 						}
 					} catch (e) {}
 					landingLi.appendChild(landingLink);

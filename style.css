@@ -3985,7 +3985,7 @@ body.my-apps-launcher .recipe-card:active {
 	}
 }
 
-/* Chromeless app-store mode (embedded in Desktop Mode native window) */
+/* Chromeless app-store mode (?app-store=1, embedded in an iframe) */
 body.my-apps-app-store-embedded {
 	--my-apps-app-store-height: 100dvh;
 	background: transparent !important;

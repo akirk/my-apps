@@ -1,6 +1,10 @@
 <?php
 /**
- * My Apps — Desktop Mode integration.
+ * My Apps — OpenStation integration.
+ *
+ * OpenStation was formerly called Desktop Mode; the pre-rename API
+ * (`desktop_mode_*` functions, filter and query flag) is still
+ * supported as a fallback.
  *
  * Registers the My Apps launcher as a native popup window in the dock
  * and exposes every app from the my_apps_plugins filter + the
@@ -20,16 +24,44 @@ defined( 'ABSPATH' ) || exit;
 add_action( 'wp_ajax_my_apps_desktop_icon', __NAMESPACE__ . '\serve_desktop_mode_icon' );
 add_action( 'init', __NAMESPACE__ . '\desktop_mode_register', 20 );
 
+/**
+ * Returns the API prefix of the installed shell plugin.
+ *
+ * @return string 'openstation', 'desktop_mode', or '' when neither is active.
+ */
+function desktop_mode_prefix() {
+	if ( function_exists( 'openstation_register_window' ) ) {
+		return 'openstation';
+	}
+	if ( function_exists( 'desktop_mode_register_window' ) ) {
+		return 'desktop_mode';
+	}
+	return '';
+}
+
+/**
+ * Query flag that makes the shell render a page without admin chrome.
+ *
+ * @return string
+ */
+function desktop_mode_chromeless_flag() {
+	return 'desktop_mode' === desktop_mode_prefix() ? 'desktop_mode_chromeless' : 'openstation_chromeless';
+}
+
 function desktop_mode_register() {
-	if ( ! function_exists( 'desktop_mode_register_window' ) ) {
+	$prefix = desktop_mode_prefix();
+	if ( '' === $prefix ) {
 		return;
 	}
 
-	add_filter( 'desktop_mode_native_window_allowed_html', __NAMESPACE__ . '\desktop_mode_allow_iframe' );
+	$register_window = $prefix . '_register_window';
+	$register_icon   = $prefix . '_register_icon';
+
+	add_filter( $prefix . '_native_window_allowed_html', __NAMESPACE__ . '\desktop_mode_allow_iframe' );
 
 	$my_apps_icon = My_Apps::icon_data_uri();
 
-	desktop_mode_register_window(
+	$register_window(
 		'my-apps',
 		array(
 			'title'     => __( 'My Apps', 'my-apps' ),
@@ -44,7 +76,7 @@ function desktop_mode_register() {
 	$add_svg  = build_add_svg();
 	$add_icon = desktop_mode_svg_data_uri( $add_svg );
 
-	desktop_mode_register_window(
+	$register_window(
 		'my-apps-store',
 		array(
 			'title'     => __( 'Add', 'my-apps' ),
@@ -56,7 +88,7 @@ function desktop_mode_register() {
 		)
 	);
 
-	desktop_mode_register_icon(
+	$register_icon(
 		'my-apps-store',
 		array(
 			'title'    => __( 'Add', 'my-apps' ),
@@ -76,13 +108,13 @@ function desktop_mode_register() {
 			continue;
 		}
 		$icon_args = desktop_mode_app_icon_args( $slug, $app );
-		desktop_mode_register_icon(
+		$register_icon(
 			sanitize_key( $slug ),
 			array_merge(
 				$icon_args,
 				array(
 					'title'    => $app['name'],
-					'url'      => add_query_arg( 'desktop_mode_chromeless', '1', $app['url'] ),
+					'url'      => add_query_arg( desktop_mode_chromeless_flag(), '1', $app['url'] ),
 					'position' => $position,
 				)
 			)
@@ -138,7 +170,7 @@ function desktop_mode_svg_from_data_uri( $icon_url ) {
 }
 
 function desktop_mode_svg_data_uri( $svg ) {
-	// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- SVG data URI for Desktop Mode icon rendering.
+	// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- SVG data URI for OpenStation icon rendering.
 	return 'data:image/svg+xml;base64,' . base64_encode( $svg );
 }
 
@@ -223,7 +255,7 @@ function svg_with_white_bg( $svg ) {
 function desktop_mode_window_template() {
 	?>
 	<iframe
-		src="<?php echo esc_url( home_url( '/my-apps/?desktop_mode_chromeless=1' ) ); ?>"
+		src="<?php echo esc_url( add_query_arg( desktop_mode_chromeless_flag(), '1', home_url( '/my-apps/' ) ) ); ?>"
 		style="width:100%;height:100%;border:0;display:block;"
 		title="<?php esc_attr_e( 'My Apps', 'my-apps' ); ?>"
 	></iframe>
@@ -231,9 +263,13 @@ function desktop_mode_window_template() {
 }
 
 function desktop_mode_store_template() {
+	$args = array(
+		'app-store'                    => '1',
+		desktop_mode_chromeless_flag() => '1',
+	);
 	?>
 	<iframe
-		src="<?php echo esc_url( home_url( '/my-apps/?app-store=1&desktop_mode_chromeless=1' ) ); ?>"
+		src="<?php echo esc_url( add_query_arg( $args, home_url( '/my-apps/' ) ) ); ?>"
 		style="width:100%;height:100%;border:0;display:block;"
 		title="<?php esc_attr_e( 'Add', 'my-apps' ); ?>"
 	></iframe>

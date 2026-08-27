@@ -23,7 +23,7 @@ define( 'MY_APPS_VERSION', '2.1.0' );
 
 require_once __DIR__ . '/class-my-apps.php';
 require_once __DIR__ . '/default-apps.php';
-require_once __DIR__ . '/desktop-mode.php';
+require_once __DIR__ . '/openstation.php';
 
 register_activation_hook( __FILE__, __NAMESPACE__ . '\seed_default_apps' );
 

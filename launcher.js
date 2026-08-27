@@ -120,7 +120,7 @@
 
 	// Walk up the parent chain until we reach a cross-origin frame.
 	// In the normal case window.parent is already cross-origin (Playground).
-	// When running inside a Desktop Mode native window, window.parent is a
+	// When running inside an OpenStation native window, window.parent is a
 	// same-origin intermediate frame, so we need to go one level higher.
 	function getPlaygroundTarget() {
 		var w = window.parent;
@@ -141,14 +141,29 @@
 				window.parent &&
 				window.parent !== window &&
 				window.parent.wp &&
-				window.parent.wp.desktop
+				(window.parent.wp.os || window.parent.wp.desktop)
 			) {
 				return window.parent;
 			}
 		} catch (e) {
-			// The parent is cross-origin, so this is not a Desktop Mode shell.
+			// The parent is cross-origin, so this is not an OpenStation shell.
 		}
 		return null;
+	}
+
+	// OpenStation exposes its shell API as wp.os; its predecessor Desktop
+	// Mode used wp.desktop. Both are supported.
+	function getDesktopModeApi() {
+		var shell = getDesktopModeShell();
+		if (!shell || !shell.wp) {
+			return null;
+		}
+		return shell.wp.os || shell.wp.desktop || null;
+	}
+
+	function getDesktopModeChromelessFlag() {
+		var shell = getDesktopModeShell();
+		return shell && shell.wp && shell.wp.os ? 'openstation_chromeless' : 'desktop_mode_chromeless';
 	}
 
 	function isDesktopModeEmbedded() {
@@ -640,17 +655,12 @@
 	}
 
 	function refreshDesktopModeShell() {
-		var shell = getDesktopModeShell();
-		if (
-			!shell ||
-			!shell.wp ||
-			!shell.wp.desktop ||
-			typeof shell.wp.desktop.refreshMenu !== 'function'
-		) {
+		var desktop = getDesktopModeApi();
+		if (!desktop || typeof desktop.refreshMenu !== 'function') {
 			return Promise.resolve();
 		}
 		try {
-			return Promise.resolve(shell.wp.desktop.refreshMenu()).catch(function() {});
+			return Promise.resolve(desktop.refreshMenu()).catch(function() {});
 		} catch (e) {
 			return Promise.resolve();
 		}
@@ -2233,7 +2243,7 @@
 		try {
 			var parsed = new URL(url, window.location.origin);
 			if (parsed.origin === window.location.origin) {
-				parsed.searchParams.set('desktop_mode_chromeless', '1');
+				parsed.searchParams.set(getDesktopModeChromelessFlag(), '1');
 			}
 			return parsed.toString();
 		} catch (e) {
@@ -2252,8 +2262,7 @@
 	}
 
 	function openDesktopModeLandingPage(install) {
-		var shell = getDesktopModeShell();
-		var desktop = shell && shell.wp && shell.wp.desktop;
+		var desktop = getDesktopModeApi();
 		var windowManager = desktop && desktop.windowManager;
 		var windowUrl = getDesktopModeWindowUrl(install && install.landingUrl);
 
@@ -2290,8 +2299,7 @@
 
 	function openDesktopModeUrl(url, options) {
 		options = options || {};
-		var shell = getDesktopModeShell();
-		var desktop = shell && shell.wp && shell.wp.desktop;
+		var desktop = getDesktopModeApi();
 		var windowManager = desktop && desktop.windowManager;
 		var windowUrl = getDesktopModeWindowUrl(url);
 		if (!windowUrl || !windowManager || typeof windowManager.open !== 'function') {

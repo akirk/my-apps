@@ -97,6 +97,28 @@ https://my.wordpress.net/?myapps-i=wordcamp-companion&schedule=https%3A%2F%2Fexa
 
 Remote App Store catalog entries loaded from `apps.json` can include the same optional `icon` field. This is My Apps catalog metadata, not Playground blueprint metadata.
 
+### Renaming an app
+
+When an app changes its plugin directory name, list the former slugs in a `replaces` field of the blueprint's `app-meta.json`:
+
+```json
+{
+	"icon": "dashicons-location-alt",
+	"replaces": ["travel-app"]
+}
+```
+
+My Apps then treats an installed plugin under an old name as an outdated copy of the new app: the old plugin's launcher icon offers "Update", the App Store shows "Update" instead of "Install", and both simply run the new app's blueprint. Retiring the old plugin is the blueprint's job — add a step after `installPlugin` that deactivates and removes it, guarded so a fresh install is unaffected:
+
+```json
+{
+	"step": "runPHP",
+	"code": "<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; $old = 'travel-app/travel-app.php'; if ( file_exists( WP_PLUGIN_DIR . '/' . $old ) ) { deactivate_plugins( $old ); $it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( WP_PLUGIN_DIR . '/travel-app', FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST ); foreach ( $it as $f ) { $f->isDir() ? rmdir( $f ) : unlink( $f ); } rmdir( WP_PLUGIN_DIR . '/travel-app' ); }"
+}
+```
+
+The new plugin's own activation or upgrade routine migrates the data; My Apps does not touch plugin files.
+
 ### Abilities API
 
 When the WordPress Abilities API is available, My Apps registers a `my-apps` category with App Store search, What can I do? guide discovery, and launcher customization abilities:

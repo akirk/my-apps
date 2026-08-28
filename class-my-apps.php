@@ -4571,6 +4571,11 @@ class My_Apps {
 					'type'        => 'string',
 					'description' => __( 'The launcher URL used to detect or open an installed plugin-provided app.', 'my-apps' ),
 				),
+				'replaces'      => array(
+					'type'        => 'array',
+					'items'       => array( 'type' => 'string' ),
+					'description' => __( 'Plugin directory slugs of earlier names of this app. An installed plugin under one of them is offered this app as its update.', 'my-apps' ),
+				),
 			),
 			'additionalProperties' => false,
 		);
@@ -4842,7 +4847,44 @@ class My_Apps {
 			}
 		}
 
+		$replaces = self::sanitize_replaced_plugin_slugs( isset( $app['replaces'] ) ? $app['replaces'] : array() );
+		if ( ! empty( $replaces ) ) {
+			$entry['replaces'] = $replaces;
+		}
+
 		return $entry;
+	}
+
+	/**
+	 * Sanitize the plugin slugs an App Store entry declares it replaces.
+	 *
+	 * A renamed app lists its former plugin directory slugs in `replaces` so an
+	 * installed copy under an old name is offered the new app as its update.
+	 * The app's own blueprint takes care of retiring the old plugin.
+	 *
+	 * @param mixed $slugs Raw value from the catalog.
+	 * @return array
+	 */
+	private static function sanitize_replaced_plugin_slugs( $slugs ) {
+		if ( is_string( $slugs ) ) {
+			$slugs = array( $slugs );
+		}
+		if ( ! is_array( $slugs ) ) {
+			return array();
+		}
+
+		$clean = array();
+		foreach ( $slugs as $slug ) {
+			if ( ! is_string( $slug ) ) {
+				continue;
+			}
+			$slug = sanitize_key( $slug );
+			if ( '' !== $slug && ! in_array( $slug, $clean, true ) ) {
+				$clean[] = $slug;
+			}
+		}
+
+		return $clean;
 	}
 
 	/**

@@ -1629,6 +1629,20 @@
 		return !!url && knownAppUrlExists(absoluteLauncherUrl(url));
 	}
 
+	// Plugin directory slugs an App Store entry lists as its former names
+	// (`replaces` in app-meta.json). An installed plugin under one of them
+	// counts as an outdated copy of this app; the app's blueprint retires it.
+	function getAppReplacedSlugs(app) {
+		var replaces = app && app.replaces;
+		if (typeof replaces === 'string') replaces = [replaces];
+		if (!Array.isArray(replaces)) return [];
+		return replaces.filter(function(slug) {
+			return typeof slug === 'string';
+		}).map(normalizePluginSlug).filter(function(slug, index, list) {
+			return slug && list.indexOf(slug) === index;
+		});
+	}
+
 	function getInstalledPluginStatus(app) {
 		var installed = myAppsConfig.installedPlugins || {};
 		if (!app) return null;
@@ -1641,7 +1655,10 @@
 				return installed[appMatch[1]];
 			}
 		}
-		return null;
+		var replacedSlugs = getAppReplacedSlugs(app).filter(function(slug) {
+			return !!installed[slug];
+		});
+		return replacedSlugs.length ? installed[replacedSlugs[0]] : null;
 	}
 
 	function rememberInstalledPlugin(slug, result) {
@@ -1801,6 +1818,13 @@
 		if (entry.pluginSlug) {
 			entries['plugin:' + entry.pluginSlug] = entry;
 		}
+		// A renamed app answers for its former plugin slugs too, so the
+		// launcher icon of the old plugin offers the new app as its update.
+		getAppReplacedSlugs(entry.app).forEach(function(slug) {
+			if (!entries['plugin:' + slug]) {
+				entries['plugin:' + slug] = entry;
+			}
+		});
 	}
 
 	function buildBlueprintUpdateEntries(data) {

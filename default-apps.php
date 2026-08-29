@@ -11,12 +11,8 @@ defined( 'ABSPATH' ) || exit;
  * arranged their own home screen yet. Users who already have one keep it, and a
  * newly seeded app shows up at the end of their launcher.
  */
-function seed_default_apps() {
-	$additional_apps = get_option( 'my_apps_additional_apps', array() );
-	$sort            = get_option( 'my_apps_sort', array() );
-	$changed         = false;
-
-	$defaults = array(
+function default_apps() {
+	return array(
 		'what_can_i_do' => array(
 			'name'            => 'What can I do?',
 			'url'             => home_url( '/my-apps/?recipes' ),
@@ -29,22 +25,45 @@ function seed_default_apps() {
 			'icon_shadow'     => true,
 		),
 	);
+}
+
+/**
+ * Tile styling for a seeded app whose stored copy predates icon styling.
+ *
+ * Seeding only runs on activation, so an existing site keeps the record it
+ * stored back then. As long as that record still shows the default Dashicon,
+ * the default colours apply to it.
+ *
+ * @param string $slug Additional app slug.
+ * @param array  $app  Stored app record.
+ * @return array Zero or more of icon_background, icon_color, icon_shadow.
+ */
+function default_app_icon_style( $slug, $app ) {
+	$defaults = default_apps();
+	if ( ! isset( $defaults[ $slug ] ) || ! is_array( $app ) ) {
+		return array();
+	}
+	foreach ( array( 'icon_background', 'icon_color', 'icon_shadow' ) as $key ) {
+		if ( isset( $app[ $key ] ) ) {
+			return array();
+		}
+	}
+	if ( empty( $app['dashicon'] ) || $app['dashicon'] !== $defaults[ $slug ]['dashicon'] ) {
+		return array();
+	}
+	return array_intersect_key( $defaults[ $slug ], array_flip( array( 'icon_background', 'icon_color', 'icon_shadow' ) ) );
+}
+
+function seed_default_apps() {
+	$additional_apps = get_option( 'my_apps_additional_apps', array() );
+	$sort            = get_option( 'my_apps_sort', array() );
+	$changed         = false;
+	$defaults        = default_apps();
 
 	foreach ( $defaults as $slug => $data ) {
 		if ( ! isset( $additional_apps[ $slug ] ) ) {
 			$additional_apps[ $slug ] = $data;
 			$changed                  = true;
-		} elseif (
-			// Existing installs stored the default before it had tile colours:
-			// add them as long as the icon itself is still the default one.
-			! isset( $additional_apps[ $slug ]['icon_background'] )
-			&& isset( $additional_apps[ $slug ]['dashicon'] )
-			&& $additional_apps[ $slug ]['dashicon'] === $data['dashicon']
-		) {
-			foreach ( array( 'icon_background', 'icon_color', 'icon_shadow' ) as $style_key ) {
-				$additional_apps[ $slug ][ $style_key ] = $data[ $style_key ];
-			}
-			$changed = true;
 		}
 		if ( ! in_array( $slug, $sort, true ) ) {
 			$sort[]  = $slug;

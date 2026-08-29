@@ -5386,6 +5386,10 @@
 			icon_customized: !!item.icon_customized
 		};
 		var icon = item.icon || {};
+		var style = iconStyleFields(icon);
+		if (style.icon_background) app.icon_background = style.icon_background;
+		if (style.icon_color) app.icon_color = style.icon_color;
+		if (style.icon_shadow !== undefined) app.icon_shadow = style.icon_shadow;
 
 		if (icon.type === 'icon_url') {
 			app.icon_url = icon.value || '';
@@ -6606,10 +6610,12 @@
 		return appEl;
 	}
 
-	function buildLetterIconSvg(data, extraClass) {
+	function buildLetterIconSvg(data, extraClass, style) {
 		var svgNS = 'http://www.w3.org/2000/svg';
 		var letters = String(data.letters || '?');
 		var svg = document.createElementNS(svgNS, 'svg');
+		style = style || {};
+		if (style.icon_shadow === true) extraClass = (extraClass ? extraClass + ' ' : '') + 'my-apps-icon-shadow';
 		svg.setAttribute('class', 'app-letter-icon' + (extraClass ? ' ' + extraClass : ''));
 		svg.setAttribute('viewBox', '0 0 100 100');
 		svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -6619,12 +6625,19 @@
 		rect.setAttribute('height', '100');
 		rect.setAttribute('rx', '22');
 		rect.setAttribute('ry', '22');
-		rect.setAttribute('fill', data.background || '#888');
+		// A gradient cannot be an SVG fill: it goes on the element, the rect steps aside.
+		if (style.icon_background) {
+			svg.style.background = style.icon_background;
+			rect.setAttribute('fill', 'none');
+		} else {
+			rect.setAttribute('fill', data.background || '#888');
+		}
 		svg.appendChild(rect);
 		var text = document.createElementNS(svgNS, 'text');
 		text.setAttribute('x', '50');
 		text.setAttribute('y', '50');
-		text.setAttribute('fill', '#fff');
+		text.setAttribute('fill', style.icon_color || '#fff');
+		if (typeof style.icon_shadow === 'string') text.style.textShadow = style.icon_shadow;
 		text.setAttribute('text-anchor', 'middle');
 		text.setAttribute('dominant-baseline', 'central');
 		text.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif');
@@ -6633,6 +6646,22 @@
 		text.textContent = letters;
 		svg.appendChild(text);
 		return svg;
+	}
+
+	// Launcher-tile counterpart of applyIconStyle(): the styled element is the
+	// tile itself, so the background also turns it into a rounded tile.
+	function applyTileIconStyle(el, app) {
+		var style = iconStyleFields(app);
+		if (style.icon_background) {
+			el.style.background = style.icon_background;
+			el.classList.add('my-apps-icon-tile');
+		}
+		if (style.icon_color) el.style.color = style.icon_color;
+		if (style.icon_shadow === true) {
+			el.classList.add('my-apps-icon-shadow');
+		} else if (style.icon_shadow) {
+			el.style.textShadow = style.icon_shadow;
+		}
 	}
 
 	function appendAppIconGraphic(parent, app, options) {
@@ -6647,14 +6676,16 @@
 		} else if (app.dashicon) {
 			var dash = document.createElement(tagName);
 			dash.className = 'dashicons ' + app.dashicon;
+			applyTileIconStyle(dash, app);
 			parent.appendChild(dash);
 		} else if (app.emoji) {
 			var emoji = document.createElement(tagName);
 			emoji.className = 'emoji';
 			emoji.textContent = app.emoji;
+			applyTileIconStyle(emoji, app);
 			parent.appendChild(emoji);
 		} else if (app.letter_icon) {
-			parent.appendChild(buildLetterIconSvg(app.letter_icon, options.small ? 'app-letter-icon-small' : ''));
+			parent.appendChild(buildLetterIconSvg(app.letter_icon, options.small ? 'app-letter-icon-small' : '', iconStyleFields(app)));
 		} else if (app.gradient) {
 			var gradient = document.createElement(tagName);
 			gradient.className = 'app-gradient-icon' + (options.small ? ' app-gradient-icon-small' : '');

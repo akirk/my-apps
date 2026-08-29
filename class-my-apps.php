@@ -5989,10 +5989,13 @@ class My_Apps {
 		}
 
 		$letter_icon = self::letter_icon_data( isset( $app['name'] ) ? $app['name'] : '' );
-		return array(
-			'type'       => 'letter',
-			'value'      => $letter_icon['letters'],
-			'background' => $letter_icon['background'],
+		return array_merge(
+			array(
+				'type'       => 'letter',
+				'value'      => $letter_icon['letters'],
+				'background' => $letter_icon['background'],
+			),
+			self::sanitize_icon_style( $app )
 		);
 	}
 
@@ -6784,7 +6787,10 @@ class My_Apps {
 			foreach ( self::icon_style_keys() as $style_key ) {
 				unset( $data[ $style_key ] );
 			}
-			$data = array_merge( $data, self::sanitize_icon_style( $additional_apps[ $slug ] ) );
+			$data = array_merge(
+				$data,
+				self::sanitize_icon_style( array_merge( default_app_icon_style( $slug, $additional_apps[ $slug ] ), $additional_apps[ $slug ] ) )
+			);
 			if ( isset( $data['user'] ) ) {
 				$u = get_user_by( 'ID', $data['user'] );
 				if ( $u && ! is_wp_error( $u ) ) {

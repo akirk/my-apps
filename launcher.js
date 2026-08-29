@@ -6270,9 +6270,11 @@
 		if (img) {
 			iconHtml = '<img src="' + img.src + '" alt="">';
 		} else if (dashicon) {
-			iconHtml = '<span class="' + dashicon.className + '"></span>';
+			var dashiconClone = dashicon.cloneNode(false);
+			iconHtml = dashiconClone.outerHTML.replace(/^<div/i, '<span').replace(/<\/div>$/i, '</span>');
 		} else if (emoji) {
-			iconHtml = '<span class="emoji">' + emoji.textContent + '</span>';
+			var emojiClone = emoji.cloneNode(true);
+			iconHtml = emojiClone.outerHTML.replace(/^<div/i, '<span').replace(/<\/div>$/i, '</span>');
 		} else if (letter) {
 			var letterClone = letter.cloneNode(true);
 			letterClone.classList.add('app-letter-icon-small');

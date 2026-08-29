@@ -45,6 +45,18 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
         return $apps;
     } );
 
+Instead of `icon_url`, an app can use a `dashicon` (a class such as `dashicons-food`) or an `emoji`. Both default to a plain white tile; give them a look of their own with the optional styling keys:
+
+    'dashicon'        => 'dashicons-food',
+    // A CSS colour or gradient for the tile.
+    'icon_background' => 'linear-gradient(135deg, #f7971e, #ffd200)',
+    // The glyph colour.
+    'icon_color'      => '#fff',
+    // true for a soft glyph shadow, or a CSS text-shadow value.
+    'icon_shadow'     => true,
+
+Values are limited to colour, gradient and shadow syntax; anything else is dropped and the tile falls back to the default. The same keys colour the generated letter icon of an app that registers no icon at all. Apps built on [wp-app](https://github.com/akirk/wp-app) set these through its `app_icon_background`, `app_icon_color` and `app_icon_shadow` options.
+
 My Apps works out which plugin registered an app by tracing the filter callback back to its file. An app registered through a shared library — a Composer package in some plugin's `vendor/` directory — cannot be traced that way, because the library file belongs to whichever plugin the autoloader loaded it from. For those, My Apps matches the app slug against the installed plugin slugs instead, and gives up rather than guess when the two differ. Register a `description` yourself, or name the app after its plugin directory, if an app of yours ends up without one.
 
 ### Temporarily adding an app from a blueprint

@@ -145,11 +145,11 @@ $is_app_store = isset( $_GET['app-store'] );
 			} elseif ( ! empty( $_plugin['gradient'] ) ) {
 				$icon_html = My_Apps::gradient_icon_html( $_plugin['name'], $_plugin['gradient'] );
 			} elseif ( ! empty( $_plugin['dashicon'] ) ) {
-				$icon_html = '<div class="dashicons ' . esc_attr( $_plugin['dashicon'] ) . '"></div>';
+				$icon_html = My_Apps::dashicon_icon_html( $_plugin );
 			} elseif ( ! empty( $_plugin['emoji'] ) ) {
-				$icon_html = '<div class="emoji">' . esc_html( $_plugin['emoji'] ) . '</div>';
+				$icon_html = My_Apps::emoji_icon_html( $_plugin );
 			} else {
-				$icon_html = My_Apps::letter_icon_html( $_plugin['name'] );
+				$icon_html = My_Apps::letter_icon_html( $_plugin['name'], '', $_plugin );
 			}
 			?>
 			<?php
@@ -269,11 +269,11 @@ $is_app_store = isset( $_GET['app-store'] );
 				} elseif ( ! empty( $app['gradient'] ) ) {
 					$icon_html = My_Apps::gradient_icon_html( $app['name'], $app['gradient'], 'app-gradient-icon-small', 'span' );
 				} elseif ( ! empty( $app['dashicon'] ) ) {
-					$icon_html = '<span class="dashicons ' . esc_attr( $app['dashicon'] ) . '"></span>';
+					$icon_html = My_Apps::dashicon_icon_html( $app, 'span' );
 				} elseif ( ! empty( $app['emoji'] ) ) {
-					$icon_html = '<span class="emoji">' . esc_html( $app['emoji'] ) . '</span>';
+					$icon_html = My_Apps::emoji_icon_html( $app, 'span' );
 				} else {
-					$icon_html = My_Apps::letter_icon_html( $app['name'], 'app-letter-icon-small' );
+					$icon_html = My_Apps::letter_icon_html( $app['name'], 'app-letter-icon-small', $app );
 				}
 				$is_deletable = in_array( (string) $slug, $deletable_apps, true );
 			?>

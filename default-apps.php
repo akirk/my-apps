@@ -18,12 +18,15 @@ function seed_default_apps() {
 
 	$defaults = array(
 		'what_can_i_do' => array(
-			'name'     => 'What can I do?',
-			'url'      => home_url( '/my-apps/?recipes' ),
-			'dashicon' => 'dashicons-lightbulb',
-			'icon_url' => false,
-			'emoji'    => false,
-			'gradient' => false,
+			'name'            => 'What can I do?',
+			'url'             => home_url( '/my-apps/?recipes' ),
+			'dashicon'        => 'dashicons-lightbulb',
+			'icon_url'        => false,
+			'emoji'           => false,
+			'gradient'        => false,
+			'icon_background' => 'linear-gradient(135deg, #f7b733, #fc4a1a)',
+			'icon_color'      => '#fff',
+			'icon_shadow'     => true,
 		),
 	);
 
@@ -31,6 +34,17 @@ function seed_default_apps() {
 		if ( ! isset( $additional_apps[ $slug ] ) ) {
 			$additional_apps[ $slug ] = $data;
 			$changed                  = true;
+		} elseif (
+			// Existing installs stored the default before it had tile colours:
+			// add them as long as the icon itself is still the default one.
+			! isset( $additional_apps[ $slug ]['icon_background'] )
+			&& isset( $additional_apps[ $slug ]['dashicon'] )
+			&& $additional_apps[ $slug ]['dashicon'] === $data['dashicon']
+		) {
+			foreach ( array( 'icon_background', 'icon_color', 'icon_shadow' ) as $style_key ) {
+				$additional_apps[ $slug ][ $style_key ] = $data[ $style_key ];
+			}
+			$changed = true;
 		}
 		if ( ! in_array( $slug, $sort, true ) ) {
 			$sort[]  = $slug;

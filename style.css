@@ -802,7 +802,11 @@ svg.app-letter-icon.app-letter-icon-small {
 
 .app-icon div.dashicons.my-apps-icon-shadow,
 .app-icon .emoji.my-apps-icon-shadow,
-.hidden-app-icon .my-apps-icon-shadow {
+.hidden-app-icon .my-apps-icon-shadow,
+.app-store-icon .my-apps-icon-shadow,
+.app-store-icon.my-apps-icon-shadow,
+.recipe-step-icon .my-apps-icon-shadow,
+.app-detail-icon .my-apps-icon-shadow {
 	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
 }
 

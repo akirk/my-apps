@@ -34,6 +34,18 @@
 					"type": "string",
 					"description": "Optional App Store icon. Supports http(s) URLs, root-relative paths, image data URIs, Dashicon class names, or short text/emoji icons."
 				},
+				"icon_background": {
+					"type": "string",
+					"description": "Optional tile background behind a Dashicon or text icon: a CSS colour or gradient."
+				},
+				"icon_color": {
+					"type": "string",
+					"description": "Optional glyph colour for a Dashicon or text icon."
+				},
+				"icon_shadow": {
+					"type": ["boolean", "string"],
+					"description": "Optional glyph shadow: true for the default soft shadow, or a CSS text-shadow value."
+				},
 				"categories": {
 					"type": "array",
 					"items": {

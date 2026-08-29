@@ -724,12 +724,15 @@ class My_Apps {
 	 */
 	public function register_builtin_apps( $apps ) {
 		$apps['feedback'] = array(
-			'name'     => __( 'Feedback', 'my-apps' ),
-			'url'      => '#my-apps-feedback',
-			'dashicon' => 'dashicons-format-chat',
-			'icon_url' => false,
-			'emoji'    => false,
-			'gradient' => false,
+			'name'            => __( 'Feedback', 'my-apps' ),
+			'url'             => '#my-apps-feedback',
+			'dashicon'        => 'dashicons-format-chat',
+			'icon_url'        => false,
+			'emoji'           => false,
+			'gradient'        => false,
+			'icon_background' => 'linear-gradient(135deg, #8e2de2, #4a00e0)',
+			'icon_color'      => '#fff',
+			'icon_shadow'     => true,
 		);
 
 		return $apps;
@@ -6778,6 +6781,10 @@ class My_Apps {
 				continue;
 			}
 			$data['plugin'] = 'unknown';
+			foreach ( self::icon_style_keys() as $style_key ) {
+				unset( $data[ $style_key ] );
+			}
+			$data = array_merge( $data, self::sanitize_icon_style( $additional_apps[ $slug ] ) );
 			if ( isset( $data['user'] ) ) {
 				$u = get_user_by( 'ID', $data['user'] );
 				if ( $u && ! is_wp_error( $u ) ) {

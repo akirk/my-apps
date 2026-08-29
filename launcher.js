@@ -3797,6 +3797,44 @@
 		return null;
 	}
 
+	// Mirrors My_Apps::sanitize_icon_style(): colour/gradient/shadow syntax
+	// only, so catalog data can never smuggle url() or markup into a style.
+	function sanitizeIconCssValue(value) {
+		value = String(value || '').replace(/\s+/g, ' ').trim();
+		if (!value || value.length > 300) return '';
+		if (/[^a-z0-9#.,%()\/\s+-]/i.test(value)) return '';
+		if ((value.match(/\(/g) || []).length !== (value.match(/\)/g) || []).length) return '';
+		if (/(?:^|[^a-z-])(?:url|var|attr|expression|image-set|element|env)\s*\(/i.test(value)) return '';
+		return value;
+	}
+
+	function iconStyleFields(source) {
+		source = source || {};
+		var fields = {};
+		var background = sanitizeIconCssValue(source.icon_background || source._icon_background);
+		var color = sanitizeIconCssValue(source.icon_color || source._icon_color);
+		var shadow = source.icon_shadow !== undefined ? source.icon_shadow : source._icon_shadow;
+		if (background) fields.icon_background = background;
+		if (color && color.toLowerCase().indexOf('gradient') === -1) fields.icon_color = color;
+		if (shadow === true || shadow === 1 || shadow === '1') {
+			fields.icon_shadow = true;
+		} else if (typeof shadow === 'string' && sanitizeIconCssValue(shadow) && shadow.toLowerCase().indexOf('gradient') === -1) {
+			fields.icon_shadow = sanitizeIconCssValue(shadow);
+		}
+		return fields;
+	}
+
+	function applyIconStyle(parent, glyph, source) {
+		var style = iconStyleFields(source);
+		if (style.icon_background) parent.style.background = style.icon_background;
+		if (style.icon_color) parent.style.color = style.icon_color;
+		if (style.icon_shadow === true) {
+			glyph.classList.add('my-apps-icon-shadow');
+		} else if (style.icon_shadow) {
+			glyph.style.textShadow = style.icon_shadow;
+		}
+	}
+
 	function appendAppStoreIcon(parent, app, name) {
 		var icon = normalizeAppStoreIcon(app && (app._icon || app.icon));
 		if (icon && icon.type === 'image') {
@@ -3814,6 +3852,7 @@
 			var dashicon = document.createElement('span');
 			dashicon.className = 'dashicons ' + icon.value;
 			parent.appendChild(dashicon);
+			applyIconStyle(parent, dashicon, app);
 			return;
 		}
 
@@ -3821,11 +3860,13 @@
 			parent.style.background = letterIconDataForName(name).background;
 			parent.classList.add('app-store-icon-text');
 			parent.textContent = icon.value;
+			applyIconStyle(parent, parent, app);
 			return;
 		}
 
 		parent.style.background = letterIconDataForName(name).background;
 		appendGradientIconLetter(parent, name);
+		applyIconStyle(parent, parent.lastChild, app);
 	}
 
 	function updateIconEditPreview() {
@@ -6975,6 +7016,9 @@
 								author: meta.author ? cleanText(meta.author) : '',
 								short_description: '',
 								icon: meta.icon || '',
+								icon_background: meta.icon_background || '',
+								icon_color: meta.icon_color || '',
+								icon_shadow: meta.icon_shadow,
 								note: note,
 								categories: categories,
 								install_url: meta.url,
@@ -7017,6 +7061,9 @@
 								author: meta.author ? cleanText(meta.author) : owner,
 								short_description: '',
 								icon: meta.icon || '',
+								icon_background: meta.icon_background || '',
+								icon_color: meta.icon_color || '',
+								icon_shadow: meta.icon_shadow,
 								note: note,
 								categories: categories,
 								install_url: 'https://github.com/' + meta.github,
@@ -7135,6 +7182,9 @@
 			_ref: plugin.ref || '',
 			_refType: plugin.refType || '',
 			_icon: plugin.icon || '',
+			_icon_background: plugin.icon_background || '',
+			_icon_color: plugin.icon_color || '',
+			_icon_shadow: plugin.icon_shadow,
 			_shortDescription: plugin.short_description || '',
 			_note: plugin.note || '',
 			_installUrl: plugin.install_url || '',
@@ -8548,7 +8598,10 @@
 			description: app.description || blueprintMeta.description || '',
 			author: app.author || blueprintMeta.author || '',
 			categories: customCategoryList(app.categories || blueprintMeta.categories),
-			icon: app.icon || blueprintMeta.icon || ''
+			icon: app.icon || blueprintMeta.icon || '',
+			icon_background: app.icon_background || blueprintMeta.icon_background || '',
+			icon_color: app.icon_color || blueprintMeta.icon_color || '',
+			icon_shadow: app.icon_shadow !== undefined ? app.icon_shadow : blueprintMeta.icon_shadow
 		};
 
 		var customPath = '';

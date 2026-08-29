@@ -3797,6 +3797,44 @@
 		return null;
 	}
 
+	// Mirrors My_Apps::sanitize_icon_style(): colour/gradient/shadow syntax
+	// only, so catalog data can never smuggle url() or markup into a style.
+	function sanitizeIconCssValue(value) {
+		value = String(value || '').replace(/\s+/g, ' ').trim();
+		if (!value || value.length > 300) return '';
+		if (/[^a-z0-9#.,%()\/\s+-]/i.test(value)) return '';
+		if ((value.match(/\(/g) || []).length !== (value.match(/\)/g) || []).length) return '';
+		if (/(?:^|[^a-z-])(?:url|var|attr|expression|image-set|element|env)\s*\(/i.test(value)) return '';
+		return value;
+	}
+
+	function iconStyleFields(source) {
+		source = source || {};
+		var fields = {};
+		var background = sanitizeIconCssValue(source.icon_background || source._icon_background);
+		var color = sanitizeIconCssValue(source.icon_color || source._icon_color);
+		var shadow = source.icon_shadow !== undefined ? source.icon_shadow : source._icon_shadow;
+		if (background) fields.icon_background = background;
+		if (color && color.toLowerCase().indexOf('gradient') === -1) fields.icon_color = color;
+		if (shadow === true || shadow === 1 || shadow === '1') {
+			fields.icon_shadow = true;
+		} else if (typeof shadow === 'string' && sanitizeIconCssValue(shadow) && shadow.toLowerCase().indexOf('gradient') === -1) {
+			fields.icon_shadow = sanitizeIconCssValue(shadow);
+		}
+		return fields;
+	}
+
+	function applyIconStyle(parent, glyph, source) {
+		var style = iconStyleFields(source);
+		if (style.icon_background) parent.style.background = style.icon_background;
+		if (style.icon_color) parent.style.color = style.icon_color;
+		if (style.icon_shadow === true) {
+			glyph.classList.add('my-apps-icon-shadow');
+		} else if (style.icon_shadow) {
+			glyph.style.textShadow = style.icon_shadow;
+		}
+	}
+
 	function appendAppStoreIcon(parent, app, name) {
 		var icon = normalizeAppStoreIcon(app && (app._icon || app.icon));
 		if (icon && icon.type === 'image') {
@@ -3814,6 +3852,7 @@
 			var dashicon = document.createElement('span');
 			dashicon.className = 'dashicons ' + icon.value;
 			parent.appendChild(dashicon);
+			applyIconStyle(parent, dashicon, app);
 			return;
 		}
 
@@ -3821,11 +3860,13 @@
 			parent.style.background = letterIconDataForName(name).background;
 			parent.classList.add('app-store-icon-text');
 			parent.textContent = icon.value;
+			applyIconStyle(parent, parent, app);
 			return;
 		}
 
 		parent.style.background = letterIconDataForName(name).background;
 		appendGradientIconLetter(parent, name);
+		applyIconStyle(parent, parent.lastChild, app);
 	}
 
 	function updateIconEditPreview() {
@@ -5345,6 +5386,10 @@
 			icon_customized: !!item.icon_customized
 		};
 		var icon = item.icon || {};
+		var style = iconStyleFields(icon);
+		if (style.icon_background) app.icon_background = style.icon_background;
+		if (style.icon_color) app.icon_color = style.icon_color;
+		if (style.icon_shadow !== undefined) app.icon_shadow = style.icon_shadow;
 
 		if (icon.type === 'icon_url') {
 			app.icon_url = icon.value || '';
@@ -6270,9 +6315,11 @@
 		if (img) {
 			iconHtml = '<img src="' + img.src + '" alt="">';
 		} else if (dashicon) {
-			iconHtml = '<span class="' + dashicon.className + '"></span>';
+			var dashiconClone = dashicon.cloneNode(false);
+			iconHtml = dashiconClone.outerHTML.replace(/^<div/i, '<span').replace(/<\/div>$/i, '</span>');
 		} else if (emoji) {
-			iconHtml = '<span class="emoji">' + emoji.textContent + '</span>';
+			var emojiClone = emoji.cloneNode(true);
+			iconHtml = emojiClone.outerHTML.replace(/^<div/i, '<span').replace(/<\/div>$/i, '</span>');
 		} else if (letter) {
 			var letterClone = letter.cloneNode(true);
 			letterClone.classList.add('app-letter-icon-small');
@@ -6563,10 +6610,12 @@
 		return appEl;
 	}
 
-	function buildLetterIconSvg(data, extraClass) {
+	function buildLetterIconSvg(data, extraClass, style) {
 		var svgNS = 'http://www.w3.org/2000/svg';
 		var letters = String(data.letters || '?');
 		var svg = document.createElementNS(svgNS, 'svg');
+		style = style || {};
+		if (style.icon_shadow === true) extraClass = (extraClass ? extraClass + ' ' : '') + 'my-apps-icon-shadow';
 		svg.setAttribute('class', 'app-letter-icon' + (extraClass ? ' ' + extraClass : ''));
 		svg.setAttribute('viewBox', '0 0 100 100');
 		svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -6576,12 +6625,19 @@
 		rect.setAttribute('height', '100');
 		rect.setAttribute('rx', '22');
 		rect.setAttribute('ry', '22');
-		rect.setAttribute('fill', data.background || '#888');
+		// A gradient cannot be an SVG fill: it goes on the element, the rect steps aside.
+		if (style.icon_background) {
+			svg.style.background = style.icon_background;
+			rect.setAttribute('fill', 'none');
+		} else {
+			rect.setAttribute('fill', data.background || '#888');
+		}
 		svg.appendChild(rect);
 		var text = document.createElementNS(svgNS, 'text');
 		text.setAttribute('x', '50');
 		text.setAttribute('y', '50');
-		text.setAttribute('fill', '#fff');
+		text.setAttribute('fill', style.icon_color || '#fff');
+		if (typeof style.icon_shadow === 'string') text.style.textShadow = style.icon_shadow;
 		text.setAttribute('text-anchor', 'middle');
 		text.setAttribute('dominant-baseline', 'central');
 		text.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif');
@@ -6590,6 +6646,22 @@
 		text.textContent = letters;
 		svg.appendChild(text);
 		return svg;
+	}
+
+	// Launcher-tile counterpart of applyIconStyle(): the styled element is the
+	// tile itself, so the background also turns it into a rounded tile.
+	function applyTileIconStyle(el, app) {
+		var style = iconStyleFields(app);
+		if (style.icon_background) {
+			el.style.background = style.icon_background;
+			el.classList.add('my-apps-icon-tile');
+		}
+		if (style.icon_color) el.style.color = style.icon_color;
+		if (style.icon_shadow === true) {
+			el.classList.add('my-apps-icon-shadow');
+		} else if (style.icon_shadow) {
+			el.style.textShadow = style.icon_shadow;
+		}
 	}
 
 	function appendAppIconGraphic(parent, app, options) {
@@ -6604,14 +6676,16 @@
 		} else if (app.dashicon) {
 			var dash = document.createElement(tagName);
 			dash.className = 'dashicons ' + app.dashicon;
+			applyTileIconStyle(dash, app);
 			parent.appendChild(dash);
 		} else if (app.emoji) {
 			var emoji = document.createElement(tagName);
 			emoji.className = 'emoji';
 			emoji.textContent = app.emoji;
+			applyTileIconStyle(emoji, app);
 			parent.appendChild(emoji);
 		} else if (app.letter_icon) {
-			parent.appendChild(buildLetterIconSvg(app.letter_icon, options.small ? 'app-letter-icon-small' : ''));
+			parent.appendChild(buildLetterIconSvg(app.letter_icon, options.small ? 'app-letter-icon-small' : '', iconStyleFields(app)));
 		} else if (app.gradient) {
 			var gradient = document.createElement(tagName);
 			gradient.className = 'app-gradient-icon' + (options.small ? ' app-gradient-icon-small' : '');
@@ -6973,6 +7047,9 @@
 								author: meta.author ? cleanText(meta.author) : '',
 								short_description: '',
 								icon: meta.icon || '',
+								icon_background: meta.icon_background || '',
+								icon_color: meta.icon_color || '',
+								icon_shadow: meta.icon_shadow,
 								note: note,
 								categories: categories,
 								install_url: meta.url,
@@ -7015,6 +7092,9 @@
 								author: meta.author ? cleanText(meta.author) : owner,
 								short_description: '',
 								icon: meta.icon || '',
+								icon_background: meta.icon_background || '',
+								icon_color: meta.icon_color || '',
+								icon_shadow: meta.icon_shadow,
 								note: note,
 								categories: categories,
 								install_url: 'https://github.com/' + meta.github,
@@ -7133,6 +7213,9 @@
 			_ref: plugin.ref || '',
 			_refType: plugin.refType || '',
 			_icon: plugin.icon || '',
+			_icon_background: plugin.icon_background || '',
+			_icon_color: plugin.icon_color || '',
+			_icon_shadow: plugin.icon_shadow,
 			_shortDescription: plugin.short_description || '',
 			_note: plugin.note || '',
 			_installUrl: plugin.install_url || '',
@@ -8546,7 +8629,10 @@
 			description: app.description || blueprintMeta.description || '',
 			author: app.author || blueprintMeta.author || '',
 			categories: customCategoryList(app.categories || blueprintMeta.categories),
-			icon: app.icon || blueprintMeta.icon || ''
+			icon: app.icon || blueprintMeta.icon || '',
+			icon_background: app.icon_background || blueprintMeta.icon_background || '',
+			icon_color: app.icon_color || blueprintMeta.icon_color || '',
+			icon_shadow: app.icon_shadow !== undefined ? app.icon_shadow : blueprintMeta.icon_shadow
 		};
 
 		var customPath = '';

@@ -724,12 +724,15 @@ class My_Apps {
 	 */
 	public function register_builtin_apps( $apps ) {
 		$apps['feedback'] = array(
-			'name'     => __( 'Feedback', 'my-apps' ),
-			'url'      => '#my-apps-feedback',
-			'dashicon' => 'dashicons-format-chat',
-			'icon_url' => false,
-			'emoji'    => false,
-			'gradient' => false,
+			'name'            => __( 'Feedback', 'my-apps' ),
+			'url'             => '#my-apps-feedback',
+			'dashicon'        => 'dashicons-format-chat',
+			'icon_url'        => false,
+			'emoji'           => false,
+			'gradient'        => false,
+			'icon_background' => 'linear-gradient(135deg, #8e2de2, #4a00e0)',
+			'icon_color'      => '#fff',
+			'icon_shadow'     => true,
 		);
 
 		return $apps;
@@ -5959,16 +5962,22 @@ class My_Apps {
 		}
 
 		if ( ! empty( $app['dashicon'] ) ) {
-			return array(
-				'type'  => 'dashicon',
-				'value' => (string) $app['dashicon'],
+			return array_merge(
+				array(
+					'type'  => 'dashicon',
+					'value' => (string) $app['dashicon'],
+				),
+				self::sanitize_icon_style( $app )
 			);
 		}
 
 		if ( ! empty( $app['emoji'] ) ) {
-			return array(
-				'type'  => 'emoji',
-				'value' => (string) $app['emoji'],
+			return array_merge(
+				array(
+					'type'  => 'emoji',
+					'value' => (string) $app['emoji'],
+				),
+				self::sanitize_icon_style( $app )
 			);
 		}
 
@@ -5980,10 +5989,13 @@ class My_Apps {
 		}
 
 		$letter_icon = self::letter_icon_data( isset( $app['name'] ) ? $app['name'] : '' );
-		return array(
-			'type'       => 'letter',
-			'value'      => $letter_icon['letters'],
-			'background' => $letter_icon['background'],
+		return array_merge(
+			array(
+				'type'       => 'letter',
+				'value'      => $letter_icon['letters'],
+				'background' => $letter_icon['background'],
+			),
+			self::sanitize_icon_style( $app )
 		);
 	}
 
@@ -6023,26 +6035,185 @@ class My_Apps {
 	}
 
 	/**
+	 * Icon tile styling keys a plugin can pass through `my_apps_plugins`.
+	 *
+	 * @return string[]
+	 */
+	public static function icon_style_keys() {
+		return array( 'icon_background', 'icon_color', 'icon_shadow' );
+	}
+
+	/**
+	 * Sanitize the icon tile styling of an app record.
+	 *
+	 * `icon_background` accepts a CSS colour or gradient, `icon_color` a CSS
+	 * colour, and `icon_shadow` either `true` for the default glyph shadow or
+	 * a CSS text-shadow value. Anything else is dropped.
+	 *
+	 * @param array $app App record.
+	 * @return array Only the valid style keys.
+	 */
+	public static function sanitize_icon_style( $app ) {
+		$style = array();
+		if ( ! is_array( $app ) ) {
+			return $style;
+		}
+
+		if ( isset( $app['icon_background'] ) && is_string( $app['icon_background'] ) ) {
+			$background = self::sanitize_custom_background_css( $app['icon_background'] );
+			if ( '' !== $background ) {
+				$style['icon_background'] = $background;
+			}
+		}
+
+		if ( isset( $app['icon_color'] ) && is_string( $app['icon_color'] ) ) {
+			$color = self::sanitize_custom_background_css( $app['icon_color'] );
+			if ( '' !== $color && false === stripos( $color, 'gradient' ) ) {
+				$style['icon_color'] = $color;
+			}
+		}
+
+		if ( isset( $app['icon_shadow'] ) ) {
+			if ( true === $app['icon_shadow'] || '1' === $app['icon_shadow'] || 1 === $app['icon_shadow'] ) {
+				$style['icon_shadow'] = true;
+			} elseif ( is_string( $app['icon_shadow'] ) ) {
+				$shadow = self::sanitize_text_shadow_css( $app['icon_shadow'] );
+				if ( '' !== $shadow ) {
+					$style['icon_shadow'] = $shadow;
+				}
+			}
+		}
+
+		return $style;
+	}
+
+	/**
+	 * Sanitize a CSS text-shadow value: colours, lengths and commas only.
+	 *
+	 * @param string $css Shadow value.
+	 * @return string
+	 */
+	private static function sanitize_text_shadow_css( $css ) {
+		$css = trim( preg_replace( '/\s+/', ' ', (string) $css ) );
+
+		if ( '' === $css || strlen( $css ) > 300 ) {
+			return '';
+		}
+
+		if ( preg_match( '/[^a-z0-9#.,%()\/\s+-]/i', $css ) || ! self::has_balanced_parentheses( $css ) ) {
+			return '';
+		}
+
+		if ( preg_match( '/(?:^|[^a-z-])(?:url|var|attr|expression|image-set|cross-fade|element|paint|env|calc|min|max|clamp|gradient)\s*\(/i', $css ) ) {
+			return '';
+		}
+
+		return $css;
+	}
+
+	/**
+	 * Build class and style attributes for a styled icon tile.
+	 *
+	 * @param array $app App record with optional icon_* style keys.
+	 * @return array { classes: string, attr: string } — extra classes and a
+	 *               leading-space style attribute (empty when unstyled).
+	 */
+	public static function icon_style_attributes( $app ) {
+		$style   = self::sanitize_icon_style( $app );
+		$rules   = array();
+		$classes = array();
+
+		if ( ! empty( $style['icon_background'] ) ) {
+			$rules[]   = 'background: ' . $style['icon_background'];
+			$classes[] = 'my-apps-icon-tile';
+		}
+		if ( ! empty( $style['icon_color'] ) ) {
+			$rules[] = 'color: ' . $style['icon_color'];
+		}
+		if ( isset( $style['icon_shadow'] ) ) {
+			if ( true === $style['icon_shadow'] ) {
+				$classes[] = 'my-apps-icon-shadow';
+			} else {
+				$rules[] = 'text-shadow: ' . $style['icon_shadow'];
+			}
+		}
+
+		return array(
+			'classes' => implode( ' ', $classes ),
+			'attr'    => empty( $rules ) ? '' : ' style="' . esc_attr( implode( '; ', $rules ) ) . '"',
+		);
+	}
+
+	/**
+	 * Render a Dashicon tile, honouring the app's icon styling.
+	 *
+	 * @param array  $app      App record with a dashicon key.
+	 * @param string $tag_name HTML tag. Supports div and span.
+	 * @return string
+	 */
+	public static function dashicon_icon_html( $app, $tag_name = 'div' ) {
+		$tag_name = 'span' === $tag_name ? 'span' : 'div';
+		$styling  = self::icon_style_attributes( $app );
+		$classes  = trim( 'dashicons ' . $app['dashicon'] . ' ' . $styling['classes'] );
+		return sprintf( '<%1$s class="%2$s"%3$s></%1$s>', $tag_name, esc_attr( $classes ), $styling['attr'] );
+	}
+
+	/**
+	 * Render an emoji tile, honouring the app's icon styling.
+	 *
+	 * @param array  $app      App record with an emoji key.
+	 * @param string $tag_name HTML tag. Supports div and span.
+	 * @return string
+	 */
+	public static function emoji_icon_html( $app, $tag_name = 'div' ) {
+		$tag_name = 'span' === $tag_name ? 'span' : 'div';
+		$styling  = self::icon_style_attributes( $app );
+		$classes  = trim( 'emoji ' . $styling['classes'] );
+		return sprintf( '<%1$s class="%2$s"%3$s>%4$s</%1$s>', $tag_name, esc_attr( $classes ), $styling['attr'], esc_html( $app['emoji'] ) );
+	}
+
+	/**
 	 * Render an SVG letter-based fallback icon. Using SVG with a 1:1
 	 * viewBox guarantees the rendered tile is square regardless of any
 	 * CSS cascade surprises.
 	 *
 	 * @param string $name      App display name.
 	 * @param string $modifiers Extra CSS classes (e.g. 'app-letter-icon-small').
+	 * @param array  $app       Optional app record whose icon_* style keys colour the tile.
 	 */
-	public static function letter_icon_html( $name, $modifiers = '' ) {
+	public static function letter_icon_html( $name, $modifiers = '', $app = array() ) {
 		$data      = self::letter_icon_data( $name );
+		$style     = self::sanitize_icon_style( $app );
 		$classes   = trim( 'app-letter-icon ' . $modifiers );
 		$font_size = strlen( $data['letters'] ) > 1 ? 36 : 46;
+		$fill      = $data['background'];
+		$attr      = '';
+		$text_fill = '#fff';
+
+		// A gradient cannot be an SVG fill, so a custom background goes on the
+		// element itself and the rect gets out of the way.
+		if ( ! empty( $style['icon_background'] ) ) {
+			$fill = 'none';
+			$attr = ' style="' . esc_attr( 'background: ' . $style['icon_background'] ) . '"';
+		}
+		if ( ! empty( $style['icon_color'] ) ) {
+			$text_fill = $style['icon_color'];
+		}
+		if ( isset( $style['icon_shadow'] ) ) {
+			$classes .= ' my-apps-icon-shadow';
+		}
+
 		return sprintf(
-			'<svg class="%1$s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' .
+			'<svg class="%1$s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true"%6$s>' .
 				'<rect width="100" height="100" rx="22" ry="22" fill="%2$s"/>' .
-				'<text x="50" y="50" fill="#fff" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-weight="600" font-size="%3$d">%4$s</text>' .
+				'<text x="50" y="50" fill="%5$s" text-anchor="middle" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-weight="600" font-size="%3$d">%4$s</text>' .
 			'</svg>',
 			esc_attr( $classes ),
-			esc_attr( $data['background'] ),
+			esc_attr( $fill ),
 			$font_size,
-			esc_html( $data['letters'] )
+			esc_html( $data['letters'] ),
+			esc_attr( $text_fill ),
+			$attr
 		);
 	}
 
@@ -6599,6 +6770,11 @@ class My_Apps {
 				$data['plugin'] = 'unknown';
 			}
 
+			foreach ( self::icon_style_keys() as $style_key ) {
+				unset( $data[ $style_key ] );
+			}
+			$data = array_merge( $data, self::sanitize_icon_style( $registered_plugins[ $plugin ] ) );
+
 			$plugins[ $plugin ] = $data;
 		}
 
@@ -6608,6 +6784,13 @@ class My_Apps {
 				continue;
 			}
 			$data['plugin'] = 'unknown';
+			foreach ( self::icon_style_keys() as $style_key ) {
+				unset( $data[ $style_key ] );
+			}
+			$data = array_merge(
+				$data,
+				self::sanitize_icon_style( array_merge( default_app_icon_style( $slug, $additional_apps[ $slug ] ), $additional_apps[ $slug ] ) )
+			);
 			if ( isset( $data['user'] ) ) {
 				$u = get_user_by( 'ID', $data['user'] );
 				if ( $u && ! is_wp_error( $u ) ) {

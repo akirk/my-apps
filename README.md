@@ -45,6 +45,18 @@ Plugins can register their own launcher icon by filtering `my_apps_plugins`:
         return $apps;
     } );
 
+Instead of `icon_url`, an app can use a `dashicon` (a class such as `dashicons-food`) or an `emoji`. Both default to a plain white tile; give them a look of their own with the optional styling keys:
+
+    'dashicon'        => 'dashicons-food',
+    // A CSS colour or gradient for the tile.
+    'icon_background' => 'linear-gradient(135deg, #f7971e, #ffd200)',
+    // The glyph colour.
+    'icon_color'      => '#fff',
+    // true for a soft glyph shadow, or a CSS text-shadow value.
+    'icon_shadow'     => true,
+
+Values are limited to colour, gradient and shadow syntax; anything else is dropped and the tile falls back to the default. The same keys colour the generated letter icon of an app that registers no icon at all. Apps built on [wp-app](https://github.com/akirk/wp-app) set these through its `app_icon_background`, `app_icon_color` and `app_icon_shadow` options.
+
 My Apps works out which plugin registered an app by tracing the filter callback back to its file. An app registered through a shared library — a Composer package in some plugin's `vendor/` directory — cannot be traced that way, because the library file belongs to whichever plugin the autoloader loaded it from. For those, My Apps matches the app slug against the installed plugin slugs instead, and gives up rather than guess when the two differ. Register a `description` yourself, or name the app after its plugin directory, if an app of yours ends up without one.
 
 ### Temporarily adding an app from a blueprint
@@ -53,7 +65,7 @@ You can add your own app to the App Store by pasting a complete WordPress Playgr
 
 My Apps reads the blueprint's `meta.title`, `meta.description`, and `meta.author` fields to create the app-store entry. If the title matches an existing app, you can temporarily override that app with your pasted blueprint. Custom and modified blueprint entries are stored in this browser, appear in the Custom section, and can be removed or reverted from their badge in the App Store. When you paste multiple versions for the same entry, My Apps keeps a short version list so you can switch between them from the App Store.
 
-My Apps also accepts `meta.icon` as a local App Store display extension for pasted blueprints. The official WordPress Playground blueprint schema does not currently allow `meta.icon`, so include it only when targeting My Apps. App Store icons can be an `http(s)` URL, a root-relative path, an image data URI, a Dashicon class such as `dashicons-admin-plugins`, or a short text/emoji icon.
+My Apps also accepts `meta.icon` as a local App Store display extension for pasted blueprints. The official WordPress Playground blueprint schema does not currently allow `meta.icon`, so include it only when targeting My Apps. App Store icons can be an `http(s)` URL, a root-relative path, an image data URI, a Dashicon class such as `dashicons-admin-plugins`, or a short text/emoji icon. Dashicon and text icons also accept `icon_background`, `icon_color` and `icon_shadow` alongside `icon`, with the same values as the launcher keys above.
 
 To test App Store catalog, What can I do? guide, or plugin recommendation changes from another blueprints source without changing this plugin, paste a `WordPress/blueprints` PR number, a PR URL, or a GitHub fork branch URL anywhere in the App Store. On mobile, paste it into Search. Use the x next to the source indicator to return to the default catalog.
 

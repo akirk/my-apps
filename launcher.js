@@ -7954,6 +7954,54 @@
 		setInstallButtonState(btn, 'Close', false);
 	}
 
+	function appendInfoLink(infoEl, href, text, target) {
+		var link = document.createElement('a');
+		link.href = href;
+		link.target = target || '_blank';
+		if (link.target === '_blank') {
+			link.rel = 'noopener noreferrer';
+		}
+		link.className = 'app-store-blueprint-url';
+		link.textContent = text;
+		infoEl.appendChild(link);
+		return link;
+	}
+
+	// The GitHub repository a blueprint installs a plugin from, when that is
+	// the only plugin it installs and nothing else in it needs Playground.
+	function blueprintSoleGithubRepo(blueprint) {
+		var repo = '';
+		var steps = blueprint && Array.isArray(blueprint.steps) ? blueprint.steps : [];
+		var supported = steps.every(function(step) {
+			var data;
+			if (!step || !step.step) return true;
+			if (step.step === 'activatePlugin' || step.step === 'login') return true;
+			if (step.step !== 'installPlugin') return false;
+			data = step.pluginData || {};
+			if (data.resource !== 'git:directory' || repo) return false;
+			repo = githubRepoFromUrl(data.url);
+			return !!repo;
+		});
+		return supported ? repo : '';
+	}
+
+	// Hosts other than Playground cannot run a git:directory step, but the
+	// user can install the release ZIP by hand.
+	function showManualGithubBlueprintInstall(repo, blueprintUrl, infoEl, btn) {
+		infoEl.innerHTML = '';
+
+		var messageEl = document.createElement('p');
+		messageEl.textContent = __( 'This app is hosted on GitHub, so it cannot be installed automatically on this host. Download the latest release and upload the ZIP file to WordPress.', 'my-apps' );
+		infoEl.appendChild(messageEl);
+
+		appendInfoLink(infoEl, 'https://github.com/' + repo + '/releases/latest', __( 'Download the latest release from GitHub', 'my-apps' ));
+		appendInfoLink(infoEl, getPluginInstallUrl() + '?tab=upload', __( 'Open plugin upload screen', 'my-apps' ), '_top');
+		appendInfoLink(infoEl, 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl), __( 'Try it in WordPress Playground instead', 'my-apps' ));
+
+		infoEl.classList.add('active');
+		setInstallButtonState(btn, 'Close', false);
+	}
+
 	function encodeGitHubRefPath(ref) {
 		return String(ref || 'HEAD').split('/').map(function(part) {
 			return encodeURIComponent(part);
@@ -8006,14 +8054,10 @@
 		}
 		infoEl.appendChild(messageEl);
 
-		if (zipUrl) {
-			var downloadLink = document.createElement('a');
-			downloadLink.href = zipUrl;
-			downloadLink.target = '_blank';
-			downloadLink.rel = 'noopener noreferrer';
-			downloadLink.className = 'app-store-blueprint-url';
-			downloadLink.textContent = 'Download ZIP';
-			infoEl.appendChild(downloadLink);
+		if (app._source === 'github' && app._repo) {
+			appendInfoLink(infoEl, 'https://github.com/' + app._repo + '/releases/latest', __( 'Download the latest release from GitHub', 'my-apps' ));
+		} else if (zipUrl) {
+			appendInfoLink(infoEl, zipUrl, 'Download ZIP');
 		}
 
 		if (sourceUrl && sourceUrl !== zipUrl) {
@@ -8189,6 +8233,11 @@
 		resolveBlueprintFromUrl(blueprintUrl)
 			.then(function(blueprint) {
 				var plan = getHostBlueprintInstallPlan(blueprint);
+				var githubRepo = plan.plugins.length ? '' : blueprintSoleGithubRepo(blueprint);
+				if (githubRepo && infoEl) {
+					showManualGithubBlueprintInstall(githubRepo, blueprintUrl, infoEl, btn);
+					return false;
+				}
 				if (!plan.plugins.length) {
 					showManualBlueprintInstall(
 						blueprintUrl,

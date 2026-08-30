@@ -45,6 +45,10 @@
 	let appStoreData = null;
 	let blueprintUpdateEntries = null;
 	let blueprintUpdateLookupPromise = null;
+	// Remote version check results keyed by plugin directory slug, filled by
+	// ensureBlueprintUpdateEntries() through assets/updates.js.
+	let gitPluginVersionChecks = {};
+	let myAppsSelfUpdateEntry = null;
 	let sortable = null;
 	let bgMediaFrame = null;
 	let contextTarget = null;
@@ -75,6 +79,7 @@
 	const __ = wpI18n && wpI18n.__ ? wpI18n.__ : function(text) { return text; };
 	const _n = wpI18n && wpI18n._n ? wpI18n._n : function(single, plural) { return plural; };
 	let rootRedirectEnabled = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.redirectRoot);
+	let autoUpdateEnabled = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.autoUpdate);
 	let wpAdminLinksHidden = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.hideWpAdminLinks);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
@@ -564,6 +569,8 @@
 		appStoreData = null;
 		blueprintUpdateEntries = null;
 		blueprintUpdateLookupPromise = null;
+		gitPluginVersionChecks = {};
+		myAppsSelfUpdateEntry = null;
 		recipes = {};
 		hasRecipes = false;
 		recipesLoadState = 'idle';
@@ -1326,10 +1333,57 @@
 
 	function refreshLauncherUpdateButtons() {
 		if (!container || !isPlayground) return;
-		ensureBlueprintUpdateEntries();
+		ensureBlueprintUpdateEntries().then(syncTileUpdateButtons);
 	}
 
-	function collectLauncherUpdates() {
+	function ensureTileUpdateButton(appEl) {
+		var btn = appEl.querySelector('.app-update-btn');
+		if (btn) return btn;
+
+		btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'app-update-btn';
+		btn.title = __( 'Update available', 'my-apps' );
+		btn.setAttribute('aria-label', __( 'Update available', 'my-apps' ));
+		btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+		appEl.insertBefore(btn, appEl.querySelector('.app-link'));
+		return btn;
+	}
+
+	function appIconHasVerifiedUpdate(appIcon) {
+		if (getUpdateableApp(appIcon.dataset.slug)) return true;
+		return isEntryConfirmedUpdate(getLauncherBlueprintUpdateEntry(appIcon));
+	}
+
+	// Badge every launcher tile whose plugin was seen to be behind GitHub or
+	// wordpress.org. Cheap and synchronous: it only reads cached checks.
+	function syncTileUpdateButtons() {
+		if (!container || !isPlayground) return;
+		Array.prototype.forEach.call(container.querySelectorAll('.app-icon:not(.add-app-btn)'), function(appIcon) {
+			var btn = appIcon.querySelector('.app-update-btn');
+			if (!appIconHasVerifiedUpdate(appIcon)) {
+				if (btn) btn.hidden = true;
+				return;
+			}
+			ensureTileUpdateButton(appIcon).hidden = false;
+		});
+	}
+
+	function handleTileUpdateClick(e) {
+		var btn = e.target.closest('.app-update-btn');
+		if (!btn) return;
+
+		e.preventDefault();
+		e.stopPropagation();
+
+		var appEl = btn.closest('.app-icon');
+		if (appEl) {
+			updateContextApp(appEl);
+		}
+	}
+
+	function collectLauncherUpdates(options) {
+		options = options || {};
 		var updates = {
 			plugins: [],
 			blueprints: []
@@ -1392,6 +1446,19 @@
 			addBlueprintUpdate(entry, null, entry && entry.path);
 		});
 
+		// Only apps whose remote version was actually seen to differ; apps
+		// that cannot be checked are left to a manual update.
+		if (options.verifiedOnly) {
+			updates.blueprints = updates.blueprints.filter(function(update) {
+				return isEntryConfirmedUpdate(update.entry);
+			});
+		}
+
+		// My Apps goes last: Playground reloads the launcher once it is replaced.
+		if (isEntryConfirmedUpdate(myAppsSelfUpdateEntry)) {
+			addBlueprintUpdate(myAppsSelfUpdateEntry, null, myAppsSelfUpdateEntry.path);
+		}
+
 		return updates;
 	}
 
@@ -1410,7 +1477,7 @@
 			entry = getGitDirectoryPluginUpdateEntry(appIcon);
 		}
 
-		return entry;
+		return isEntryConfirmedCurrent(entry) ? null : entry;
 	}
 
 	function findLauncherBlueprintUpdateEntry(appIcon) {
@@ -1472,7 +1539,7 @@
 
 		Object.keys(installed).forEach(function(slug) {
 			var entry = getCachedBlueprintPluginUpdateEntry(slug);
-			if (!entry || !blueprintHasGitDirectoryStep(entry.blueprint)) return;
+			if (!entry || !blueprintHasGitDirectoryStep(entry.blueprint) || isEntryConfirmedCurrent(entry)) return;
 			entries.push(entry);
 		});
 
@@ -1488,6 +1555,7 @@
 
 			pluginSlug = getSingleBlueprintPluginSlug(blueprint) || normalizePluginSlug(app._slug || path.replace(/^plugin\//, ''));
 			if (!pluginSlug || !installed[pluginSlug]) return;
+			if (isEntryConfirmedCurrent({ blueprint: blueprint })) return;
 
 			entries.push({
 				path: path,
@@ -1643,17 +1711,28 @@
 		});
 	}
 
-	function getInstalledPluginStatus(app) {
+	function getInstalledPluginStatus(app, blueprint) {
 		var installed = myAppsConfig.installedPlugins || {};
+		var pluginSlug;
 		if (!app) return null;
 		if (app._source === 'wp.org' && app._slug) {
 			return installed[app._slug] || null;
+		}
+		if (app._type === 'plugin' && app._source === 'github') {
+			pluginSlug = getSingleBlueprintPluginSlug(buildPluginBlueprint(app));
+			return pluginSlug && installed[pluginSlug] ? installed[pluginSlug] : null;
 		}
 		if (app._path) {
 			var appMatch = String(app._path).match(/^apps\/([^\/]+)\.json$/);
 			if (appMatch && installed[appMatch[1]]) {
 				return installed[appMatch[1]];
 			}
+		}
+		// A blueprint that installs exactly one plugin is installed when that
+		// plugin is, whichever source it came from.
+		pluginSlug = blueprint ? getSingleBlueprintPluginSlug(blueprint) : '';
+		if (pluginSlug && installed[pluginSlug]) {
+			return installed[pluginSlug];
 		}
 		var replacedSlugs = getAppReplacedSlugs(app).filter(function(slug) {
 			return !!installed[slug];
@@ -1674,7 +1753,7 @@
 	}
 
 	function isStoreEntryInstalled(app, blueprint) {
-		if (getInstalledPluginStatus(app)) return true;
+		if (getInstalledPluginStatus(app, blueprint)) return true;
 		return isLauncherUrlInstalled(getEntryLauncherUrl(app, blueprint));
 	}
 
@@ -1882,9 +1961,221 @@
 		blueprintUpdateLookupPromise = dataPromise.then(buildBlueprintUpdateEntries, function() {
 			blueprintUpdateLookupPromise = null;
 			return {};
+		}).then(function(entries) {
+			return runGitPluginVersionChecks().then(function() {
+				syncTileUpdateButtons();
+				return entries;
+			}, function() {
+				return entries;
+			});
 		});
 
 		return blueprintUpdateLookupPromise;
+	}
+
+	function mergeGitPluginVersionChecks(results) {
+		var installed = myAppsConfig.installedPlugins || {};
+		Object.keys(results || {}).forEach(function(slug) {
+			var result = results[slug];
+			if (!result) return;
+			gitPluginVersionChecks[slug] = result;
+			if (installed[slug] && result.status !== 'unknown') {
+				installed[slug].updateAvailable = result.status === 'update';
+				installed[slug].newVersion = result.status === 'update' ? result.remoteVersion : '';
+			}
+		});
+	}
+
+	// Ask GitHub for the Version header of every installed plugin this
+	// blueprint would overwrite from a git:directory step. Resolves once the
+	// results are merged into gitPluginVersionChecks; never rejects.
+	function checkBlueprintPluginVersions(blueprint) {
+		if (!isPlayground || !window.MyAppsUpdates || !blueprint) {
+			return Promise.resolve({});
+		}
+		return window.MyAppsUpdates.checkBlueprint(blueprint, myAppsConfig.installedPlugins || {}, getBlueprintInstallPluginSlug)
+			.then(function(results) {
+				mergeGitPluginVersionChecks(results);
+				return results;
+			});
+	}
+
+	function getGitPluginVersionCheck(slug) {
+		slug = normalizePluginSlug(slug);
+		return slug && gitPluginVersionChecks[slug] ? gitPluginVersionChecks[slug] : null;
+	}
+
+	// Slugs of the installed plugins a blueprint's git:directory steps replace.
+	function blueprintGitPluginSlugs(blueprint) {
+		var installed = myAppsConfig.installedPlugins || {};
+		var slugs = [];
+		var steps = blueprint && Array.isArray(blueprint.steps) ? blueprint.steps : [];
+
+		steps.forEach(function(step) {
+			var data = step && step.step === 'installPlugin' ? step.pluginData : null;
+			var slug = data && data.resource === 'git:directory' ? getBlueprintInstallPluginSlug(step) : '';
+			if (slug && installed[slug] && slugs.indexOf(slug) === -1) {
+				slugs.push(slug);
+			}
+		});
+
+		return slugs;
+	}
+
+	// 'update' when GitHub has a newer version of any installed plugin the
+	// blueprint ships, 'current' when every one of them was confirmed up to
+	// date, otherwise 'unknown' (not installed, not checked yet, or the
+	// check failed).
+	function blueprintGitUpdateStatus(blueprint) {
+		var statuses = blueprintGitPluginSlugs(blueprint).map(function(slug) {
+			var check = getGitPluginVersionCheck(slug);
+			return check ? check.status : 'unknown';
+		});
+
+		if (!statuses.length) return 'unknown';
+		if (statuses.indexOf('update') !== -1) return 'update';
+		return statuses.every(function(status) {
+			return status === 'current';
+		}) ? 'current' : 'unknown';
+	}
+
+	function isEntryConfirmedCurrent(entry) {
+		return !!(entry && entry.blueprint && blueprintGitUpdateStatus(entry.blueprint) === 'current');
+	}
+
+	function isEntryConfirmedUpdate(entry) {
+		return !!(entry && entry.blueprint && blueprintGitUpdateStatus(entry.blueprint) === 'update');
+	}
+
+	// After a blueprint ran, its git plugins carry the version GitHub served.
+	function markGitPluginsUpdated(blueprint) {
+		var installed = myAppsConfig.installedPlugins || {};
+
+		blueprintGitPluginSlugs(blueprint).forEach(function(slug) {
+			var check = getGitPluginVersionCheck(slug);
+			if (!check || check.status !== 'update') return;
+			gitPluginVersionChecks[slug] = {
+				status: 'current',
+				installedVersion: check.remoteVersion,
+				remoteVersion: check.remoteVersion,
+				url: check.url
+			};
+			installed[slug].version = check.remoteVersion;
+			installed[slug].updateAvailable = false;
+			installed[slug].newVersion = '';
+		});
+
+		if (window.MyAppsUpdates) {
+			window.MyAppsUpdates.clearCache();
+		}
+	}
+
+	function runGitPluginVersionChecks() {
+		var blueprints = [];
+		var seen = {};
+
+		function add(blueprint) {
+			if (blueprint && blueprintHasGitDirectoryStep(blueprint)) {
+				blueprints.push(blueprint);
+			}
+		}
+
+		Object.keys(blueprintUpdateEntries || {}).forEach(function(key) {
+			var entry = blueprintUpdateEntries[key];
+			if (!entry || !entry.blueprint || seen[entry.path]) return;
+			seen[entry.path] = true;
+			add(entry.blueprint);
+		});
+
+		Object.keys(appStoreData || {}).forEach(function(path) {
+			var app = appStoreData[path];
+			if (app && app._type === 'plugin' && app._source === 'github') {
+				add(buildPluginBlueprint(app));
+			}
+		});
+
+		return getMyAppsSelfUpdateEntry().then(function(entry) {
+			if (entry) {
+				add(entry.blueprint);
+			}
+			return Promise.all(blueprints.map(checkBlueprintPluginVersions));
+		});
+	}
+
+	// The blueprint that reinstalls My Apps itself: a custom App Store entry
+	// pointing at the My Apps repository if the user added one, otherwise the
+	// plugin's own blueprint.json.
+	function getMyAppsUpdateBlueprintUrl() {
+		var customBlueprints = getCustomBlueprints();
+		var customPath = customBlueprints[MY_APPS_CUSTOM_BLUEPRINT_PATH] ? MY_APPS_CUSTOM_BLUEPRINT_PATH : '';
+		Object.keys(customBlueprints).some(function(path) {
+			if (customPath) return true;
+			var entry = normalizeCustomBlueprintEntry(customBlueprints[path]);
+			if (entry && blueprintInstallsGithubRepo(entry.blueprint, MY_APPS_REPO, customBlueprintActiveGithubSource(path))) {
+				customPath = path;
+				return true;
+			}
+			return false;
+		});
+
+		return customPath ? getBlueprintUrl(customPath) : getMyAppsBlueprintUrl();
+	}
+
+	function getMyAppsSelfUpdateEntry() {
+		var blueprintUrl = isPlayground ? getMyAppsUpdateBlueprintUrl() : '';
+		if (!blueprintUrl) return Promise.resolve(null);
+		if (myAppsSelfUpdateEntry) return Promise.resolve(myAppsSelfUpdateEntry);
+
+		return resolveBlueprintFromUrl(blueprintUrl)
+			.then(function(blueprint) {
+				retrofitGitTargetFolderName(blueprint);
+				myAppsSelfUpdateEntry = {
+					path: MY_APPS_CUSTOM_BLUEPRINT_PATH,
+					app: { title: 'My Apps', _landingPage: '/my-apps/' },
+					blueprint: blueprint,
+					blueprintUrl: blueprintUrl,
+					launcherUrl: '',
+					pluginSlug: getSingleBlueprintPluginSlug(blueprint)
+				};
+				return myAppsSelfUpdateEntry;
+			})
+			.catch(function() {
+				return null;
+			});
+	}
+
+	function renderInstalledVersionHint(metaRow, blueprint) {
+		var slug = getSingleBlueprintPluginSlug(blueprint);
+		var installed = slug && myAppsConfig.installedPlugins ? myAppsConfig.installedPlugins[slug] : null;
+		var hint = metaRow ? metaRow.querySelector('.app-detail-version') : null;
+
+		if (!metaRow || !installed || !installed.version) {
+			if (hint) hint.remove();
+			return;
+		}
+		if (!hint) {
+			hint = document.createElement('span');
+			hint.className = 'app-detail-version';
+			metaRow.appendChild(hint);
+		}
+
+		function render() {
+			var check = getGitPluginVersionCheck(slug);
+			/* translators: %s: Installed plugin version. */
+			var text = sprintf(__( 'Installed: %s', 'my-apps' ), installed.version);
+			if (check && check.status === 'update') {
+				/* translators: %s: Plugin version available on GitHub. */
+				text += ' \u00b7 ' + sprintf(__( '%s available', 'my-apps' ), check.remoteVersion);
+			} else if (check && check.status === 'current') {
+				text += ' \u00b7 ' + __( 'Up to date', 'my-apps' );
+			}
+			hint.textContent = text;
+		}
+
+		render();
+		if (blueprintHasGitDirectoryStep(blueprint)) {
+			checkBlueprintPluginVersions(blueprint).then(render);
+		}
 	}
 
 	function getCachedBlueprintUpdateEntry(url) {
@@ -2346,12 +2637,13 @@
 			var targetFolderName = options && options.targetFolderName ? String(options.targetFolderName) : '';
 			return pluginData &&
 				pluginData.resource === 'git:directory' &&
-				/^https:\/\/github\.com\/akirk\/my-apps(?:\.git)?\/?$/i.test(url) &&
+				githubReposMatch(githubRepoFromUrl(url), MY_APPS_REPO) &&
 				targetFolderName === 'my-apps';
 		});
 	}
 
 	function handlePlaygroundInstallSuccess(install, result) {
+		markGitPluginsUpdated(install.blueprint);
 		if (typeof install.onComplete === 'function') {
 			install.onComplete({ status: 'success', result: result });
 		}
@@ -2618,6 +2910,7 @@
 			appStoreUpdateAllBtn.addEventListener('click', updateAllApps);
 		}
 		updateBlueprintsSourceBadge();
+		scheduleAutoUpdate();
 		if (new URL(window.location).searchParams.has('app-store')) {
 			checkDeepLink();
 			return;
@@ -2718,6 +3011,10 @@
 		updateSwitchControl(document.getElementById('setting-root-redirect-toggle'), rootRedirectEnabled);
 	}
 
+	function updateAutoUpdateToggleLabel() {
+		updateSwitchControl(document.getElementById('setting-auto-update-toggle'), autoUpdateEnabled);
+	}
+
 	function updateWpAdminLinksToggleLabel() {
 		updateSwitchControl(document.getElementById('setting-wp-admin-links-toggle'), !wpAdminLinksHidden);
 	}
@@ -2743,6 +3040,7 @@
 	function updateSettingsControls() {
 		updateGreetingToggleLabel();
 		updateRootRedirectToggleLabel();
+		updateAutoUpdateToggleLabel();
 		updateWpAdminLinksToggleLabel();
 	}
 
@@ -3024,6 +3322,43 @@
 			rootRedirectEnabled = previous;
 			updateRootRedirectToggleLabel();
 			showToast('Could not save root redirect setting');
+		});
+	}
+
+	function toggleAutoUpdate() {
+		var previous = autoUpdateEnabled;
+		var next = !autoUpdateEnabled;
+		autoUpdateEnabled = next;
+		updateAutoUpdateToggleLabel();
+
+		var formData = new FormData();
+		formData.append('action', 'my_apps_save_auto_update');
+		formData.append('nonce', myAppsConfig.nonce);
+		formData.append('enabled', next ? '1' : '0');
+
+		fetch(myAppsConfig.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: formData,
+		})
+		.then(function(r) { return r.json(); })
+		.then(function(resp) {
+			if (!resp.success) {
+				throw new Error('Save failed');
+			}
+
+			autoUpdateEnabled = !!(resp.data && resp.data.auto_update);
+			myAppsConfig.autoUpdate = autoUpdateEnabled;
+			updateAutoUpdateToggleLabel();
+			showToast(autoUpdateEnabled ? __( 'Automatic updates enabled', 'my-apps' ) : __( 'Automatic updates disabled', 'my-apps' ));
+			if (autoUpdateEnabled) {
+				autoUpdateApps();
+			}
+		})
+		.catch(function() {
+			autoUpdateEnabled = previous;
+			updateAutoUpdateToggleLabel();
+			showToast(__( 'Could not save the automatic updates setting', 'my-apps' ), { type: 'error' });
 		});
 	}
 
@@ -4058,6 +4393,7 @@
 
 		container.addEventListener('click', handleHideClick);
 		container.addEventListener('click', handlePinClick);
+		container.addEventListener('click', handleTileUpdateClick);
 		container.addEventListener('click', handleAppClick);
 
 		document.querySelector('.add-app-btn').addEventListener('click', function(e) {
@@ -4129,6 +4465,8 @@
 					toggleGreeting();
 				} else if (item.dataset.action === 'toggle-root-redirect') {
 					toggleRootRedirect();
+				} else if (item.dataset.action === 'toggle-auto-update') {
+					toggleAutoUpdate();
 				} else if (item.dataset.action === 'toggle-wp-admin-links') {
 					toggleWpAdminLinks();
 				} else if (item.dataset.action === 'export') {
@@ -4574,13 +4912,82 @@
 
 		ensureBlueprintUpdateEntries()
 			.then(function() {
-				var updates = collectLauncherUpdates();
+				return runLauncherUpdates(collectLauncherUpdates());
+			})
+			.catch(function(error) {
+				showToast(error && error.message ? error.message : t('updateFailed', __( 'Update failed', 'my-apps' )), { type: 'error' });
+				resetUpdateAllButtonSoon(t('updateFailed', __( 'Update failed', 'my-apps' )));
+			});
+	}
+
+	function hasAutoInstallRequest() {
+		var params = new URL(window.location.href).searchParams;
+		return Object.keys(AUTO_INSTALL_CONTROL_PARAMS).some(function(param) {
+			return params.has(param);
+		});
+	}
+
+	// Install whatever the remote version checks confirmed as newer. Runs
+	// once per set of target versions per tab so a failing update is not
+	// retried on every reload; see MyAppsUpdates.claimAutoUpdate().
+	function autoUpdateApps() {
+		if (!isPlayground || !autoUpdateEnabled || !window.MyAppsUpdates || hasAutoInstallRequest()) {
+			return Promise.resolve(null);
+		}
+
+		return ensureBlueprintUpdateEntries()
+			.then(function() {
+				var updates = collectLauncherUpdates({ verifiedOnly: true });
+				var targets = {};
+				var total;
+
+				updates.plugins.forEach(function(update) {
+					targets['wp.org:' + update.slug] = update.plugin && update.plugin.newVersion ? update.plugin.newVersion : '';
+				});
+				updates.blueprints.forEach(function(update) {
+					blueprintGitPluginSlugs(update.entry.blueprint).forEach(function(slug) {
+						var check = getGitPluginVersionCheck(slug);
+						targets[slug] = check ? check.remoteVersion : '';
+					});
+				});
+
+				total = updates.plugins.length + updates.blueprints.length;
+				if (!total || !window.MyAppsUpdates.claimAutoUpdate(targets)) {
+					return null;
+				}
+
+				/* translators: %d: Number of apps. */
+				showToast(sprintf(_n( 'Updating %d app...', 'Updating %d apps...', total, 'my-apps' ), total));
+				return runLauncherUpdates(updates, { announce: true });
+			})
+			.catch(function() {
+				return null;
+			});
+	}
+
+	function scheduleAutoUpdate() {
+		if (!isPlayground || !autoUpdateEnabled) return;
+		window.setTimeout(autoUpdateApps, 1500);
+	}
+
+	function finishLauncherUpdates(label, options) {
+		resetUpdateAllButtonSoon(label);
+		if (options && options.announce) {
+			showToast(label);
+		}
+	}
+
+	function runLauncherUpdates(updates, options) {
+		options = options || {};
+
+		return Promise.resolve()
+			.then(function() {
 				var total = updates.plugins.length + updates.blueprints.length;
 				var pluginResults = [];
 
 				if (!total) {
 					refreshLauncherUpdateButtons();
-					resetUpdateAllButtonSoon(t('allAppsUpToDate', __( 'All apps up to date', 'my-apps' )));
+					finishLauncherUpdates(t('allAppsUpToDate', __( 'All apps up to date', 'my-apps' )), options);
 					return null;
 				}
 
@@ -4615,7 +5022,7 @@
 								);
 								resetUpdateAllButtonSoon(t('updateFailed', __( 'Update failed', 'my-apps' )));
 							} else {
-								resetUpdateAllButtonSoon(t('updateComplete', __( 'Update complete', 'my-apps' )));
+								finishLauncherUpdates(t('updateComplete', __( 'Update complete', 'my-apps' )), options);
 							}
 							return null;
 						}
@@ -4631,7 +5038,7 @@
 							var blueprint = buildUpdateAllBlueprint(resolvedEntries);
 							if (!blueprint) {
 								refreshLauncherUpdateButtons();
-								resetUpdateAllButtonSoon(updates.plugins.length ? t('pluginUpdatesComplete', __( 'Plugin updates complete', 'my-apps' )) : t('noBlueprintUpdatesFound', __( 'No blueprint updates found', 'my-apps' )));
+								finishLauncherUpdates(updates.plugins.length ? t('pluginUpdatesComplete', __( 'Plugin updates complete', 'my-apps' )) : t('noBlueprintUpdatesFound', __( 'No blueprint updates found', 'my-apps' )), options);
 								return null;
 							}
 
@@ -4652,7 +5059,7 @@
 											);
 											resetUpdateAllButtonSoon(t('updateFailed', __( 'Update failed', 'my-apps' )));
 										} else {
-											resetUpdateAllButtonSoon(t('updateComplete', __( 'Update complete', 'my-apps' )));
+											finishLauncherUpdates(t('updateComplete', __( 'Update complete', 'my-apps' )), options);
 										}
 										return;
 									}
@@ -5532,6 +5939,7 @@
 		return fetchCustomizationPayload()
 			.then(function(payload) {
 				applyCustomizationPayload(payload);
+				syncTileUpdateButtons();
 				return payload;
 			})
 			.catch(function() {
@@ -7862,35 +8270,12 @@
 	}
 
 	function updateMyApps() {
-		var customBlueprints = getCustomBlueprints();
-		var customPath = customBlueprints[MY_APPS_CUSTOM_BLUEPRINT_PATH] ? MY_APPS_CUSTOM_BLUEPRINT_PATH : '';
-		Object.keys(customBlueprints).some(function(path) {
-			if (customPath) return true;
-			var entry = normalizeCustomBlueprintEntry(customBlueprints[path]);
-			if (entry && blueprintInstallsGithubRepo(entry.blueprint, MY_APPS_REPO, customBlueprintActiveGithubSource(path))) {
-				customPath = path;
-				return true;
-			}
-			return false;
-		});
-
-		if (customPath) {
-			installBlueprintInPlayground(
-				{ title: 'My Apps', _landingPage: '/my-apps/' },
-				getBlueprintUrl(customPath),
-				null
-			);
+		var blueprintUrl = getMyAppsUpdateBlueprintUrl();
+		if (!blueprintUrl) {
+			showToast(t('updateFailed', __( 'Update failed', 'my-apps' )), { type: 'error' });
 			return;
 		}
-
-		var blueprint = {
-			steps: [ {
-				step: 'installPlugin',
-				pluginData: { resource: 'git:directory', url: 'https://github.com/akirk/my-apps', ref: 'main', refType: 'branch' },
-				options: { targetFolderName: 'my-apps' }
-			} ]
-		};
-		installResolvedBlueprintInPlayground({ title: 'My Apps', _landingPage: '/my-apps/' }, blueprint, '', null);
+		installBlueprintInPlayground({ title: 'My Apps', _landingPage: '/my-apps/' }, blueprintUrl, null);
 	}
 
 	function installPluginApp(app, btn, infoEl) {
@@ -10078,13 +10463,19 @@
 			installPluginApp(plugin, installBtn, pluginInstallInfoEl);
 		});
 
-		var uninstallBtn = plugin._source === 'wp.org'
-			? createAppStoreUninstallButton(plugin._slug, {
+		var pluginBlueprint = buildPluginBlueprint(plugin);
+		var uninstallSlug = plugin._source === 'wp.org'
+			? plugin._slug
+			: (plugin._source === 'github' ? getSingleBlueprintPluginSlug(pluginBlueprint) : '');
+		var uninstallBtn = uninstallSlug
+			? createAppStoreUninstallButton(uninstallSlug, {
 				onSuccess: function() {
 					prepareInstallButton(installBtn, plugin);
+					renderInstalledVersionHint(metaRow, pluginBlueprint);
 				}
 			})
 			: null;
+		renderInstalledVersionHint(metaRow, pluginBlueprint);
 
 		var shareBtn = document.createElement('button');
 		shareBtn.type = 'button';
@@ -10388,16 +10779,18 @@
 				recipeLoading.remove();
 				if (blueprint && blueprint.launcher_url) {
 					app._launcherUrl = blueprint.launcher_url;
-					if (!installBtn.disabled) {
-						prepareInstallButton(installBtn, app, blueprint);
-					}
 				}
+				if (!installBtn.disabled) {
+					prepareInstallButton(installBtn, app, blueprint);
+				}
+				renderInstalledVersionHint(metaRow, blueprint);
 
 				var singlePluginSlug = getSingleBlueprintPluginSlug(blueprint);
 				if (!appUninstallBtn && singlePluginSlug) {
 					appUninstallBtn = createAppStoreUninstallButton(singlePluginSlug, {
 						onSuccess: function() {
 							prepareInstallButton(installBtn, app, blueprint);
+							renderInstalledVersionHint(metaRow, blueprint);
 						}
 					});
 					if (appUninstallBtn) {

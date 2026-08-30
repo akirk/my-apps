@@ -866,6 +866,43 @@ body.my-apps-launcher .pin-btn:focus-visible {
 /* Without a chip behind it the glyph sits straight on the wallpaper, so it
    carries the same drop shadow the hide control uses to stay legible. Pinned
    reads as the solid one, unpinned as the faint one. */
+/* Update badge on a tile whose plugin was seen to be behind GitHub or
+   wordpress.org. Built by launcher.js only when there is something to show. */
+.app-update-btn {
+	position: absolute;
+	top: -6px;
+	left: -6px;
+	box-sizing: border-box;
+	width: 22px;
+	height: 22px;
+	padding: 3px;
+	border: none;
+	border-radius: 50%;
+	background: #2563eb;
+	color: #fff;
+	cursor: pointer;
+	z-index: 10;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+body.my-apps-launcher .app-update-btn:hover,
+body.my-apps-launcher .app-update-btn:focus {
+	background: #1d4ed8;
+	color: #fff;
+}
+
+.app-update-btn svg {
+	width: 100%;
+	height: 100%;
+	display: block;
+	fill: currentColor;
+}
+
+body.edit-mode .app-update-btn,
+.app-update-btn[hidden] {
+	display: none;
+}
+
 .pin-btn svg {
 	width: 100%;
 	height: 100%;
@@ -1754,6 +1791,11 @@ body.my-apps-launcher .app-detail-back:active {
 }
 
 .app-detail-categories {
+	font-size: 12px;
+	color: var(--ma-fg-muted);
+}
+
+.app-detail-version {
 	font-size: 12px;
 	color: var(--ma-fg-muted);
 }

@@ -23,6 +23,7 @@ $deletable_apps = My_Apps::deletable_custom_app_slugs();
 $can_manage = current_user_can( 'manage_options' );
 $is_playground = My_Apps::is_playground();
 $redirect_root_enabled = My_Apps::is_root_redirect_enabled();
+$auto_update_enabled   = My_Apps::is_auto_update_enabled();
 $hide_wp_admin_links = My_Apps::are_wp_admin_links_hidden();
 ?>
 <!DOCTYPE html>
@@ -159,11 +160,6 @@ $is_app_store = isset( $_GET['app-store'] );
 			<div class="app-icon" data-slug="<?php echo esc_attr( (string) $slug ); ?>" data-url="<?php echo esc_url( $_plugin['url'] ); ?>"<?php echo $is_pinned ? ' data-pinned="1"' : ''; ?>>
 				<button type="button" class="hide-btn" title="<?php esc_attr_e( 'Hide', 'my-apps' ); ?>"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#000" stroke="#fff" stroke-width="2"/><path d="M8 8l8 8M16 8l-8 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
 				<button type="button" class="pin-btn" title="<?php echo esc_attr( $is_pinned ? __( 'Unpin from home', 'my-apps' ) : __( 'Pin to home', 'my-apps' ) ); ?>" aria-pressed="<?php echo esc_attr( $is_pinned ? 'true' : 'false' ); ?>"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3v2l-1 1v4l3 3v2h-5v5l-1 1-1-1v-5H6v-2l3-3V6L8 5V3z"/></svg></button>
-				<?php if ( $is_playground ) : ?>
-				<button type="button" class="app-update-btn" title="<?php esc_attr_e( 'Update', 'my-apps' ); ?>" aria-label="<?php esc_attr_e( 'Update', 'my-apps' ); ?>" hidden>
-					<span class="dashicons dashicons-update"></span>
-				</button>
-				<?php endif; ?>
 				<a href="<?php echo esc_url( $_plugin['url'] ); ?>" class="app-link">
 					<?php
 					echo $icon_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built above from esc_attr/esc_html pieces plus pre-escaped helper output.
@@ -223,6 +219,16 @@ $is_app_store = isset( $_GET['app-store'] );
 					<button type="button" class="settings-switch<?php if ( $redirect_root_enabled ) : ?> active<?php endif; ?>" id="setting-root-redirect-toggle" data-action="toggle-root-redirect" role="switch" aria-checked="<?php echo esc_attr( $redirect_root_enabled ? 'true' : 'false' ); ?>">
 						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>
 						<span class="settings-switch-label"><?php echo esc_html( $redirect_root_enabled ? __( 'On', 'my-apps' ) : __( 'Off', 'my-apps' ) ); ?></span>
+					</button>
+				</div>
+				<div class="settings-setting">
+					<div class="settings-setting-copy">
+						<h3><?php esc_html_e( 'Automatic updates', 'my-apps' ); ?></h3>
+						<p><?php esc_html_e( 'Check for newer versions of My Apps and your installed apps when the launcher opens, and install them right away.', 'my-apps' ); ?></p>
+					</div>
+					<button type="button" class="settings-switch<?php if ( $auto_update_enabled ) : ?> active<?php endif; ?>" id="setting-auto-update-toggle" data-action="toggle-auto-update" role="switch" aria-checked="<?php echo esc_attr( $auto_update_enabled ? 'true' : 'false' ); ?>">
+						<span class="settings-switch-track"><span class="settings-switch-thumb"></span></span>
+						<span class="settings-switch-label"><?php echo esc_html( $auto_update_enabled ? __( 'On', 'my-apps' ) : __( 'Off', 'my-apps' ) ); ?></span>
 					</button>
 				</div>
 				<?php endif; ?>

@@ -16,6 +16,7 @@ class My_Apps {
 	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const ROOT_REDIRECT_USER_OPTION = 'my_apps_redirect_root';
+	const AUTO_UPDATE_USER_OPTION = 'my_apps_auto_update';
 	const HIDE_WP_ADMIN_LINKS_OPTION = 'my_apps_hide_wp_admin_links';
 	const SORT_OPTION = 'my_apps_sort';
 	const HIDDEN_APPS_OPTION = 'my_apps_hide_plugins';
@@ -709,6 +710,7 @@ class My_Apps {
 		add_action( 'wp_ajax_my_apps_export', array( $this, 'ajax_export' ) );
 		add_action( 'wp_ajax_my_apps_import', array( $this, 'ajax_import' ) );
 		add_action( 'wp_ajax_my_apps_save_root_redirect', array( $this, 'ajax_save_root_redirect' ) );
+		add_action( 'wp_ajax_my_apps_save_auto_update', array( $this, 'ajax_save_auto_update' ) );
 		add_action( 'wp_ajax_my_apps_save_wp_admin_links', array( $this, 'ajax_save_wp_admin_links' ) );
 		add_action( 'wp_ajax_my_apps_install_plugin', array( $this, 'ajax_install_plugin' ) );
 		add_action( 'wp_ajax_my_apps_uninstall_plugin', array( $this, 'ajax_uninstall_plugin' ) );
@@ -2646,6 +2648,21 @@ class My_Apps {
 	}
 
 	/**
+	 * Determine whether the launcher updates apps automatically.
+	 *
+	 * Only Playground can run blueprints, so this is always off elsewhere.
+	 *
+	 * @return bool
+	 */
+	public static function is_auto_update_enabled() {
+		if ( ! self::is_playground() ) {
+			return false;
+		}
+
+		return '1' === self::get_launcher_user_option( self::AUTO_UPDATE_USER_OPTION, '1' );
+	}
+
+	/**
 	 * Determine whether legacy WordPress complexity should be hidden.
 	 *
 	 * @return bool
@@ -2892,9 +2909,17 @@ class My_Apps {
 		);
 
 		wp_enqueue_script(
+			'my-apps-updates',
+			plugins_url( 'assets/updates.js', __FILE__ ),
+			array(),
+			MY_APPS_VERSION,
+			true
+		);
+
+		wp_enqueue_script(
 			'my-apps-launcher',
 			plugin_dir_url( __FILE__ ) . 'launcher.js',
-			array( 'sortablejs', 'wp-i18n' ),
+			array( 'sortablejs', 'wp-i18n', 'my-apps-updates' ),
 			MY_APPS_VERSION,
 			true
 		);
@@ -2937,6 +2962,7 @@ class My_Apps {
 				'uninstallableApps'         => self::get_launcher_uninstallable_plugin_apps(),
 				'background'                => $background_state['slug'],
 				'redirectRoot'              => self::is_root_redirect_enabled(),
+				'autoUpdate'                => self::is_auto_update_enabled(),
 				'hideWpAdminLinks'          => self::are_wp_admin_links_hidden(),
 				'hasCustomizedWallpaper'    => $has_customized_wallpaper,
 				'customBackground'          => isset( $background_state['custom'] ) ? $background_state['custom'] : '',
@@ -3648,6 +3674,32 @@ class My_Apps {
 		wp_send_json_success(
 			array(
 				'redirect_root' => $enabled,
+			)
+		);
+	}
+
+	/**
+	 * AJAX: Save the automatic updates setting.
+	 */
+	public function ajax_save_auto_update() {
+		check_ajax_referer( 'my_apps_launcher', 'nonce' );
+
+		if ( ! self::is_playground() || ! is_user_logged_in() ) {
+			wp_send_json_error( 'Not allowed' );
+		}
+
+		$enabled_raw = isset( $_POST['enabled'] ) ? sanitize_text_field( wp_unslash( $_POST['enabled'] ) ) : '0';
+		$enabled     = wp_validate_boolean( $enabled_raw );
+
+		update_user_option(
+			get_current_user_id(),
+			self::AUTO_UPDATE_USER_OPTION,
+			$enabled ? '1' : '0'
+		);
+
+		wp_send_json_success(
+			array(
+				'auto_update' => $enabled,
 			)
 		);
 	}

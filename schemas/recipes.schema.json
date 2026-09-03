@@ -114,6 +114,17 @@
 				},
 				"url_label": {
 					"type": "string"
+				},
+				"action": {
+					"type": "string",
+					"description": "An action the host app can run for this step. Only understood inside WordPress Playground; steps using one should stay readable without it.",
+					"enum": [
+						"backup-site"
+					]
+				},
+				"action_label": {
+					"type": "string",
+					"description": "Label for the action button."
 				}
 			},
 			"allOf": [

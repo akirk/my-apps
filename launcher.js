@@ -82,6 +82,11 @@
 	let autoUpdateEnabled = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.autoUpdate);
 	let wpAdminLinksHidden = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.hideWpAdminLinks);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
+	// Personal Playground acknowledges a backup request before it starts
+	// zipping. No acknowledgement in this window means it doesn't support
+	// the message, so we point at Site Tools instead of waiting it out.
+	const PLAYGROUND_BACKUP_ACK_TIMEOUT = 8000;
+	const PLAYGROUND_BACKUP_RESULT_TIMEOUT = 600000;
 	const WALLPAPER_HINT_DISMISSED_KEY = 'wallpaperHintDismissed';
 	const WALLPAPER_HINT_ELIGIBLE_KEY = 'wallpaperHintEligible';
 	const WALLPAPER_SHUFFLE_BAG_KEY = 'wallpaperShuffleBag';
@@ -2608,10 +2613,14 @@
 		}, getPostMessageTargetOrigin(target));
 	}
 
-	function startPlaygroundBlueprintInstall(blueprintUrl, install) {
-		var requestId = window.crypto && typeof window.crypto.randomUUID === 'function'
+	function newRelayRequestId() {
+		return window.crypto && typeof window.crypto.randomUUID === 'function'
 			? window.crypto.randomUUID()
 			: 'my-apps-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+	}
+
+	function startPlaygroundBlueprintInstall(blueprintUrl, install) {
+		var requestId = newRelayRequestId();
 		var settled = false;
 		var resultTimeout = null;
 
@@ -2687,6 +2696,89 @@
 			return null;
 		}
 		return requestId;
+	}
+
+	function postPlaygroundBackupRequest(requestId) {
+		var target = getPlaygroundTarget();
+		target.postMessage({
+			type: 'relay',
+			relayType: 'backup-site',
+			requestId: requestId
+		}, getPostMessageTargetOrigin(target));
+	}
+
+	// Ask Playground to zip this site and hand the file to the browser's
+	// downloader. onResult receives { status: 'success' | 'error' | 'timeout' |
+	// 'unsupported', error? }; 'unsupported' means nothing answered in time,
+	// which is what an older Personal Playground looks like from here.
+	function requestPlaygroundBackup(onResult) {
+		var requestId = newRelayRequestId();
+		var settled = false;
+		var timer = null;
+
+		function cleanup() {
+			if (settled) return false;
+			settled = true;
+			window.removeEventListener('message', onMessage);
+			if (timer) {
+				clearTimeout(timer);
+				timer = null;
+			}
+			return true;
+		}
+
+		function finish(result) {
+			if (!cleanup()) return;
+			if (typeof onResult === 'function') {
+				onResult(result);
+			}
+		}
+
+		function onMessage(event) {
+			var data = event && event.data;
+			if (
+				!data ||
+				data.type !== 'relay' ||
+				data.relayType !== 'backup-site-result' ||
+				data.requestId !== requestId
+			) {
+				return;
+			}
+			if (data.status === 'started') {
+				// Accepted: the zip is being built, so wait much longer.
+				if (timer) clearTimeout(timer);
+				timer = setTimeout(function() {
+					finish({ status: 'timeout' });
+				}, PLAYGROUND_BACKUP_RESULT_TIMEOUT);
+				return;
+			}
+			finish(data);
+		}
+
+		window.addEventListener('message', onMessage);
+		timer = setTimeout(function() {
+			finish({ status: 'unsupported' });
+		}, PLAYGROUND_BACKUP_ACK_TIMEOUT);
+
+		try {
+			postPlaygroundBackupRequest(requestId);
+		} catch (error) {
+			finish({ status: 'error', error: error });
+			return null;
+		}
+		return requestId;
+	}
+
+	function playgroundBackupErrorMessage(result) {
+		if (result && result.status === 'unsupported') {
+			return t('backupUnsupported', __( 'This WordPress could not start the backup. Use the Site Tools icon in the bottom-left corner to download it.', 'my-apps' ));
+		}
+		if (result && result.status === 'timeout') {
+			return t('backupStatusUnknown', __( 'Backup status unknown: WordPress did not report whether the download finished.', 'my-apps' ));
+		}
+		var detail = result && result.error ? String(result.error.message || result.error) : '';
+		var message = t('backupFailed', __( 'Backup failed.', 'my-apps' ));
+		return detail ? message + ' ' + detail : message;
 	}
 
 	function installResolvedBlueprintInPlayground(app, blueprint, originalBlueprintUrl, btn, options) {
@@ -9927,6 +10019,7 @@
 				step.title,
 				step.description,
 				step.type,
+				step.action,
 				step.path,
 				step.slug,
 				step.repo,
@@ -10263,6 +10356,8 @@
 			var entry = findStoreEntryForStep(step);
 			if (entry) {
 				stepLi.appendChild(buildRecipeStepCard(entry.path, entry.app));
+			} else if (step.action === 'backup-site' && isPlayground) {
+				stepLi.appendChild(buildRecipeBackupAction(step));
 			} else if (step.type === 'note' && step.url) {
 				var linkWrap = document.createElement('div');
 				linkWrap.className = 'recipe-step-actions';
@@ -10304,6 +10399,40 @@
 			learnEl.appendChild(learnLink);
 			appStoreContent.appendChild(learnEl);
 		}
+	}
+
+	// A step can ask Playground to download a full site backup, so the guide
+	// does the work instead of describing where to click.
+	function buildRecipeBackupAction(step) {
+		var wrap = document.createElement('div');
+		wrap.className = 'recipe-step-actions';
+
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'recipe-step-action';
+		var defaultLabel = step.action_label || t('downloadBackup', __( 'Download Backup', 'my-apps' ));
+		btn.textContent = defaultLabel;
+
+		btn.addEventListener('click', function() {
+			if (btn.disabled) return;
+			btn.disabled = true;
+			btn.classList.add('is-busy');
+			btn.textContent = t('preparingBackup', __( 'Preparing backup…', 'my-apps' ));
+
+			requestPlaygroundBackup(function(result) {
+				btn.disabled = false;
+				btn.classList.remove('is-busy');
+				btn.textContent = defaultLabel;
+				if (result && result.status === 'success') {
+					showToast(t('backupDownloaded', __( 'Backup downloaded.', 'my-apps' )));
+					return;
+				}
+				showToast(playgroundBackupErrorMessage(result), { type: 'error' });
+			});
+		});
+
+		wrap.appendChild(btn);
+		return wrap;
 	}
 
 	function buildRecipeAlternativesTable(alternatives) {

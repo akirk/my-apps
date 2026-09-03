@@ -1021,9 +1021,9 @@
 			sharePath = entry.overrides;
 		}
 
-		var url = new URL(window.location.href);
+		// Share the canonical detail URL, minus Playground's session scope.
+		var url = new URL(appStoreDetailUrl(sharePath, 'app'), window.location.href);
 		url.pathname = url.pathname.replace(/(^|\/)scope:[^/]+(?=\/|$)/g, '') || '/';
-		url.searchParams.set('app', sharePath);
 		return url.toString();
 	}
 
@@ -2287,6 +2287,112 @@
 		return '';
 	}
 
+	// ── /my-apps/<slug> routing ─────────────────────────────
+	// The launcher also answers on /my-apps/<slug>, which opens the App Store
+	// on that entry. The slug is resolved server-side into appStoreSlug; the
+	// path it was requested under is the base every pretty URL is built from,
+	// so Playground's /scope:…/ prefix survives in-page navigation.
+
+	const routeAppStoreSlug = (typeof myAppsConfig !== 'undefined' && myAppsConfig.appStoreSlug)
+		? String(myAppsConfig.appStoreSlug).toLowerCase()
+		: '';
+
+	const launcherBasePath = (function() {
+		var path = window.location.pathname;
+		if (routeAppStoreSlug) {
+			path = path.replace(/[^/]+\/?$/, '');
+		}
+		return path.replace(/\/*$/, '/');
+	})();
+
+	// The single path segment an App Store entry is reachable under, or '' for
+	// entries whose path doesn't reduce to one (custom blueprints, GitHub and
+	// URL plugin recommendations).
+	function appStoreRouteSlug(path) {
+		var slug = appStoreSlugFromPath(path);
+		if (slug) return slug;
+
+		var match = String(path || '').match(/^plugin\/([A-Za-z0-9._-]+)$/);
+		return match ? match[1].toLowerCase() : '';
+	}
+
+	// URL for an App Store detail page: the pretty path where the entry has a
+	// slug, the ?app= / ?plugin= query otherwise. /my-apps/<slug> already
+	// stands for the full-window store, so ?app-store=1 is only carried along
+	// when we have to fall back to a query URL.
+	function appStoreDetailUrl(path, type) {
+		var url = new URL(window.location);
+		var slug = appStoreRouteSlug(path);
+
+		url.searchParams.delete('app');
+		url.searchParams.delete('plugin');
+
+		if (slug) {
+			url.pathname = launcherBasePath + slug + '/';
+			url.searchParams.delete('app-store');
+		} else {
+			url.pathname = launcherBasePath;
+			url.searchParams.set('plugin' === type ? 'plugin' : 'app', path);
+			keepAppStoreEmbedded(url);
+		}
+
+		return url.toString();
+	}
+
+	// URL for the App Store list, i.e. the detail page closed.
+	function appStoreListUrl() {
+		var url = new URL(window.location);
+		url.pathname = launcherBasePath;
+		url.searchParams.delete('app');
+		url.searchParams.delete('plugin');
+		keepAppStoreEmbedded(url);
+		return url.toString();
+	}
+
+	// Leaving a /my-apps/<slug> path for a query URL would drop the
+	// full-window store on the next reload — keep it with ?app-store=1.
+	function keepAppStoreEmbedded(url) {
+		if (isAppStoreEmbeddedView()) {
+			url.searchParams.set('app-store', '1');
+		}
+	}
+
+	// Drop a /my-apps/<slug> detail path back to the launcher base, so the
+	// URL doesn't keep pointing at a detail page we've navigated away from.
+	function clearAppStoreDetailPath(url) {
+		if (!currentRouteAppStoreSlug()) {
+			return false;
+		}
+		url.pathname = launcherBasePath;
+		keepAppStoreEmbedded(url);
+		return true;
+	}
+
+	// The slug currently in the address bar, so popstate can restore a detail
+	// page that was entered through a pretty URL.
+	function currentRouteAppStoreSlug() {
+		var rest = window.location.pathname.slice(launcherBasePath.length).replace(/\/+$/, '');
+		return /^[A-Za-z0-9._-]+$/.test(rest) ? rest.toLowerCase() : '';
+	}
+
+	// Resolve a route slug against the loaded catalogue: apps win over plugin
+	// recommendations, matching the order the App Store lists them in.
+	function resolveAppStoreSlug(slug, data) {
+		if (!slug || !data) return null;
+
+		var appPath = resolveAppStoreAppPath(slug, data);
+		if (appPath && data[appPath]) {
+			return { type: 'app', path: appPath };
+		}
+
+		var pluginPath = 'plugin/' + slug;
+		if (data[pluginPath]) {
+			return { type: 'plugin', path: pluginPath };
+		}
+
+		return null;
+	}
+
 	function appStoreAppPathsMatch(a, b) {
 		if (a === b) return true;
 		var aSlug = appStoreSlugFromPath(a);
@@ -2911,7 +3017,9 @@
 		}
 		updateBlueprintsSourceBadge();
 		scheduleAutoUpdate();
-		if (new URL(window.location).searchParams.has('app-store')) {
+		// The full-window store (?app-store=1 or /my-apps/<slug>) has no
+		// launcher behind it, so none of the launcher-only bindings apply.
+		if (isAppStoreEmbeddedView()) {
 			checkDeepLink();
 			return;
 		}
@@ -4490,11 +4598,12 @@
 					// If on a detail page (app, plugin, or recipe), go back
 					// to the list one level first instead of closing the modal.
 					var url = new URL(window.location);
-					if (url.searchParams.has('app')) {
+					var routedDetail = resolveAppStoreSlug(currentRouteAppStoreSlug(), appStoreData);
+					if (url.searchParams.has('app') || (routedDetail && routedDetail.type === 'app')) {
 						closeAppDetail();
 						return;
 					}
-					if (url.searchParams.has('plugin')) {
+					if (url.searchParams.has('plugin') || routedDetail) {
 						closePluginDetail();
 						return;
 					}
@@ -7381,7 +7490,7 @@
 		// closing the modal, and reset activeRecipe so the next open
 		// doesn't land on a stale recipe detail.
 		var url = new URL(window.location);
-		var changed = false;
+		var changed = clearAppStoreDetailPath(url);
 		['app', 'recipe', 'plugin'].forEach(function(name) {
 			if (url.searchParams.has(name)) {
 				url.searchParams.delete(name);
@@ -8570,6 +8679,13 @@
 	// changes shape (after apps.json, then after blueprints + recommended).
 	function tryRenderPendingDeepLink() {
 		if (!pendingDeepLink || !appStoreData) return false;
+		if (pendingDeepLink.type === 'slug') {
+			// /my-apps/<slug> — we only learn whether the slug is an app or a
+			// plugin recommendation once the catalogue is in.
+			var resolved = resolveAppStoreSlug(pendingDeepLink.path, appStoreData);
+			if (!resolved) return false;
+			pendingDeepLink = resolved;
+		}
 		if (pendingDeepLink.type === 'app') {
 			var appPath = resolveAppStoreAppPath(pendingDeepLink.path, appStoreData);
 			if (!appStoreData[appPath]) return false;
@@ -9422,7 +9538,7 @@
 		}
 
 		var url = new URL(window.location);
-		var changed = false;
+		var changed = clearAppStoreDetailPath(url);
 		['app', 'plugin', 'recipe'].forEach(function(name) {
 			if (url.searchParams.has(name)) {
 				url.searchParams.delete(name);
@@ -10351,17 +10467,14 @@
 
 	function openPluginDetail(pluginPath, plugin, options) {
 		savedAppStoreScrollTop = appStoreContent.scrollTop;
-		var url = new URL(window.location);
-		url.searchParams.set('plugin', pluginPath);
-		history.pushState({ pluginDetail: pluginPath }, '', url.toString());
+		history.pushState({ pluginDetail: pluginPath }, '', appStoreDetailUrl(pluginPath, 'plugin'));
 		renderPluginDetail(pluginPath, plugin, options);
 	}
 
 	function closePluginDetail() {
-		var url = new URL(window.location);
-		if (url.searchParams.has('plugin')) {
-			url.searchParams.delete('plugin');
-			history.pushState({}, '', url.toString());
+		var listUrl = appStoreListUrl();
+		if (listUrl !== window.location.href) {
+			history.pushState({}, '', listUrl);
 		}
 
 		if (appStoreData) {
@@ -10568,19 +10681,16 @@
 		savedAppStoreScrollTop = appStoreContent.scrollTop;
 
 		// Push URL state so the detail page is shareable
-		var url = new URL(window.location);
-		url.searchParams.set('app', appPath);
-		history.pushState({ appDetail: appPath }, '', url.toString());
+		history.pushState({ appDetail: appPath }, '', appStoreDetailUrl(appPath, 'app'));
 
 		renderAppDetail(appPath, app, blueprintUrl);
 	}
 
 	function closeAppDetail() {
-		// Go back to the list — remove ?app param
-		var url = new URL(window.location);
-		if (url.searchParams.has('app')) {
-			url.searchParams.delete('app');
-			history.pushState({}, '', url.toString());
+		// Go back to the list — drop the detail slug and the ?app param
+		var listUrl = appStoreListUrl();
+		if (listUrl !== window.location.href) {
+			history.pushState({}, '', listUrl);
 		}
 
 		// Re-render the list
@@ -11199,6 +11309,17 @@
 		var pluginParam = url.searchParams.get('plugin');
 		var recipeParam = url.searchParams.get('recipe');
 
+		// Detail pages are pushed as /my-apps/<slug> where the entry has one,
+		// so map that back onto the app/plugin target before rendering.
+		var routed = !appParam && !pluginParam
+			? resolveAppStoreSlug(currentRouteAppStoreSlug(), appStoreData)
+			: null;
+		if (routed && routed.type === 'app') {
+			appParam = routed.path;
+		} else if (routed) {
+			pluginParam = routed.path;
+		}
+
 		// Keep activeRecipe in sync with the URL so going back from an
 		// app/plugin detail to a recipe detail (or from a recipe detail
 		// to the grid) restores the right view.
@@ -11239,6 +11360,17 @@
 		var appParam = normalizeAppStoreAppPath(url.searchParams.get('app'));
 		var pluginParam = url.searchParams.get('plugin');
 		var autoInstallAppPath = getAutoInstallAppPath(url);
+
+		// /my-apps/<slug> deep-links into the App Store entry of that name.
+		// An explicit ?app= / ?plugin= still wins, so the older links keep
+		// pointing where they always did.
+		if (routeAppStoreSlug && !appParam && !pluginParam && !recipeParam && !autoInstallAppPath) {
+			pendingDeepLink = { type: 'slug', path: routeAppStoreSlug };
+			activeCategory = DEFAULT_APP_STORE_CATEGORY;
+			activeRecipe = null;
+			openInstallSoftwareModal();
+			return;
+		}
 
 		if (autoInstallAppPath) {
 			pendingAutoInstall = {

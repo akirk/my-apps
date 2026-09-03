@@ -2818,11 +2818,23 @@ class My_Apps {
 	 */
 	public function my_apps_endpoint() {
 		$existing_rules = get_option( 'rewrite_rules' );
-		$rule = '^my-apps/?$';
+		// Top rules keep the order they were added in, so the bare launcher
+		// is matched before the App Store entry route.
+		$rules = array(
+			'^my-apps/?$'                   => 'index.php?my_apps=1',
+			'^my-apps/([A-Za-z0-9._-]+)/?$' => 'index.php?my_apps=1&my_apps_app=$matches[1]',
+		);
 
-		add_rewrite_rule( $rule, 'index.php?my_apps=1', 'top' );
+		$missing = false;
+		foreach ( $rules as $rule => $target ) {
+			add_rewrite_rule( $rule, $target, 'top' );
 
-		if ( empty( $existing_rules[ $rule ] ) ) {
+			if ( empty( $existing_rules[ $rule ] ) ) {
+				$missing = true;
+			}
+		}
+
+		if ( $missing ) {
 			global $wp_rewrite;
 			$wp_rewrite->flush_rules();
 		}
@@ -2836,7 +2848,22 @@ class My_Apps {
 	 */
 	public function my_apps_query_vars( $query_vars ) {
 		$query_vars[] = 'my_apps';
+		$query_vars[] = 'my_apps_app';
 		return $query_vars;
+	}
+
+	/**
+	 * The App Store entry requested through /my-apps/<slug>.
+	 *
+	 * @return string The slug, or an empty string when the launcher was opened without one.
+	 */
+	public static function requested_app_store_slug() {
+		$slug = get_query_var( 'my_apps_app' );
+		if ( ! is_string( $slug ) || '' === $slug ) {
+			return '';
+		}
+
+		return strtolower( preg_replace( '/[^A-Za-z0-9._-]/', '', $slug ) );
 	}
 
 	/**
@@ -2939,6 +2966,7 @@ class My_Apps {
 			'myAppsConfig',
 			array(
 				'ajaxUrl'                   => admin_url( 'admin-ajax.php' ),
+				'appStoreSlug'              => self::requested_app_store_slug(),
 				'nonce'                     => wp_create_nonce( 'my_apps_launcher' ),
 				'isPlayground'              => self::is_playground(),
 				'canInstallPlugins'         => current_user_can( 'install_plugins' ),

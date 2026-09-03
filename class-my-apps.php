@@ -5484,51 +5484,69 @@ class My_Apps {
 			'type'                 => 'object',
 			'required'             => array( 'type', 'title' ),
 			'properties'           => array(
-				'type'        => array(
+				'type'         => array(
 					'type'        => 'string',
 					'enum'        => array( 'app', 'plugin', 'github', 'note' ),
 					'description' => __( 'The guide step type.', 'my-apps' ),
 				),
-				'title'       => array(
+				'title'        => array(
 					'type'        => 'string',
 					'description' => __( 'The guide step title.', 'my-apps' ),
 				),
-				'description' => array(
+				'description'  => array(
 					'type'        => 'string',
 					'description' => __( 'The guide step description.', 'my-apps' ),
 				),
-				'optional'    => array(
+				'optional'     => array(
 					'type'        => 'boolean',
 					'description' => __( 'Whether the guide step is optional.', 'my-apps' ),
 				),
-				'context'     => array(
+				'context'      => array(
 					'type'        => 'string',
 					'enum'        => self::recipe_contexts(),
 					'description' => __( 'The environment where the step applies.', 'my-apps' ),
 				),
-				'path'        => array(
+				'path'         => array(
 					'type'        => 'string',
 					'description' => __( 'The app blueprint path for app steps.', 'my-apps' ),
 				),
-				'slug'        => array(
+				'slug'         => array(
 					'type'        => 'string',
 					'description' => __( 'The WordPress.org plugin slug for plugin steps.', 'my-apps' ),
 				),
-				'repo'        => array(
+				'repo'         => array(
 					'type'        => 'string',
 					'description' => __( 'The GitHub repository for GitHub plugin steps.', 'my-apps' ),
 				),
-				'url'         => array(
+				'url'          => array(
 					'type'        => 'string',
 					'description' => __( 'A supporting URL for the step.', 'my-apps' ),
 				),
-				'url_label'   => array(
+				'url_label'    => array(
 					'type'        => 'string',
 					'description' => __( 'The label for the supporting URL.', 'my-apps' ),
+				),
+				'action'       => array(
+					'type'        => 'string',
+					'enum'        => self::recipe_step_actions(),
+					'description' => __( 'An action the app can run for the step, such as downloading a site backup.', 'my-apps' ),
+				),
+				'action_label' => array(
+					'type'        => 'string',
+					'description' => __( 'The label for the step action.', 'my-apps' ),
 				),
 			),
 			'additionalProperties' => false,
 		);
+	}
+
+	/**
+	 * Actions a recipe step can ask the app to run.
+	 *
+	 * @return array
+	 */
+	private static function recipe_step_actions() {
+		return array( 'backup-site' );
 	}
 
 	/**
@@ -5790,6 +5808,20 @@ class My_Apps {
 			}
 		}
 
+		if ( isset( $step['action'] ) && is_scalar( $step['action'] ) ) {
+			$action = sanitize_key( (string) $step['action'] );
+			if ( in_array( $action, self::recipe_step_actions(), true ) ) {
+				$payload['action'] = $action;
+			}
+		}
+
+		if ( isset( $step['action_label'] ) && is_scalar( $step['action_label'] ) ) {
+			$action_label = sanitize_text_field( (string) $step['action_label'] );
+			if ( '' !== $action_label ) {
+				$payload['action_label'] = $action_label;
+			}
+		}
+
 		return $payload;
 	}
 
@@ -5812,7 +5844,7 @@ class My_Apps {
 
 		if ( isset( $recipe['steps'] ) && is_array( $recipe['steps'] ) ) {
 			foreach ( $recipe['steps'] as $step ) {
-				foreach ( array( 'type', 'title', 'description', 'context', 'path', 'slug', 'repo', 'url', 'url_label' ) as $key ) {
+				foreach ( array( 'type', 'title', 'description', 'context', 'path', 'slug', 'repo', 'url', 'url_label', 'action', 'action_label' ) as $key ) {
 					if ( isset( $step[ $key ] ) ) {
 						$parts[] = $step[ $key ];
 					}

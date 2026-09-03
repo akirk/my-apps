@@ -48,8 +48,10 @@ $gradient_backgrounds = My_Apps::background_presets( 'gradient' );
 $solid_backgrounds = My_Apps::background_presets( 'solid' );
 $can_upload_media = current_user_can( 'upload_files' );
 $has_admin_bar = is_admin_bar_showing();
+// /my-apps/<slug> opens the same full-window App Store as ?app-store=1, just
+// deep-linked to one entry.
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-$is_app_store = isset( $_GET['app-store'] );
+$is_app_store = isset( $_GET['app-store'] ) || '' !== My_Apps::requested_app_store_slug();
 ?>
 <body class="my-apps-launcher<?php if ( $background ) : ?> bg-<?php echo esc_attr( $background ); ?><?php endif; ?><?php if ( $is_app_store ) : ?> my-apps-app-store-embedded<?php endif; ?><?php if ( $has_admin_bar ) : ?> my-apps-has-admin-bar<?php endif; ?>"<?php if ( $body_style ) : ?> style="<?php echo esc_attr( $body_style ); ?>"<?php endif; ?>>
 <?php if ( ! $is_app_store ) : ?>

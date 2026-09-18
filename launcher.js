@@ -1728,9 +1728,9 @@
 			return pluginSlug && installed[pluginSlug] ? installed[pluginSlug] : null;
 		}
 		if (app._path) {
-			var appMatch = String(app._path).match(/^apps\/([^\/]+)\.json$/);
-			if (appMatch && installed[appMatch[1]]) {
-				return installed[appMatch[1]];
+			pluginSlug = appStoreSlugFromPath(app._path);
+			if (pluginSlug && installed[pluginSlug]) {
+				return installed[pluginSlug];
 			}
 		}
 		// A blueprint that installs exactly one plugin is installed when that

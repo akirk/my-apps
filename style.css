@@ -1548,6 +1548,14 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 	cursor: wait;
 }
 
+.app-store-install-btn.is-manual-info-open {
+	display: none;
+}
+
+.app-store-install-btn.is-blueprint-loading {
+	visibility: hidden;
+}
+
 .app-store-install-btn.app-detail-uninstall-btn {
 	color: #b42318;
 }
@@ -1571,6 +1579,13 @@ body.my-apps-launcher .app-store-main-header .modal-close:active {
 
 .app-store-blueprint-info.active {
 	display: block;
+}
+
+.app-store-blueprint-info.is-upload-guidance {
+	margin-top: 10px;
+	padding: 0;
+	background: none;
+	border: 0;
 }
 
 .app-store-blueprint-info p {
@@ -1805,7 +1820,7 @@ body.my-apps-launcher .app-detail-back:active {
 	flex-direction: row;
 	flex-wrap: wrap;
 	justify-content: flex-end;
-	align-items: center;
+	align-items: flex-start;
 	gap: 10px;
 	flex-shrink: 0;
 	padding-top: 4px;
@@ -1817,6 +1832,23 @@ body.my-apps-launcher .app-detail-back:active {
 	font-size: 15px;
 	border-radius: 18px;
 	min-width: 80px;
+}
+
+.app-detail-manual-actions {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 7px;
+}
+
+.app-detail-upload-line {
+	color: var(--ma-fg-secondary);
+	font-size: 12px;
+}
+
+.app-detail-upload-link {
+	color: #3858e9;
+	text-decoration: underline;
 }
 
 .app-detail-share-btn {
@@ -2040,6 +2072,23 @@ body.my-apps-launcher .app-detail-share-popover-btn:focus {
 
 .app-detail-recipe-link:hover {
 	text-decoration: underline;
+}
+
+.app-detail-recipe-download {
+	display: inline-flex;
+	margin-left: 8px;
+	padding: 3px 8px;
+	border: 1px solid var(--ma-border);
+	border-radius: 6px;
+	color: #3858e9;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-decoration: none;
+}
+
+.app-detail-recipe-download:hover {
+	border-color: #3858e9;
 }
 
 .app-detail-recipe-source {

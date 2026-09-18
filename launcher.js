@@ -2080,7 +2080,7 @@
 	// blueprint would overwrite from a git:directory step. Resolves once the
 	// results are merged into gitPluginVersionChecks; never rejects.
 	function checkBlueprintPluginVersions(blueprint) {
-		if (!isPlayground || !window.MyAppsUpdates || !blueprint) {
+		if (!window.MyAppsUpdates || !blueprint) {
 			return Promise.resolve({});
 		}
 		return window.MyAppsUpdates.checkBlueprint(blueprint, myAppsConfig.installedPlugins || {}, getBlueprintInstallPluginSlug)
@@ -2093,6 +2093,15 @@
 	function getGitPluginVersionCheck(slug) {
 		slug = normalizePluginSlug(slug);
 		return slug && gitPluginVersionChecks[slug] ? gitPluginVersionChecks[slug] : null;
+	}
+
+	function isBlueprintPluginZipCurrent(step) {
+		var data = step && step.pluginData;
+		if (!data || data.resource !== 'git:directory') return false;
+		var slug = getBlueprintInstallPluginSlug(step);
+		var installed = slug && myAppsConfig.installedPlugins ? myAppsConfig.installedPlugins[slug] : null;
+		var check = installed ? getGitPluginVersionCheck(slug) : null;
+		return !!(check && check.status === 'current');
 	}
 
 	// Slugs of the installed plugins a blueprint's git:directory steps replace.
@@ -8195,49 +8204,101 @@
 			});
 	}
 
-	function closeBlueprintInstallInfo(infoEl, btn) {
-		if (infoEl) {
-			infoEl.classList.remove('active');
-			infoEl.innerHTML = '';
+	function blueprintPluginZipUrl(pluginData) {
+		if (!pluginData) return '';
+		if (pluginData.resource === 'git:directory') {
+			// A repository archive is only an installable plugin ZIP when the plugin is at its root.
+			if (pluginData.path) return '';
+			var repo = githubRepoFromUrl(pluginData.url);
+			return repo ? getPluginZipUrl({ _source: 'github', _repo: repo, _ref: pluginData.ref, _refType: pluginData.refType }) : '';
 		}
-		resetInstallButtonState(btn);
+		if (pluginData.resource === 'url' && /^https?:\/\//i.test(pluginData.url || '') && /\.zip(?:[?#]|$)/i.test(pluginData.url)) {
+			return pluginData.url;
+		}
+		return '';
 	}
 
-	function showManualBlueprintInstall(blueprintUrl, infoEl, btn, message) {
+	function showManualZipActions(btn, downloads) {
+		if (!btn) return;
+		if (!downloads.length) {
+			btn.classList.remove('is-blueprint-loading');
+			btn.classList.add('is-manual-info-open');
+			return;
+		}
+		btn.dataset.manualZipUrl = downloads[0].url;
+		btn.classList.remove('is-busy', 'is-manual-info-open', 'is-blueprint-loading');
+		var actionGroup = document.createElement('div');
+		actionGroup.className = 'app-detail-manual-actions';
+		btn.parentNode.insertBefore(actionGroup, btn);
+		btn.remove();
+		downloads.forEach(function(download) {
+			var zipLink = document.createElement('a');
+			zipLink.href = download.url;
+			zipLink.target = '_blank';
+			zipLink.rel = 'noopener noreferrer';
+			zipLink.className = btn.className;
+			zipLink.textContent = pluginZipActionLabel(download.name, download.installed, downloads.length > 1);
+			zipLink.setAttribute('aria-label', pluginZipActionLabel(download.name, download.installed, true));
+			zipLink.title = pluginZipActionLabel(download.name, download.installed, true);
+			actionGroup.appendChild(zipLink);
+		});
+		var pluginLink = document.createElement('a');
+		pluginLink.href = getPluginInstallUrl();
+		pluginLink.target = '_top';
+		pluginLink.className = 'app-detail-upload-link';
+		pluginLink.textContent = 'Plugins Install page';
+		var uploadLine = document.createElement('span');
+		uploadLine.className = 'app-detail-upload-line';
+		uploadLine.appendChild(document.createTextNode('Upload at the '));
+		uploadLine.appendChild(pluginLink);
+		actionGroup.appendChild(uploadLine);
+	}
+
+	function pluginZipActionLabel(name, installed, includeName) {
+		return 'Download ' + (includeName ? name + ' ' : '') + 'ZIP to ' + (installed ? 'update' : 'install');
+	}
+
+	function showPluginUploadGuidance(infoEl, hasDownloads, message) {
+		infoEl.innerHTML = '';
+		if (hasDownloads) {
+			infoEl.classList.remove('active');
+			return;
+		}
+		infoEl.classList.add('is-upload-guidance');
+		if (message) {
+			var messageEl = document.createElement('p');
+			messageEl.textContent = message;
+			infoEl.appendChild(messageEl);
+		}
+		infoEl.classList.add('active');
+	}
+
+	function showManualBlueprintInstall(blueprintUrl, blueprint, infoEl, btn, message) {
 		if (!infoEl) {
 			window.location.href = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
 			return;
 		}
 
-		var playgroundLink = 'https://playground.wordpress.net/?blueprint-url=' + encodeURIComponent(blueprintUrl);
-		infoEl.innerHTML = '';
-
-		var messageEl = document.createElement('p');
-		messageEl.textContent = message || 'This blueprint includes steps that cannot be run safely from this host.';
-		infoEl.appendChild(messageEl);
-
-		var playgroundEl = document.createElement('a');
-		playgroundEl.href = playgroundLink;
-		playgroundEl.target = '_blank';
-		playgroundEl.rel = 'noopener noreferrer';
-		playgroundEl.className = 'app-store-blueprint-url';
-		playgroundEl.textContent = 'Open in WordPress Playground';
-		infoEl.appendChild(playgroundEl);
-
-		var blueprintEl = document.createElement('a');
-		blueprintEl.href = blueprintUrl;
-		blueprintEl.target = '_blank';
-		blueprintEl.rel = 'noopener noreferrer';
-		blueprintEl.className = 'app-store-blueprint-url';
-		blueprintEl.textContent = 'View blueprint JSON';
-		infoEl.appendChild(blueprintEl);
-
-		var noteEl = document.createElement('p');
-		noteEl.textContent = 'You can also follow the installation steps below manually.';
-		infoEl.appendChild(noteEl);
-
-		infoEl.classList.add('active');
-		setInstallButtonState(btn, 'Close', false);
+		var allDownloads = (blueprint && Array.isArray(blueprint.steps) ? blueprint.steps : []).map(function(step) {
+			if (!step || step.step !== 'installPlugin') return null;
+			var url = blueprintPluginZipUrl(step.pluginData);
+			if (!url) return null;
+			var slug = getBlueprintInstallPluginSlug(step);
+			return {
+				url: url,
+				name: resolvePluginInfo(step.pluginData).name,
+				installed: !!(slug && myAppsConfig.installedPlugins && myAppsConfig.installedPlugins[slug]),
+				current: isBlueprintPluginZipCurrent(step)
+			};
+		}).filter(Boolean);
+		var downloads = allDownloads.filter(function(download) { return !download.current; });
+		showManualZipActions(btn, downloads);
+		if (allDownloads.length && !downloads.length) {
+			infoEl.innerHTML = '';
+			infoEl.classList.remove('active');
+		} else {
+			showPluginUploadGuidance(infoEl, downloads.length, downloads.length ? '' : message);
+		}
 	}
 
 	function encodeGitHubRefPath(ref) {
@@ -8273,58 +8334,19 @@
 			return;
 		}
 
-		if (infoEl.classList.contains('active')) {
-			infoEl.classList.remove('active');
+		var zipUrl = getPluginZipUrl(app);
+		var pluginBlueprint = buildPluginBlueprint(app);
+		var installed = getInstalledPluginStatus(app, pluginBlueprint);
+		var slug = getSingleBlueprintPluginSlug(pluginBlueprint);
+		var check = installed ? getGitPluginVersionCheck(slug) : null;
+		if (zipUrl && check && check.status === 'current') {
+			showManualZipActions(btn, []);
 			infoEl.innerHTML = '';
-			resetInstallButtonState(btn);
+			infoEl.classList.remove('active');
 			return;
 		}
-
-		var sourceUrl = app._installUrl || app._url || (app._repo ? 'https://github.com/' + app._repo : '');
-		var zipUrl = getPluginZipUrl(app);
-		infoEl.innerHTML = '';
-
-		var messageEl = document.createElement('p');
-		if (app._source === 'github') {
-			messageEl.textContent = 'This plugin is hosted on GitHub, so it cannot be installed automatically on this host yet.';
-		} else {
-			messageEl.textContent = 'This plugin is provided as a ZIP download. Download it, then upload and activate it in WordPress.';
-		}
-		infoEl.appendChild(messageEl);
-
-		if (zipUrl) {
-			var downloadLink = document.createElement('a');
-			downloadLink.href = zipUrl;
-			downloadLink.target = '_blank';
-			downloadLink.rel = 'noopener noreferrer';
-			downloadLink.className = 'app-store-blueprint-url';
-			downloadLink.textContent = 'Download ZIP';
-			infoEl.appendChild(downloadLink);
-		}
-
-		if (sourceUrl && sourceUrl !== zipUrl) {
-			var sourceLink = document.createElement('a');
-			sourceLink.href = sourceUrl;
-			sourceLink.target = '_blank';
-			sourceLink.rel = 'noopener noreferrer';
-			sourceLink.className = 'app-store-blueprint-url';
-			sourceLink.textContent = app._source === 'github' ? 'Open GitHub repository' : 'Open plugin source';
-			infoEl.appendChild(sourceLink);
-		}
-
-		var uploadLink = document.createElement('a');
-		uploadLink.href = getPluginInstallUrl() + '?tab=upload';
-		uploadLink.target = '_top';
-		uploadLink.className = 'app-store-blueprint-url';
-		uploadLink.textContent = 'Open plugin upload screen';
-		infoEl.appendChild(uploadLink);
-
-		var noteEl = document.createElement('p');
-		noteEl.textContent = 'Download the plugin ZIP, then upload and activate it in WordPress.';
-		infoEl.appendChild(noteEl);
-
-		infoEl.classList.add('active');
-		setInstallButtonState(btn, 'Close', false);
+		showManualZipActions(btn, zipUrl ? [{ url: zipUrl, name: app.title, installed: !!installed }] : []);
+		showPluginUploadGuidance(infoEl, zipUrl ? 1 : 0, zipUrl ? '' : 'A plugin ZIP is not available for direct download.');
 	}
 
 	function blueprintStepLabel(step) {
@@ -8418,6 +8440,24 @@
 		return plan;
 	}
 
+	function getHostBlueprintManualReason(plan) {
+		if (!plan.plugins.length) {
+			return 'Automatic installation is unavailable for this app on this host.';
+		}
+		if (plan.unsupported.length) {
+			return 'This blueprint includes steps this host installer cannot run: ' + plan.unsupported.join(', ') + '.';
+		}
+		if (!myAppsConfig.canInstallPlugins) {
+			var canUpdateInstalledPlugins = !!myAppsConfig.canUpdatePlugins && plan.plugins.every(function(slug) {
+				return !!((myAppsConfig.installedPlugins || {})[slug]);
+			});
+			if (!canUpdateInstalledPlugins) {
+				return 'This account cannot install plugins on this host.';
+			}
+		}
+		return '';
+	}
+
 	function getBlueprintInstallPluginSlug(step) {
 		if (!step || step.step !== 'installPlugin') return '';
 
@@ -8467,45 +8507,21 @@
 	function installBlueprintOnHost(app, blueprintUrl, infoEl, btn, options) {
 		options = options || {};
 		if (infoEl && infoEl.classList.contains('active')) {
-			closeBlueprintInstallInfo(infoEl, btn);
 			return;
 		}
 
-		setInstallButtonState(btn, 'Checking...', true);
-		resolveBlueprintFromUrl(blueprintUrl)
+		if (!options.blueprint) setInstallButtonState(btn, 'Checking...', true);
+		(options.blueprint ? Promise.resolve(options.blueprint) : resolveBlueprintFromUrl(blueprintUrl))
 			.then(function(blueprint) {
 				var plan = getHostBlueprintInstallPlan(blueprint);
-				if (!plan.plugins.length) {
-					showManualBlueprintInstall(
-						blueprintUrl,
-						infoEl,
-						btn,
-						'This blueprint does not contain a WordPress.org plugin install step that can be run on this host.'
-					);
-					return false;
-				}
-				if (plan.unsupported.length) {
-					showManualBlueprintInstall(
-						blueprintUrl,
-						infoEl,
-						btn,
-						'This blueprint includes steps this host installer cannot run: ' + plan.unsupported.join(', ') + '.'
-					);
-					return false;
-				}
-				if (!myAppsConfig.canInstallPlugins) {
-					var canUpdateInstalledPlugins = !!myAppsConfig.canUpdatePlugins && plan.plugins.every(function(slug) {
-						return !!((myAppsConfig.installedPlugins || {})[slug]);
-					});
-					if (!canUpdateInstalledPlugins) {
-						showManualBlueprintInstall(
-							blueprintUrl,
-							infoEl,
-							btn,
-							'This account cannot install plugins on this host.'
-						);
+				var manualReason = getHostBlueprintManualReason(plan);
+				if (manualReason) {
+					return checkBlueprintPluginVersions(blueprint).then(function() {
+						if (infoEl && infoEl.isConnected) {
+							showManualBlueprintInstall(blueprintUrl, blueprint, infoEl, btn, manualReason);
+						}
 						return false;
-					}
+					});
 				}
 
 				var installResults = [];
@@ -8670,7 +8686,7 @@
 					return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, installBtn, options);
 				}
 
-				return installBlueprintOnHost(app, blueprintUrl, infoEl, installBtn, options);
+				return installBlueprintOnHost(app, blueprintUrl, infoEl, installBtn, Object.assign({}, options, { blueprint: blueprint }));
 			})
 			.catch(function(error) {
 				if (isPlayground) {
@@ -9991,7 +10007,7 @@
 				(function(p, a, bUrl) {
 					hostedInstallBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
-						openAppDetail(p, a, bUrl);
+						openAppDetail(p, a, bUrl, { autoOpenInstallInfo: true });
 					});
 				})(path, app, blueprintUrl);
 				actionsEl.appendChild(hostedInstallBtn);
@@ -10671,7 +10687,7 @@
 			(function(p, a, bUrl) {
 				hostedInstallBtn.addEventListener('click', function(e) {
 					e.stopPropagation();
-					openAppDetail(p, a, bUrl);
+					openAppDetail(p, a, bUrl, { autoOpenInstallInfo: true });
 				});
 			})(path, app, blueprintUrl);
 			actions.appendChild(hostedInstallBtn);
@@ -10818,7 +10834,7 @@
 		var uninstallBtn = uninstallSlug
 			? createAppStoreUninstallButton(uninstallSlug, {
 				onSuccess: function() {
-					prepareInstallButton(installBtn, plugin);
+					if (!installBtn.dataset.manualZipUrl) prepareInstallButton(installBtn, plugin);
 					renderInstalledVersionHint(metaRow, pluginBlueprint);
 				}
 			})
@@ -10905,20 +10921,23 @@
 		appStoreContent.innerHTML = '';
 		appStoreContent.appendChild(detail);
 
-		if (options.autoOpenInstallInfo && !isPlayground && plugin._source !== 'wp.org') {
-			showManualPluginInstall(plugin, pluginInstallInfoEl, installBtn);
+		if (!isPlayground && plugin._source !== 'wp.org') {
+			installBtn.classList.add('is-blueprint-loading');
+			checkBlueprintPluginVersions(pluginBlueprint).then(function() {
+				if (detail.isConnected) showManualPluginInstall(plugin, pluginInstallInfoEl, installBtn);
+			});
 		}
 	}
 
 	// ── App Detail Page ──────────────────────────────────────
 
-	function openAppDetail(appPath, app, blueprintUrl) {
+	function openAppDetail(appPath, app, blueprintUrl, options) {
 		savedAppStoreScrollTop = appStoreContent.scrollTop;
 
 		// Push URL state so the detail page is shareable
 		history.pushState({ appDetail: appPath }, '', appStoreDetailUrl(appPath, 'app'));
 
-		renderAppDetail(appPath, app, blueprintUrl);
+		renderAppDetail(appPath, app, blueprintUrl, options);
 	}
 
 	function closeAppDetail() {
@@ -10946,7 +10965,8 @@
 		appStoreContent.scrollTop = savedAppStoreScrollTop;
 	}
 
-	function renderAppDetail(appPath, app, blueprintUrl) {
+	function renderAppDetail(appPath, app, blueprintUrl, options) {
+		options = options || {};
 		app._path = appPath;
 
 		// Hide sidebar — detail page is full-width in the main area
@@ -11066,6 +11086,8 @@
 
 		headerActions.appendChild(installBtn);
 		headerActions.appendChild(shareBtn);
+		var startsPendingAutoInstall = !!pendingAutoInstall && !pendingAutoInstall.started && appStoreAppPathsMatch(pendingAutoInstall.path, appPath);
+		if (!isPlayground) installBtn.classList.add('is-blueprint-loading');
 		maybeStartPendingAutoInstall(appPath, app, blueprintUrl, installBtn, blueprintInfoEl);
 
 		headerEl.appendChild(iconEl);
@@ -11122,19 +11144,38 @@
 		blueprintPromise
 			.then(function(blueprint) {
 				recipeLoading.remove();
+				if (!detail.isConnected) return;
 				if (blueprint && blueprint.launcher_url) {
 					app._launcherUrl = blueprint.launcher_url;
 				}
-				if (!installBtn.disabled) {
+				if (!installBtn.disabled && !installBtn.dataset.manualZipUrl) {
 					prepareInstallButton(installBtn, app, blueprint);
 				}
+				var hostVersionCheckPromise = isPlayground ? Promise.resolve({}) : checkBlueprintPluginVersions(blueprint);
 				renderInstalledVersionHint(metaRow, blueprint);
+				if (!isPlayground && !startsPendingAutoInstall) {
+					var manualReason = getHostBlueprintManualReason(getHostBlueprintInstallPlan(blueprint));
+					if (manualReason) {
+						hostVersionCheckPromise.then(function() {
+							if (detail.isConnected) {
+								showManualBlueprintInstall(blueprintUrl, blueprint, blueprintInfoEl, installBtn, manualReason);
+							}
+						});
+					} else {
+						installBtn.classList.remove('is-blueprint-loading');
+						if (options.autoOpenInstallInfo) {
+							installBlueprintOnHost(app, blueprintUrl, blueprintInfoEl, installBtn, { blueprint: blueprint });
+						}
+					}
+				} else if (!isPlayground) {
+					installBtn.classList.remove('is-blueprint-loading');
+				}
 
 				var singlePluginSlug = getSingleBlueprintPluginSlug(blueprint);
 				if (!appUninstallBtn && singlePluginSlug) {
 					appUninstallBtn = createAppStoreUninstallButton(singlePluginSlug, {
 						onSuccess: function() {
-							prepareInstallButton(installBtn, app, blueprint);
+							if (!installBtn.dataset.manualZipUrl) prepareInstallButton(installBtn, app, blueprint);
 							renderInstalledVersionHint(metaRow, blueprint);
 						}
 					});
@@ -11248,6 +11289,27 @@
 								sourceEl.appendChild(urlLink);
 							}
 							li.appendChild(sourceEl);
+						}
+						var pluginZipUrl = blueprintPluginZipUrl(step.pluginData);
+						if (!isPlayground && pluginZipUrl) {
+							var pluginSlug = getBlueprintInstallPluginSlug(step);
+							var pluginInstalled = !!(pluginSlug && myAppsConfig.installedPlugins && myAppsConfig.installedPlugins[pluginSlug]);
+							var addPluginZipLink = function() {
+								if (!detail.isConnected || isBlueprintPluginZipCurrent(step)) return;
+								var pluginZipLink = document.createElement('a');
+								pluginZipLink.href = pluginZipUrl;
+								pluginZipLink.target = '_blank';
+								pluginZipLink.rel = 'noopener noreferrer';
+								pluginZipLink.className = 'app-detail-recipe-download';
+								pluginZipLink.textContent = pluginZipActionLabel(pluginInfo.name, pluginInstalled, false);
+								pluginZipLink.setAttribute('aria-label', pluginZipActionLabel(pluginInfo.name, pluginInstalled, true));
+								li.appendChild(pluginZipLink);
+							};
+							if (pluginInstalled && step.pluginData && step.pluginData.resource === 'git:directory') {
+								hostVersionCheckPromise.then(addPluginZipLink);
+							} else {
+								addPluginZipLink();
+							}
 						}
 
 						// Fetch GitHub info if available
@@ -11394,6 +11456,7 @@
 				}
 			})
 			.catch(function() {
+				installBtn.classList.remove('is-blueprint-loading');
 				recipeLoading.textContent = t('installationStepsFailed', __( 'Could not load installation steps.', 'my-apps' ));
 			});
 	}

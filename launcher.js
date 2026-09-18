@@ -43,6 +43,7 @@
 	let isEditMode = false;
 	let adminMenuData = null;
 	let appStoreData = null;
+	let appStoreVersionObserver = null;
 	let blueprintUpdateEntries = null;
 	let blueprintUpdateLookupPromise = null;
 	// Remote version check results keyed by plugin directory slug, filled by
@@ -1772,6 +1773,90 @@
 		btn.dataset.defaultLabel = label;
 		btn.classList.toggle('is-update', label === 'Update');
 		setInstallButtonState(btn, label, false);
+	}
+
+	function setStoreListVersionLabel(btn, label) {
+		if (!btn.isConnected || btn.disabled) return;
+		btn.dataset.defaultLabel = label;
+		btn.classList.toggle('is-update', label === 'Update');
+		setInstallButtonState(btn, label, false);
+	}
+
+	function checkStoreListVersion(entry) {
+		var app = entry.app;
+		var installed = getInstalledPluginStatus(app);
+		var blueprintPromise;
+
+		if (app._source === 'wp.org') {
+			setStoreListVersionLabel(entry.btn, installed && installed.updateAvailable ? 'Update' : 'Open');
+			return;
+		}
+
+		blueprintPromise = app._type === 'plugin'
+			? Promise.resolve(buildPluginBlueprint(app))
+			: resolveBlueprintFromUrl(entry.blueprintUrl);
+
+		blueprintPromise.then(function(blueprint) {
+			return checkBlueprintPluginVersions(blueprint).then(function() {
+				return blueprint;
+			});
+		}).then(function(blueprint) {
+			setStoreListVersionLabel(entry.btn,
+				blueprintGitUpdateStatus(blueprint) === 'update' ? 'Update' : 'Open');
+		}).catch(function() {
+			setStoreListVersionLabel(entry.btn, 'Open');
+		});
+	}
+
+	function openStoreListEntry(path, app, blueprintUrl, btn) {
+		setInstallButtonState(btn, 'Opening...', true);
+		var blueprintPromise = app._type === 'plugin'
+			? Promise.resolve(buildPluginBlueprint(app))
+			: resolveBlueprintFromUrl(blueprintUrl);
+
+		blueprintPromise.then(function(blueprint) {
+			if (openInstallTarget({ app: app, blueprint: blueprint })) return;
+			if (app._type === 'plugin') {
+				openPluginDetail(path, app);
+			} else {
+				openAppDetail(path, app, blueprintUrl);
+			}
+		}).catch(function() {
+			if (app._type === 'plugin') {
+				openPluginDetail(path, app);
+			} else {
+				openAppDetail(path, app, blueprintUrl);
+			}
+		}).finally(function() {
+			resetInstallButtonState(btn);
+		});
+	}
+
+	function startStoreListVersionChecks(entries) {
+		if (!entries.length) return;
+
+		entries.forEach(function(entry) {
+			setStoreListVersionLabel(entry.btn, 'Open');
+		});
+
+		if (!window.IntersectionObserver) {
+			entries.forEach(checkStoreListVersion);
+			return;
+		}
+
+		var byItem = new Map();
+		var observer = new IntersectionObserver(function(records) {
+			records.forEach(function(record) {
+				if (!record.isIntersecting) return;
+				observer.unobserve(record.target);
+				checkStoreListVersion(byItem.get(record.target));
+			});
+		}, { root: appStoreContent, rootMargin: '200px' });
+		appStoreVersionObserver = observer;
+		entries.forEach(function(entry) {
+			byItem.set(entry.item, entry);
+			observer.observe(entry.item);
+		});
 	}
 
 	function canManageWpOrgPlugin(app) {
@@ -9729,6 +9814,10 @@
 	}
 
 	function renderAppStore(data, category, search) {
+		if (appStoreVersionObserver) {
+			appStoreVersionObserver.disconnect();
+			appStoreVersionObserver = null;
+		}
 		category = category || DEFAULT_APP_STORE_CATEGORY;
 		search = (search || '').toLowerCase();
 
@@ -9748,6 +9837,7 @@
 
 		var listEl = document.createElement('div');
 		listEl.className = 'app-store-list';
+		var versionEntries = [];
 
 		var hasResults = false;
 		var matchingRecipeKeys = (search && category !== '__plugins__')
@@ -9853,15 +9943,21 @@
 
 			var actionsEl = document.createElement('div');
 			actionsEl.className = 'app-store-actions';
+			var versionButton = null;
 
 			if (isPluginEntry) {
 				var pluginInstallBtn = document.createElement('button');
 				pluginInstallBtn.type = 'button';
 				pluginInstallBtn.className = 'app-store-install-btn';
 				prepareInstallButton(pluginInstallBtn, app);
+				versionButton = pluginInstallBtn;
 				(function(p, a) {
 					pluginInstallBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
+						if (e.currentTarget.dataset.defaultLabel === 'Open') {
+							openStoreListEntry(p, a, '', e.currentTarget);
+							return;
+						}
 						if (!isPlayground && a._source !== 'wp.org') {
 							openPluginDetail(p, a, { autoOpenInstallInfo: true });
 							return;
@@ -9875,12 +9971,17 @@
 				installBtn.type = 'button';
 				installBtn.className = 'app-store-install-btn';
 				prepareInstallButton(installBtn, app);
-				(function(a, bUrl) {
+				versionButton = installBtn;
+				(function(p, a, bUrl) {
 					installBtn.addEventListener('click', function(e) {
 						e.stopPropagation();
+						if (e.currentTarget.dataset.defaultLabel === 'Open') {
+							openStoreListEntry(p, a, bUrl, e.currentTarget);
+							return;
+						}
 						installBlueprintInPlayground(a, bUrl, e.currentTarget);
 					});
-				})(app, blueprintUrl);
+				})(path, app, blueprintUrl);
 				actionsEl.appendChild(installBtn);
 			} else {
 				var hostedInstallBtn = document.createElement('button');
@@ -9919,6 +10020,9 @@
 			})(path, app, blueprintUrl);
 
 			listEl.appendChild(itemEl);
+			if (isPlayground && versionButton && isStoreEntryInstalled(app)) {
+				versionEntries.push({ item: itemEl, btn: versionButton, app: app, blueprintUrl: blueprintUrl });
+			}
 		});
 
 		matchingRecipeKeys.forEach(function(recipeKey) {
@@ -9950,6 +10054,7 @@
 				appStoreContent.appendChild(pluginEmptyEl);
 			} else {
 				appStoreContent.appendChild(listEl);
+				startStoreListVersionChecks(versionEntries);
 			}
 
 			var footerEl = document.createElement('p');
@@ -9965,6 +10070,7 @@
 
 		if (hasResults) {
 			appStoreContent.appendChild(listEl);
+			startStoreListVersionChecks(versionEntries);
 		} else {
 			var emptyEl = document.createElement('div');
 			emptyEl.className = 'app-store-error';

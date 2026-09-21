@@ -83,6 +83,7 @@
 	let autoUpdateEnabled = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.autoUpdate);
 	let wpAdminLinksHidden = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.hideWpAdminLinks);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
+	const PLAYGROUND_INSTALL_ACK_TIMEOUT = 10000;
 	// Personal Playground acknowledges a backup request before it starts
 	// zipping. No acknowledgement in this window means it doesn't support
 	// the message, so we point at Site Tools instead of waiting it out.
@@ -2682,6 +2683,12 @@
 		}
 
 		function finishResult(data) {
+			if (data.status === 'started') {
+				if (resultTimeout) clearTimeout(resultTimeout);
+				resultTimeout = setTimeout(handleResultTimeout, PLAYGROUND_INSTALL_RESULT_TIMEOUT);
+				return;
+			}
+
 			if (data.status === 'success') {
 				handlePlaygroundInstallSuccess(install, data);
 				return;
@@ -2694,6 +2701,10 @@
 			if (data.status === 'cancelled') {
 				if (!install.suppressToast) {
 					showToast('Install cancelled');
+				}
+			} else if (data.status === 'unsupported') {
+				if (!install.suppressToast) {
+					showToast('This Playground cannot install apps in the current site.');
 				}
 			} else {
 				if (!install.suppressToast) {
@@ -2712,12 +2723,11 @@
 			) {
 				return;
 			}
-			if (!cleanup()) return;
+			if (data.status !== 'started' && !cleanup()) return;
 			finishResult(data);
 		}
 
-		window.addEventListener('message', onMessage);
-		resultTimeout = setTimeout(function() {
+		function handleResultTimeout() {
 			if (!cleanup()) return;
 			resetInstallButtonState(install.btn);
 			if (typeof install.onComplete === 'function') {
@@ -2726,7 +2736,10 @@
 			if (!install.suppressToast) {
 				showToast('Install status unknown: Playground did not report whether the install finished.');
 			}
-		}, PLAYGROUND_INSTALL_RESULT_TIMEOUT);
+		}
+
+		window.addEventListener('message', onMessage);
+		resultTimeout = setTimeout(handleResultTimeout, PLAYGROUND_INSTALL_ACK_TIMEOUT);
 
 		try {
 			postPlaygroundBlueprintInstall(blueprintUrl, requestId);

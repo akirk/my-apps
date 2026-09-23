@@ -2699,6 +2699,8 @@
 		}
 
 		function finishResult(data) {
+			var fallbackShown = false;
+
 			if (data.status === 'started') {
 				if (resultTimeout) clearTimeout(resultTimeout);
 				resultTimeout = setTimeout(handleResultTimeout, PLAYGROUND_INSTALL_RESULT_TIMEOUT);
@@ -2719,11 +2721,13 @@
 					showToast('Install cancelled');
 				}
 			} else if (data.status === 'unsupported') {
-				if (!install.suppressToast) {
+				fallbackShown = showPlaygroundInstallFallback(install, 'This Playground could not install the app automatically.');
+				if (!fallbackShown && !install.suppressToast) {
 					showToast('This Playground cannot install apps in the current site.');
 				}
 			} else {
-				if (!install.suppressToast) {
+				fallbackShown = showPlaygroundInstallFallback(install, playgroundInstallErrorMessage(data));
+				if (!fallbackShown && !install.suppressToast) {
 					showToast(playgroundInstallErrorMessage(data));
 				}
 			}
@@ -2749,7 +2753,8 @@
 			if (typeof install.onComplete === 'function') {
 				install.onComplete({ status: 'timeout' });
 			}
-			if (!install.suppressToast) {
+			var fallbackShown = showPlaygroundInstallFallback(install, 'Playground did not report whether the automatic installation finished.');
+			if (!fallbackShown && !install.suppressToast) {
 				showToast('Install status unknown: Playground did not report whether the install finished.');
 			}
 		}
@@ -2765,7 +2770,8 @@
 			if (typeof install.onComplete === 'function') {
 				install.onComplete({ status: 'error', error: error });
 			}
-			if (!install.suppressToast) {
+			var fallbackShown = showPlaygroundInstallFallback(install, playgroundInstallErrorMessage({ error: error }));
+			if (!fallbackShown && !install.suppressToast) {
 				showToast(playgroundInstallErrorMessage({ error: error }));
 			}
 			return null;
@@ -2868,8 +2874,10 @@
 			btn: btn || null,
 			landingUrl: getInstallLandingUrl(app, blueprint),
 			blueprintUrl: blueprintUrl,
+			originalBlueprintUrl: originalBlueprintUrl || '',
 			autoOpenAfterInstall: !!options.autoOpenAfterInstall,
 			forwardParams: options.forwardParams || [],
+			fallbackInfoEl: options.fallbackInfoEl || null,
 			onComplete: options.onComplete,
 			suppressToast: !!options.suppressToast
 		}));
@@ -2891,6 +2899,7 @@
 					blueprintUrl: blueprintUrl,
 					autoOpenAfterInstall: !!options.autoOpenAfterInstall,
 					forwardParams: options.forwardParams || [],
+					fallbackInfoEl: options.fallbackInfoEl || null,
 					onComplete: options.onComplete,
 					suppressToast: !!options.suppressToast
 				});
@@ -8289,6 +8298,44 @@
 		}
 	}
 
+	function showPlaygroundInstallFallback(install, message) {
+		if (!install || !install.blueprint) {
+			return false;
+		}
+
+		if (install.fallbackInfoEl && install.fallbackInfoEl.isConnected) {
+			showManualBlueprintInstall(
+				install.originalBlueprintUrl || install.blueprintUrl,
+				install.blueprint,
+				install.fallbackInfoEl,
+				install.btn,
+				message
+			);
+			return true;
+		}
+
+		if (
+			install.app &&
+			install.app._path &&
+			install.btn &&
+			install.btn.dataset.defaultLabel !== 'Update'
+		) {
+			if (install.app._type === 'plugin') {
+				openPluginDetail(install.app._path, install.app, { playgroundInstallFallbackMessage: message });
+			} else {
+				openAppDetail(
+					install.app._path,
+					install.app,
+					install.originalBlueprintUrl || getBlueprintUrl(install.app._path),
+					{ playgroundInstallFallbackMessage: message }
+				);
+			}
+			return true;
+		}
+
+		return false;
+	}
+
 	function encodeGitHubRefPath(ref) {
 		return String(ref || 'HEAD').split('/').map(function(part) {
 			return encodeURIComponent(part);
@@ -8296,6 +8343,10 @@
 	}
 
 	function getPluginZipUrl(app) {
+		if (app._source === 'wp.org' && app._slug) {
+			return 'https://downloads.wordpress.org/plugin/' + encodeURIComponent(app._slug) + '.latest-stable.zip';
+		}
+
 		if (app._source === 'github' && app._repo) {
 			var ref = app._ref || 'HEAD';
 			if (app._refType === 'branch') {
@@ -8577,7 +8628,7 @@
 	function installPluginApp(app, btn, infoEl) {
 		if (isPlayground) {
 			var blueprint = buildPluginBlueprint(app);
-			installResolvedBlueprintInPlayground(app, blueprint, '', btn);
+			installResolvedBlueprintInPlayground(app, blueprint, '', btn, { fallbackInfoEl: infoEl });
 			return;
 		}
 
@@ -8721,7 +8772,8 @@
 		pendingAutoInstall.path = appPath;
 		var options = {
 			autoOpenAfterInstall: true,
-			forwardParams: pendingAutoInstall.forwardParams || []
+			forwardParams: pendingAutoInstall.forwardParams || [],
+			fallbackInfoEl: infoEl || null
 		};
 
 		setInstallButtonState(installBtn, 'Checking...', true);
@@ -10995,7 +11047,9 @@
 		appStoreContent.innerHTML = '';
 		appStoreContent.appendChild(detail);
 
-		if (!isPlayground && plugin._source !== 'wp.org') {
+		if (isPlayground && options.playgroundInstallFallbackMessage) {
+			showManualPluginInstall(plugin, pluginInstallInfoEl, installBtn);
+		} else if (!isPlayground && plugin._source !== 'wp.org') {
 			installBtn.classList.add('is-blueprint-loading');
 			checkBlueprintPluginVersions(pluginBlueprint).then(function() {
 				if (detail.isConnected) showManualPluginInstall(plugin, pluginInstallInfoEl, installBtn);
@@ -11130,7 +11184,7 @@
 			installBtn.className = 'app-store-install-btn app-detail-install-btn';
 			prepareInstallButton(installBtn, app);
 			installBtn.addEventListener('click', function() {
-				installBlueprintInPlayground(app, blueprintUrl, installBtn);
+				installBlueprintInPlayground(app, blueprintUrl, installBtn, { fallbackInfoEl: blueprintInfoEl });
 			});
 		} else {
 			installBtn = document.createElement('button');
@@ -11243,6 +11297,15 @@
 				}
 				if (!installBtn.disabled && !installBtn.dataset.manualZipUrl) {
 					prepareInstallButton(installBtn, app, blueprint);
+				}
+				if (isPlayground && options.playgroundInstallFallbackMessage) {
+					showManualBlueprintInstall(
+						blueprintUrl,
+						blueprint,
+						blueprintInfoEl,
+						installBtn,
+						options.playgroundInstallFallbackMessage
+					);
 				}
 				var hostVersionCheckPromise = isPlayground ? Promise.resolve({}) : checkBlueprintPluginVersions(blueprint);
 				renderInstalledVersionHint(metaRow, blueprint);

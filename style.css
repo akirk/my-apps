@@ -2857,6 +2857,19 @@ body.my-apps-launcher .settings-switch.active:active {
 	max-width: 480px;
 }
 
+.install-confirm-modal {
+	max-width: 420px;
+}
+
+.install-confirm-body {
+	padding: 20px;
+}
+
+.install-confirm-body p {
+	margin: 0;
+	line-height: 1.5;
+}
+
 .feedback-context-option {
 	display: flex;
 	align-items: center;

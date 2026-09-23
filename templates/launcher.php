@@ -545,6 +545,22 @@ $is_app_store = isset( $_GET['app-store'] ) || '' !== My_Apps::requested_app_sto
 		</div>
 	</div>
 
+	<div class="modal-overlay" id="install-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="install-confirm-title" aria-describedby="install-confirm-message">
+		<div class="modal install-confirm-modal">
+			<div class="modal-header">
+				<h2 id="install-confirm-title"><?php esc_html_e( 'Install app?', 'my-apps' ); ?></h2>
+				<button type="button" class="modal-close" aria-label="<?php esc_attr_e( 'Cancel installation', 'my-apps' ); ?>">&times;</button>
+			</div>
+			<div class="install-confirm-body">
+				<p id="install-confirm-message"></p>
+				<div class="form-actions">
+					<button type="button" class="btn-secondary" id="install-confirm-cancel"><?php esc_html_e( 'Cancel', 'my-apps' ); ?></button>
+					<button type="button" class="btn-add" id="install-confirm-accept"><?php esc_html_e( 'Install', 'my-apps' ); ?></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 <?php wp_footer(); ?>
 </body>
 </html>

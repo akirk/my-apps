@@ -8643,6 +8643,24 @@
 		}
 	}
 
+	function confirmPendingAutoInstall(appPath, app, installBtn) {
+		if (!pendingAutoInstall || !pendingAutoInstall.confirmInstall) return true;
+
+		var appName = app.title || app._slug || appStoreSlugFromPath(appPath);
+		var confirmMessage = sprintf(
+			t('confirmShortcutInstall', __( 'Do you want to install %s?', 'my-apps' )),
+			appName
+		);
+		if (window.confirm(confirmMessage)) {
+			pendingAutoInstall.confirmInstall = false;
+			return true;
+		}
+
+		pendingAutoInstall = null;
+		resetInstallButtonState(installBtn);
+		return false;
+	}
+
 	function maybeStartPendingAutoInstall(appPath, app, blueprintUrl, installBtn, infoEl) {
 		if (
 			!pendingAutoInstall ||
@@ -8677,6 +8695,8 @@
 					return null;
 				}
 
+				if (!confirmPendingAutoInstall(appPath, app, installBtn)) return null;
+
 				if (isPlayground) {
 					return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, installBtn, options);
 				}
@@ -8685,6 +8705,7 @@
 			})
 			.catch(function(error) {
 				if (isPlayground) {
+					if (!confirmPendingAutoInstall(appPath, app, installBtn)) return null;
 					return installBlueprintInPlayground(app, blueprintUrl, installBtn, options);
 				}
 
@@ -11699,6 +11720,7 @@
 			pendingAutoInstall = {
 				path: autoInstallAppPath,
 				forwardParams: getForwardInstallParams(url),
+				confirmInstall: !!url.searchParams.get('myapps-i'),
 				started: false
 			};
 			pendingDeepLink = { type: 'app', path: autoInstallAppPath };

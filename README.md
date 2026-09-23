@@ -97,7 +97,7 @@ Example:
 
 ### Short install links
 
-For QR-code-friendly shares, link to the site root with `myapps-i=<app-slug>`. My Apps redirects the request into `/my-apps/`, installs the matching App Store entry if needed, and opens the app's landing page with the remaining query parameters preserved.
+For QR-code-friendly shares, link to the site root with `myapps-i=<app-slug>`. My Apps redirects the request into `/my-apps/`, asks the user to confirm installation when the app is not installed yet, installs the matching App Store entry, and opens the app's landing page with the remaining query parameters preserved.
 
 Example:
 

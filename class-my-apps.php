@@ -2270,6 +2270,10 @@ class My_Apps {
 	 * @param mixed $wp_admin_bar The admin bar.
 	 */
 	public function admin_bar_menu( $wp_admin_bar ) {
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
 		$wp_admin_bar->add_node(
 			array(
 				'id'    => 'my-apps',

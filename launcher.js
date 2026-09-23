@@ -8644,23 +8644,34 @@
 		}
 	}
 
-	function showInstallConfirmation(message) {
+	function showInstallConfirmation(message, app, appName) {
 		return new Promise(function(resolve) {
 			var messageEl = document.getElementById('install-confirm-message');
+			var iconEl = document.getElementById('install-confirm-icon');
 			var acceptBtn = document.getElementById('install-confirm-accept');
 			var cancelBtn = document.getElementById('install-confirm-cancel');
 			var closeBtn = installConfirmModal.querySelector('.modal-close');
 
 			messageEl.textContent = message;
+			iconEl.className = 'app-detail-icon install-confirm-icon';
+			iconEl.removeAttribute('style');
+			iconEl.textContent = '';
+			appendAppStoreIcon(iconEl, app, appName);
+			if (typeof installConfirmModal.showModal === 'function' && !installConfirmModal.open) {
+				installConfirmModal.showModal();
+			}
 			installConfirmModal.classList.add('active');
 
 			function finish(confirmed) {
+				if (typeof installConfirmModal.close === 'function' && installConfirmModal.open) {
+					installConfirmModal.close();
+				}
 				installConfirmModal.classList.remove('active');
 				acceptBtn.removeEventListener('click', accept);
 				cancelBtn.removeEventListener('click', cancel);
 				closeBtn.removeEventListener('click', cancel);
 				installConfirmModal.removeEventListener('click', clickOutside);
-				document.removeEventListener('keydown', keydown, true);
+				installConfirmModal.removeEventListener('cancel', cancelDialog);
 				resolve(confirmed);
 			}
 
@@ -8669,10 +8680,8 @@
 			function clickOutside(e) {
 				if (e.target === installConfirmModal) cancel();
 			}
-			function keydown(e) {
-				if (e.key !== 'Escape') return;
+			function cancelDialog(e) {
 				e.preventDefault();
-				e.stopPropagation();
 				cancel();
 			}
 
@@ -8680,7 +8689,7 @@
 			cancelBtn.addEventListener('click', cancel);
 			closeBtn.addEventListener('click', cancel);
 			installConfirmModal.addEventListener('click', clickOutside);
-			document.addEventListener('keydown', keydown, true);
+			installConfirmModal.addEventListener('cancel', cancelDialog);
 			acceptBtn.focus();
 		});
 	}
@@ -8693,7 +8702,7 @@
 			t('confirmShortcutInstall', __( 'Do you want to install %s?', 'my-apps' )),
 			appName
 		);
-		return showInstallConfirmation(confirmMessage).then(function(confirmed) {
+		return showInstallConfirmation(confirmMessage, app, appName).then(function(confirmed) {
 			if (confirmed) pendingAutoInstall.confirmInstall = false;
 			return confirmed;
 		});

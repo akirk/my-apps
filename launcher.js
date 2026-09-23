@@ -83,6 +83,7 @@
 	let autoUpdateEnabled = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.autoUpdate);
 	let wpAdminLinksHidden = !!(typeof myAppsConfig !== 'undefined' && myAppsConfig.hideWpAdminLinks);
 	const PLAYGROUND_INSTALL_RESULT_TIMEOUT = 180000;
+	const PLAYGROUND_INSTALL_ACK_TIMEOUT = 10000;
 	// Personal Playground acknowledges a backup request before it starts
 	// zipping. No acknowledgement in this window means it doesn't support
 	// the message, so we point at Site Tools instead of waiting it out.
@@ -1084,6 +1085,21 @@
 			toast.classList.remove('visible');
 			setTimeout(function() { toast.remove(); }, 300);
 		}, options.duration || (options.type === 'error' ? 10000 : 3000));
+	}
+
+	function updatedToastMessage(name) {
+		/* translators: %s: App or plugin name. */
+		return sprintf(__( '%s updated', 'my-apps' ), name || __( 'App', 'my-apps' ));
+	}
+
+	function installedToastMessage(name) {
+		/* translators: %s: App or plugin name. */
+		return sprintf(__( '%s installed', 'my-apps' ), name || __( 'App', 'my-apps' ));
+	}
+
+	function upToDateToastMessage(name) {
+		/* translators: %s: App or plugin name. */
+		return sprintf(__( '%s is already up to date', 'my-apps' ), name || __( 'App', 'my-apps' ));
 	}
 
 	function currentAppStoreSearch() {
@@ -2682,6 +2698,12 @@
 		}
 
 		function finishResult(data) {
+			if (data.status === 'started') {
+				if (resultTimeout) clearTimeout(resultTimeout);
+				resultTimeout = setTimeout(handleResultTimeout, PLAYGROUND_INSTALL_RESULT_TIMEOUT);
+				return;
+			}
+
 			if (data.status === 'success') {
 				handlePlaygroundInstallSuccess(install, data);
 				return;
@@ -2694,6 +2716,10 @@
 			if (data.status === 'cancelled') {
 				if (!install.suppressToast) {
 					showToast('Install cancelled');
+				}
+			} else if (data.status === 'unsupported') {
+				if (!install.suppressToast) {
+					showToast('This Playground cannot install apps in the current site.');
 				}
 			} else {
 				if (!install.suppressToast) {
@@ -2712,12 +2738,11 @@
 			) {
 				return;
 			}
-			if (!cleanup()) return;
+			if (data.status !== 'started' && !cleanup()) return;
 			finishResult(data);
 		}
 
-		window.addEventListener('message', onMessage);
-		resultTimeout = setTimeout(function() {
+		function handleResultTimeout() {
 			if (!cleanup()) return;
 			resetInstallButtonState(install.btn);
 			if (typeof install.onComplete === 'function') {
@@ -2726,7 +2751,10 @@
 			if (!install.suppressToast) {
 				showToast('Install status unknown: Playground did not report whether the install finished.');
 			}
-		}, PLAYGROUND_INSTALL_RESULT_TIMEOUT);
+		}
+
+		window.addEventListener('message', onMessage);
+		resultTimeout = setTimeout(handleResultTimeout, PLAYGROUND_INSTALL_ACK_TIMEOUT);
 
 		try {
 			postPlaygroundBlueprintInstall(blueprintUrl, requestId);
@@ -2894,9 +2922,10 @@
 
 		return completeInstalledBlueprint(install).then(function() {
 			var wasUpdate = install.btn && install.btn.dataset.defaultLabel === 'Update';
+			var name = (install.app && install.app.title) || (install.blueprint && install.blueprint.meta && install.blueprint.meta.title);
 			finishInstallButton(install.btn, wasUpdate ? 'Updated' : 'Installed', install);
 			if (!install.suppressToast) {
-				showToast(wasUpdate ? 'Updated' : 'Installed');
+				showToast(wasUpdate ? updatedToastMessage(name) : installedToastMessage(name));
 			}
 			bootstrapAiAssistantAfterPlaygroundInstall(install, result);
 			if (shouldReloadAfterPlaygroundInstall(install)) {
@@ -4937,6 +4966,10 @@
 	function deleteApp(slug, options) {
 		options = options || {};
 		if (!slug) return;
+		var nameEl = options.visibleApp
+			? options.visibleApp.querySelector('.app-title')
+			: options.hiddenRow && options.hiddenRow.querySelector('.hidden-app-name');
+		var appName = nameEl ? nameEl.textContent.trim() : slug;
 
 		var confirmMsg = (myAppsConfig.i18n && myAppsConfig.i18n.confirmDelete) || 'Delete this app? This cannot be undone.';
 		if (!window.confirm(confirmMsg)) return;
@@ -4964,7 +4997,8 @@
 					removeHiddenRow(options.hiddenRow.querySelector('.hidden-app-item') || options.hiddenRow);
 				}
 
-				showToast('Shortcut deleted');
+				/* translators: %s: Shortcut name. */
+				showToast(sprintf(__( '%s deleted', 'my-apps' ), appName));
 			} else {
 				alert((data && data.data) || 'Error deleting app');
 			}
@@ -5008,9 +5042,9 @@
 			.then(function(result) {
 				if (options.showProgress !== false) {
 					if (result.updated) {
-						showToast(t('updated', __( 'Updated', 'my-apps' )));
+						showToast(updatedToastMessage(plugin.name || slug));
 					} else {
-						showToast(t('alreadyUpToDate', __( 'Already up to date', 'my-apps' )));
+						showToast(upToDateToastMessage(plugin.name || slug));
 					}
 				}
 				refreshLauncherUpdateButtons();
@@ -5375,7 +5409,8 @@
 					options.onSuccess(result, pluginSlug);
 				}
 
-				showToast('Plugin uninstalled');
+				/* translators: %s: Plugin name. */
+				showToast(sprintf(__( '%s uninstalled', 'my-apps' ), plugin.name || pluginSlug));
 			} else {
 				if (options.button) {
 					setInstallButtonState(options.button, 'Uninstall', false);
@@ -8505,11 +8540,17 @@
 						var alreadyInstalled = installResults.length && installResults.every(function(result) { return result.alreadyInstalled && !result.updated && !result.activated; });
 						finishInstallButton(btn, updated ? 'Updated' : (alreadyInstalled ? 'Up to date' : 'Installed'), outcome.install);
 						if (updated) {
-							showToast('Updated');
+							showToast(updatedToastMessage(
+								(app && app.title) || (blueprint.meta && blueprint.meta.title)
+							));
 						} else if (alreadyInstalled) {
-							showToast('Already up to date');
+							showToast(upToDateToastMessage(
+								(app && app.title) || (blueprint.meta && blueprint.meta.title)
+							));
 						} else {
-							showToast('Installed');
+							showToast(installedToastMessage(
+								(app && app.title) || (blueprint.meta && blueprint.meta.title)
+							));
 						}
 						if (outcome.install && outcome.install.autoOpenAfterInstall) {
 							openInstallTarget(outcome.install);
@@ -8566,10 +8607,10 @@
 				.then(function(outcome) {
 					if (outcome.result.updated) {
 						finishInstallButton(btn, 'Updated', outcome.install);
-						showToast('Updated');
+						showToast(updatedToastMessage(app.title || app._slug));
 					} else if (outcome.result.alreadyInstalled && !outcome.result.activated) {
 						finishInstallButton(btn, 'Up to date', outcome.install);
-						showToast('Already up to date');
+						showToast(upToDateToastMessage(app.title || app._slug));
 					} else {
 						finishInstallButton(btn, 'Installed', outcome.install);
 					}
@@ -8579,9 +8620,11 @@
 					}
 
 					if (outcome.result.activated || outcome.result.alreadyActive) {
-						showToast('Installed and activated');
+						/* translators: %s: Plugin name. */
+						showToast(sprintf(__( '%s installed and activated', 'my-apps' ), app.title || app._slug));
 					} else {
-						showToast('Installed. Activate it from Plugins.');
+						/* translators: %s: Plugin name. */
+						showToast(sprintf(__( '%s installed. Activate it from Plugins.', 'my-apps' ), app.title || app._slug));
 					}
 				})
 				.catch(function(error) {

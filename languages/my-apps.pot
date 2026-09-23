@@ -1151,14 +1151,6 @@ msgstr[1] ""
 msgid "by %s"
 msgstr ""
 
-#: launcher.js:4087
-msgid "Updated"
-msgstr ""
-
-#: launcher.js:4089
-msgid "Already up to date"
-msgstr ""
-
 #: launcher.js:4097
 #: launcher.js:4172
 #: launcher.js:4274
@@ -1366,4 +1358,50 @@ msgstr ""
 
 #: launcher.js:9721
 msgid "Could not load installation steps."
+msgstr ""
+
+#. translators: %s: App or plugin name.
+#: launcher.js:1092
+#, js-format
+msgid "%s updated"
+msgstr ""
+
+#: launcher.js:1092 launcher.js:1097 launcher.js:1102
+msgid "App"
+msgstr ""
+
+#. translators: %s: App or plugin name.
+#: launcher.js:1097
+#, js-format
+msgid "%s installed"
+msgstr ""
+
+#. translators: %s: App or plugin name.
+#: launcher.js:1102
+#, js-format
+msgid "%s is already up to date"
+msgstr ""
+
+#. translators: %s: Shortcut name.
+#: launcher.js:5001
+#, js-format
+msgid "%s deleted"
+msgstr ""
+
+#. translators: %s: Plugin name.
+#: launcher.js:5413
+#, js-format
+msgid "%s uninstalled"
+msgstr ""
+
+#. translators: %s: Plugin name.
+#: launcher.js:8624
+#, js-format
+msgid "%s installed and activated"
+msgstr ""
+
+#. translators: %s: Plugin name.
+#: launcher.js:8627
+#, js-format
+msgid "%s installed. Activate it from Plugins."
 msgstr ""

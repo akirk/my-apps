@@ -1237,14 +1237,6 @@ msgstr[1] "%d Schritte"
 msgid "by %s"
 msgstr "von %s"
 
-#: launcher.js:4087
-msgid "Updated"
-msgstr "Aktualisiert"
-
-#: launcher.js:4089
-msgid "Already up to date"
-msgstr "Bereits aktuell"
-
 #: launcher.js:4097 launcher.js:4172 launcher.js:4274 launcher.js:4277
 #: launcher.js:4311 launcher.js:4314 launcher.js:4324 launcher.js:4333
 #: launcher.js:4334
@@ -1448,3 +1440,49 @@ msgstr "in der Step Library ansehen"
 #: launcher.js:9721
 msgid "Could not load installation steps."
 msgstr "Installationsschritte konnten nicht geladen werden."
+
+#. translators: %s: App or plugin name.
+#: launcher.js:1092
+#, js-format
+msgid "%s updated"
+msgstr "%s aktualisiert"
+
+#: launcher.js:1092 launcher.js:1097 launcher.js:1102
+msgid "App"
+msgstr "App"
+
+#. translators: %s: App or plugin name.
+#: launcher.js:1097
+#, js-format
+msgid "%s installed"
+msgstr "%s installiert"
+
+#. translators: %s: App or plugin name.
+#: launcher.js:1102
+#, js-format
+msgid "%s is already up to date"
+msgstr "%s ist bereits aktuell"
+
+#. translators: %s: Shortcut name.
+#: launcher.js:5001
+#, js-format
+msgid "%s deleted"
+msgstr "%s gelöscht"
+
+#. translators: %s: Plugin name.
+#: launcher.js:5413
+#, js-format
+msgid "%s uninstalled"
+msgstr "%s deinstalliert"
+
+#. translators: %s: Plugin name.
+#: launcher.js:8624
+#, js-format
+msgid "%s installed and activated"
+msgstr "%s installiert und aktiviert"
+
+#. translators: %s: Plugin name.
+#: launcher.js:8627
+#, js-format
+msgid "%s installed. Activate it from Plugins."
+msgstr "%s installiert. Aktiviere das Plugin unter „Plugins“."

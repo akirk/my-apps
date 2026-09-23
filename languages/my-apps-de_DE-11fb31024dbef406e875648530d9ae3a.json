@@ -32,11 +32,29 @@
             "by %s": [
                 "von %s"
             ],
-            "Updated": [
-                "Aktualisiert"
+            "%s updated": [
+                "%s aktualisiert"
             ],
-            "Already up to date": [
-                "Bereits aktuell"
+            "App": [
+                "App"
+            ],
+            "%s installed": [
+                "%s installiert"
+            ],
+            "%s is already up to date": [
+                "%s ist bereits aktuell"
+            ],
+            "%s deleted": [
+                "%s gel\u00f6scht"
+            ],
+            "%s uninstalled": [
+                "%s deinstalliert"
+            ],
+            "%s installed and activated": [
+                "%s installiert und aktiviert"
+            ],
+            "%s installed. Activate it from Plugins.": [
+                "%s installiert. Aktiviere das Plugin unter \u201ePlugins\u201c."
             ],
             "Update failed": [
                 "Aktualisierung fehlgeschlagen"

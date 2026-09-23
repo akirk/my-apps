@@ -2997,20 +2997,22 @@ class My_Apps {
 				'backgroundImageUrl'        => isset( $background_state['image_url'] ) ? $background_state['image_url'] : '',
 				'backgroundAttachmentId'    => isset( $background_state['attachment_id'] ) ? $background_state['attachment_id'] : 0,
 				'i18n'                      => array(
-					'fillAllFields'         => __( 'Please fill in all fields', 'my-apps' ),
-					'confirmDelete'         => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
-					'confirmUninstall'      => __(
+					'fillAllFields'          => __( 'Please fill in all fields', 'my-apps' ),
+					'confirmDelete'          => __( 'Delete this app? This cannot be undone.', 'my-apps' ),
+					/* translators: %s: App name. */
+					'confirmShortcutInstall' => __( 'Do you want to install %s?', 'my-apps' ),
+					'confirmUninstall'       => __(
 						'Uninstall this plugin? This will deactivate it and delete its files. The plugin may also remove its saved data.',
 						'my-apps'
 					),
-					'chooseBackgroundImage' => __( 'Choose Background Image', 'my-apps' ),
-					'useBackgroundImage'    => __( 'Use as Background', 'my-apps' ),
-					'mediaUnavailable'       => __( 'The media library is unavailable.', 'my-apps' ),
-					'invalidBackgroundImage' => __( 'Please choose an image file.', 'my-apps' ),
-					'wallpaperPrompt'        => __( 'Not feeling this?', 'my-apps' ),
+					'chooseBackgroundImage'  => __( 'Choose Background Image', 'my-apps' ),
+					'useBackgroundImage'     => __( 'Use as Background', 'my-apps' ),
+					'mediaUnavailable'        => __( 'The media library is unavailable.', 'my-apps' ),
+					'invalidBackgroundImage'  => __( 'Please choose an image file.', 'my-apps' ),
+					'wallpaperPrompt'         => __( 'Not feeling this?', 'my-apps' ),
 					/* translators: %s: Wallpaper name. */
-					'wallpaperNamedPrompt'   => __( 'This wallpaper is %s.', 'my-apps' ),
-					'wallpaperTryAnother'    => __( 'Try another.', 'my-apps' ),
+					'wallpaperNamedPrompt'    => __( 'This wallpaper is %s.', 'my-apps' ),
+					'wallpaperTryAnother'     => __( 'Try another.', 'my-apps' ),
 				),
 			)
 		);

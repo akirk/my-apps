@@ -35,6 +35,7 @@
 	const adminMenuSearch = document.getElementById('admin-menu-search');
 
 	const installSoftwareModal = document.getElementById('install-software-modal');
+	const installConfirmModal = document.getElementById('install-confirm-modal');
 	const appStoreContent = document.getElementById('app-store-content');
 	const appStoreUpdateAllBtn = document.getElementById('app-store-update-all');
 	const adminLinkView = document.getElementById('admin-link-view');
@@ -8643,6 +8644,70 @@
 		}
 	}
 
+	function showInstallConfirmation(message, app, appName) {
+		return new Promise(function(resolve) {
+			var messageEl = document.getElementById('install-confirm-message');
+			var iconEl = document.getElementById('install-confirm-icon');
+			var acceptBtn = document.getElementById('install-confirm-accept');
+			var cancelBtn = document.getElementById('install-confirm-cancel');
+			var closeBtn = installConfirmModal.querySelector('.modal-close');
+
+			messageEl.textContent = message;
+			iconEl.className = 'app-detail-icon install-confirm-icon';
+			iconEl.removeAttribute('style');
+			iconEl.textContent = '';
+			appendAppStoreIcon(iconEl, app, appName);
+			if (typeof installConfirmModal.showModal === 'function' && !installConfirmModal.open) {
+				installConfirmModal.showModal();
+			}
+			installConfirmModal.classList.add('active');
+
+			function finish(confirmed) {
+				if (typeof installConfirmModal.close === 'function' && installConfirmModal.open) {
+					installConfirmModal.close();
+				}
+				installConfirmModal.classList.remove('active');
+				acceptBtn.removeEventListener('click', accept);
+				cancelBtn.removeEventListener('click', cancel);
+				closeBtn.removeEventListener('click', cancel);
+				installConfirmModal.removeEventListener('click', clickOutside);
+				installConfirmModal.removeEventListener('cancel', cancelDialog);
+				resolve(confirmed);
+			}
+
+			function accept() { finish(true); }
+			function cancel() { finish(false); }
+			function clickOutside(e) {
+				if (e.target === installConfirmModal) cancel();
+			}
+			function cancelDialog(e) {
+				e.preventDefault();
+				cancel();
+			}
+
+			acceptBtn.addEventListener('click', accept);
+			cancelBtn.addEventListener('click', cancel);
+			closeBtn.addEventListener('click', cancel);
+			installConfirmModal.addEventListener('click', clickOutside);
+			installConfirmModal.addEventListener('cancel', cancelDialog);
+			acceptBtn.focus();
+		});
+	}
+
+	function confirmPendingAutoInstall(appPath, app) {
+		if (!pendingAutoInstall || !pendingAutoInstall.confirmInstall) return Promise.resolve(true);
+
+		var appName = app.title || app._slug || appStoreSlugFromPath(appPath);
+		var confirmMessage = sprintf(
+			t('confirmShortcutInstall', __( 'Do you want to install %s?', 'my-apps' )),
+			appName
+		);
+		return showInstallConfirmation(confirmMessage, app, appName).then(function(confirmed) {
+			if (confirmed) pendingAutoInstall.confirmInstall = false;
+			return confirmed;
+		});
+	}
+
 	function maybeStartPendingAutoInstall(appPath, app, blueprintUrl, installBtn, infoEl) {
 		if (
 			!pendingAutoInstall ||
@@ -8677,15 +8742,30 @@
 					return null;
 				}
 
-				if (isPlayground) {
-					return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, installBtn, options);
-				}
+				return confirmPendingAutoInstall(appPath, app).then(function(confirmed) {
+					if (!confirmed) {
+						pendingAutoInstall = null;
+						resetInstallButtonState(installBtn);
+						return null;
+					}
 
-				return installBlueprintOnHost(app, blueprintUrl, infoEl, installBtn, Object.assign({}, options, { blueprint: blueprint }));
+					if (isPlayground) {
+						return installResolvedBlueprintInPlayground(app, blueprint, blueprintUrl, installBtn, options);
+					}
+
+					return installBlueprintOnHost(app, blueprintUrl, infoEl, installBtn, Object.assign({}, options, { blueprint: blueprint }));
+				});
 			})
 			.catch(function(error) {
 				if (isPlayground) {
-					return installBlueprintInPlayground(app, blueprintUrl, installBtn, options);
+					return confirmPendingAutoInstall(appPath, app).then(function(confirmed) {
+						if (!confirmed) {
+							pendingAutoInstall = null;
+							resetInstallButtonState(installBtn);
+							return null;
+						}
+						return installBlueprintInPlayground(app, blueprintUrl, installBtn, options);
+					});
 				}
 
 				resetInstallButtonState(installBtn);
@@ -11699,6 +11779,7 @@
 			pendingAutoInstall = {
 				path: autoInstallAppPath,
 				forwardParams: getForwardInstallParams(url),
+				confirmInstall: !!url.searchParams.get('myapps-i'),
 				started: false
 			};
 			pendingDeepLink = { type: 'app', path: autoInstallAppPath };

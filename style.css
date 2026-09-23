@@ -2857,6 +2857,38 @@ body.my-apps-launcher .settings-switch.active:active {
 	max-width: 480px;
 }
 
+.install-confirm-modal {
+	max-width: 420px;
+}
+
+.install-confirm-body {
+	padding: 20px;
+}
+
+.install-confirm-summary {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.install-confirm-icon {
+	width: 64px;
+	height: 64px;
+	border-radius: 14px;
+}
+
+.install-confirm-icon .dashicons,
+.install-confirm-icon .app-gradient-icon-letter {
+	font-size: 32px;
+	width: 32px;
+	height: 32px;
+}
+
+.install-confirm-body p {
+	margin: 0;
+	line-height: 1.5;
+}
+
 .feedback-context-option {
 	display: flex;
 	align-items: center;

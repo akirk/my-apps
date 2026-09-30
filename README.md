@@ -2,8 +2,8 @@
 
 - Contributors: akirk
 - Tags: apps
-- Requires at least: 5.0
-- Tested up to: 7.0
+- Requires at least: 5.9
+- Tested up to: 7.1
 - License: GPL-2.0-or-later
 - Stable tag: 2.1.2
 
@@ -23,6 +23,12 @@ Apps can be plugins that register their own icon, custom links you add yourself,
 - **App Store** for installing new apps: browse a curated catalog, view app detail pages, and install via WordPress Playground blueprints. Paste a custom blueprint JSON from the clipboard to install anything.
 - **Plugin-provided launcher icons**: installed apps appear in My Apps when the plugin registers through `my_apps_plugins`.
 - **Mobile-friendly**: full-screen app store, three icons per row, and a My Apps link in the admin bar on the frontend.
+
+### External services
+
+The App Store and “What can I do?” guides retrieve JSON catalogs from the [WordPress blueprints repository on GitHub](https://github.com/WordPress/blueprints): `apps.json`, `blueprints/my-wordpress/plugins.json`, and `blueprints/my-wordpress/recipes.json`. Requests are made when those features are used, including their AI abilities, and cached on your WordPress site. These requests send no account or site content; GitHub receives the requesting server’s IP address and HTTP request metadata. See [GitHub’s privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+
+Opening app details can fetch blueprint metadata, screenshots, and repository information from GitHub and the sources listed in the catalog. In WordPress Playground, choosing Install runs the selected blueprint and downloads its specified resources. Custom blueprints and catalog sources use the URLs you provide.
 
 ### Adding an app from a plugin
 

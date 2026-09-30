@@ -867,7 +867,7 @@ class My_Apps {
 			'my-apps/search-app-store',
 			array(
 				'label'               => __( 'Search My Apps App Store', 'my-apps' ),
-				'description'         => __( 'Searches or browses the built-in My Apps App Store catalog of installable apps and curated plugin recommendations.', 'my-apps' ),
+				'description'         => __( 'Searches or browses the built-in My Apps App Store catalog of installable apps and curated plugin recommendations, with links to install apps.', 'my-apps' ),
 				'category'            => 'my-apps',
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -908,7 +908,7 @@ class My_Apps {
 				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
 				'meta'                => array(
 					'annotations'  => array(
-						'instructions' => __( 'Use this when the user asks whether My Apps has an app store, asks to search or browse the app store, asks what apps can be installed from My Apps, or asks about curated app/plugin recommendations. This reads the default published catalog and cannot include browser-local custom blueprints or alternate catalog source overrides.', 'my-apps' ),
+						'instructions' => __( 'Use this when the user asks whether My Apps has an app store, asks to search or browse the app store, asks what apps can be installed from My Apps, asks to install an app, or asks about curated app/plugin recommendations. For app entries, offer the returned install_url as a clickable link or navigate the user to it when they ask to install. My Apps asks for confirmation before installing and opens the app afterward; if already installed, it opens the app. Returning or following this link does not mean installation has completed. For plugin entries, install_url is a source or plugin-information link; use detail_url for the My Apps installation UI. This reads the default published catalog and cannot include browser-local custom blueprints or alternate catalog source overrides.', 'my-apps' ),
 						'readonly'     => true,
 						'destructive'  => false,
 						'idempotent'   => true,
@@ -4656,7 +4656,7 @@ class My_Apps {
 				),
 				'install_url'  => array(
 					'type'        => 'string',
-					'description' => __( 'The install or plugin-information URL for plugin entries.', 'my-apps' ),
+					'description' => __( 'For app entries, the absolute myapps-i URL on this site: open it to confirm installation and then open the app, or open an already installed app. For plugin entries, the source or plugin-information URL.', 'my-apps' ),
 				),
 				'landing_page' => array(
 					'type'        => 'string',
@@ -4754,6 +4754,15 @@ class My_Apps {
 			$limit = absint( $input['limit'] );
 			if ( $limit > 0 ) {
 				$entries = array_slice( $entries, 0, $limit, true );
+			}
+		}
+
+		foreach ( $entries as $path => $entry ) {
+			if ( isset( $entry['type'] ) && 'app' === $entry['type'] ) {
+				$slug = self::app_store_app_slug_from_path( $path );
+				if ( '' !== $slug ) {
+					$entries[ $path ]['install_url'] = add_query_arg( 'myapps-i', $slug, home_url( '/' ) );
+				}
 			}
 		}
 

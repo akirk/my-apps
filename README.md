@@ -155,10 +155,22 @@ When the AI Assistant plugin is available, My Apps also registers domain hints s
 
 ## Screenshots
 
-1. The launcher with a personalized greeting, app icons, and a custom wallpaper.
-   ![The launcher](https://ps.w.org/my-apps/assets/screenshot-1.png)
-2. The App Store with categories, search, and one-click app installation.
-   ![The App Store](https://ps.w.org/my-apps/assets/screenshot-2.png)
+1. The Launcher
+   ![The Launcher](https://ps.w.org/my-apps/assets/screenshot-1.png)
+2. Launcher settings: layout, icon size, spacing, and app-level options
+   ![Launcher settings](https://ps.w.org/my-apps/assets/screenshot-2.png)
+3. The App Store
+   ![The App Store](https://ps.w.org/my-apps/assets/screenshot-3.png)
+4. The What can I do? overview — curated multi-step guides for getting the most out of WordPress
+   ![The What can I do? overview](https://ps.w.org/my-apps/assets/screenshot-4.png)
+5. A What can I do? detail with numbered steps and one-click installs
+   ![A What can I do? detail](https://ps.w.org/my-apps/assets/screenshot-5.png)
+6. Another What can I do? detail — Bring Your Data In
+   ![Another What can I do? detail](https://ps.w.org/my-apps/assets/screenshot-6.png)
+7. Adding an admin link — browse and search all wp-admin menu items
+   ![Adding an admin link](https://ps.w.org/my-apps/assets/screenshot-7.png)
+8. Adding a web link with a custom emoji, image URL, or Dashicon
+   ![Adding a web link](https://ps.w.org/my-apps/assets/screenshot-8.png)
 
 ## Changelog
 

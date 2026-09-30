@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="my-apps-icon-bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#my-apps-icon-bg)"/>
+  <g fill="#ffffff">
+    <rect x="104" y="104" width="136" height="136" rx="16"/>
+    <rect x="272" y="104" width="136" height="136" rx="16"/>
+    <rect x="104" y="272" width="136" height="136" rx="16"/>
+    <rect x="272" y="272" width="136" height="136" rx="16"/>
+  </g>
+</svg>

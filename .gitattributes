@@ -9,4 +9,5 @@ composer.json	export-ignore
 composer.lock	export-ignore
 img	export-ignore
 tests	export-ignore
+scripts	export-ignore
 vendor	export-ignore

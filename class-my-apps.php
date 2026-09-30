@@ -874,7 +874,13 @@ class My_Apps {
 					'properties'           => array(
 						'query'           => array(
 							'type'        => 'string',
-							'description' => __( 'Optional search query matched against app titles, descriptions, authors, categories, paths, plugin slugs, and GitHub repositories.', 'my-apps' ),
+							'description' => __( 'Optional search query matched against app titles, descriptions, authors, categories, paths, plugin slugs, and GitHub repositories. By default, whitespace-separated terms use OR matching; set query_mode to all for AND matching or phrase for a literal phrase. Use keywords without Boolean operators.', 'my-apps' ),
+						),
+						'query_mode'      => array(
+							'type'        => 'string',
+							'enum'        => array( 'any', 'all', 'phrase' ),
+							'default'     => 'any',
+							'description' => __( 'Search matching mode: any matches at least one whitespace-separated term (OR), all requires every term (AND), and phrase matches the entire query literally. Matching is case-insensitive and uses substrings.', 'my-apps' ),
 						),
 						'category'        => array(
 							'type'        => 'string',
@@ -4718,10 +4724,15 @@ class My_Apps {
 		);
 
 		$query = isset( $input['query'] ) && is_scalar( $input['query'] ) ? sanitize_text_field( (string) $input['query'] ) : '';
+		$query_mode = isset( $input['query_mode'] ) && is_scalar( $input['query_mode'] ) ? sanitize_key( (string) $input['query_mode'] ) : 'any';
+		if ( ! in_array( $query_mode, array( 'any', 'all', 'phrase' ), true ) ) {
+			$query_mode = 'any';
+		}
+
 		if ( '' !== $query || '' !== $category || 'all' !== $type ) {
 			$entries = array_filter(
 				$entries,
-				function ( $entry ) use ( $query, $category, $type ) {
+				function ( $entry ) use ( $query, $query_mode, $category, $type ) {
 					if ( 'all' !== $type && ( ! isset( $entry['type'] ) || $entry['type'] !== $type ) ) {
 						return false;
 					}
@@ -4730,7 +4741,7 @@ class My_Apps {
 						return false;
 					}
 
-					if ( '' !== $query && ! self::app_store_entry_matches_query( $entry, $query ) ) {
+					if ( '' !== $query && ! self::app_store_entry_matches_query( $entry, $query, $query_mode ) ) {
 						return false;
 					}
 
@@ -5262,11 +5273,12 @@ class My_Apps {
 	/**
 	 * Check whether an App Store entry matches a search query.
 	 *
-	 * @param array  $entry App Store entry.
-	 * @param string $query Search query.
+	 * @param array  $entry      App Store entry.
+	 * @param string $query      Search query.
+	 * @param string $query_mode Search matching mode: any, all, or phrase.
 	 * @return bool
 	 */
-	private static function app_store_entry_matches_query( $entry, $query ) {
+	private static function app_store_entry_matches_query( $entry, $query, $query_mode = 'any' ) {
 		$parts = array();
 
 		foreach ( array( 'type', 'source', 'path', 'title', 'description', 'author', 'blueprint_url', 'slug', 'repo', 'ref', 'source_url', 'install_url', 'landing_page', 'launcher_url' ) as $key ) {
@@ -5279,7 +5291,27 @@ class My_Apps {
 			$parts = array_merge( $parts, $entry['categories'] );
 		}
 
-		return false !== stripos( implode( ' ', $parts ), $query );
+		$search_text = implode( ' ', $parts );
+		if ( 'phrase' === $query_mode ) {
+			return false !== stripos( $search_text, $query );
+		}
+
+		$terms = preg_split( '/\s+/u', $query, -1, PREG_SPLIT_NO_EMPTY );
+		if ( empty( $terms ) ) {
+			return true;
+		}
+
+		foreach ( $terms as $term ) {
+			$matches = false !== stripos( $search_text, $term );
+			if ( 'all' === $query_mode && ! $matches ) {
+				return false;
+			}
+			if ( 'all' !== $query_mode && $matches ) {
+				return true;
+			}
+		}
+
+		return 'all' === $query_mode;
 	}
 
 	/**

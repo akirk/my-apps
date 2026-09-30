@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
   group: plugin-check-${{ github.event_name }}-${{ github.ref }}

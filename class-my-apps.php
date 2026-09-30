@@ -9,10 +9,10 @@ defined( 'ABSPATH' ) || exit;
 class My_Apps {
 	const ICON_PATH = 'M6 5.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM4 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm11-.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5zM13 6a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V6zm5 8.5h-3a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5zM15 13a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2h-3zm-9 1.5h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H6a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM4 15a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3z';
 	const CUSTOM_BACKGROUND = 'custom';
-	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
-	const DEFAULT_APPS_INDEX_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/apps.json';
-	const DEFAULT_RECIPES_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/recipes.json';
-	const DEFAULT_PLUGINS_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/plugins.json';
+	const DEFAULT_BLUEPRINTS_BASE_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/'; // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- Blueprint JSON for user-requested Playground installs, not a remotely hosted plugin asset.
+	const DEFAULT_APPS_INDEX_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/apps.json'; // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- Remote catalog JSON data, not a remotely hosted script, style, or image.
+	const DEFAULT_RECIPES_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/recipes.json'; // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- Remote catalog JSON data, not a remotely hosted script, style, or image.
+	const DEFAULT_PLUGINS_URL = 'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/plugins.json'; // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- Remote catalog JSON data, not a remotely hosted script, style, or image.
 	const APP_OVERRIDES_OPTION = 'my_apps_app_overrides';
 	const APP_ICON_OVERRIDES_OPTION = 'my_apps_app_icon_overrides';
 	const ROOT_REDIRECT_USER_OPTION = 'my_apps_redirect_root';
@@ -415,7 +415,7 @@ class My_Apps {
 			$selector = ':root, body.wp-app-body';
 		}
 
-		$mode = function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_color_mode', 'auto', $user_id, $scheme ) : 'auto';
+		$mode = function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_color_mode', 'auto', $user_id, $scheme ) : 'auto'; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Shared wp-app integration hook; preserve compatibility with other apps.
 
 		if ( ! in_array( $mode, array( 'auto', 'light', 'dark' ), true ) ) {
 			$mode = 'auto';
@@ -477,7 +477,7 @@ class My_Apps {
 
 		if ( empty( $_wp_admin_css_colors[ $slug ] ) ) {
 			$fallback['slug'] = $slug;
-			return function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_admin_color_scheme', $fallback, $user_id, $slug ) : $fallback;
+			return function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_admin_color_scheme', $fallback, $user_id, $slug ) : $fallback; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Shared wp-app integration hook; preserve compatibility with other apps.
 		}
 
 		$scheme      = $_wp_admin_css_colors[ $slug ];
@@ -501,7 +501,7 @@ class My_Apps {
 			),
 		);
 
-		return function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_admin_color_scheme', $admin_color_scheme, $user_id, $slug ) : $admin_color_scheme;
+		return function_exists( 'apply_filters' ) ? apply_filters( 'wp_app_admin_color_scheme', $admin_color_scheme, $user_id, $slug ) : $admin_color_scheme; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Shared wp-app integration hook; preserve compatibility with other apps.
 	}
 
 	/**
@@ -744,7 +744,7 @@ class My_Apps {
 	 * Load plugin translations.
 	 */
 	public function load_textdomain() {
-		load_plugin_textdomain( 'my-apps', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+		load_plugin_textdomain( 'my-apps', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' ); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Register bundled translations for GitHub and Playground installations outside WordPress.org.
 	}
 
 	public function enqueue_styles() {
@@ -3611,7 +3611,7 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field().
 
 		if ( '' === $slug ) {
 			wp_send_json_error( 'Invalid slug' );
@@ -4029,7 +4029,7 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field().
 
 		if ( '' === $slug ) {
 			wp_send_json_error( 'Invalid slug' );
@@ -4079,7 +4079,7 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field().
 
 		if ( '' === $slug ) {
 			wp_send_json_error( 'Invalid slug' );
@@ -4178,7 +4178,7 @@ class My_Apps {
 			wp_send_json_error( 'Not logged in' );
 		}
 
-		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
+		$slug = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field(). // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field().
 
 		if ( '' === $slug ) {
 			wp_send_json_error( 'Invalid slug' );
@@ -4218,7 +4218,7 @@ class My_Apps {
 			);
 		}
 
-		$slug        = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : '';
+		$slug        = isset( $_POST['slug'] ) ? self::normalize_app_slug( wp_unslash( $_POST['slug'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- normalize_app_slug() rejects non-scalars and calls sanitize_text_field().
 		$plugin_slug = isset( $_POST['plugin_slug'] ) ? sanitize_key( wp_unslash( $_POST['plugin_slug'] ) ) : '';
 		if ( '' === $slug && '' === $plugin_slug ) {
 			wp_send_json_error(

@@ -5,6 +5,7 @@
  * Version: 2.1.2
  * Author: Alex Kirk
  * Author URI: https://alex.kirk.at/
+ * Requires at least: 5.9
  * Requires PHP: 7.2
  * Description: WordPress apps launcher
  *

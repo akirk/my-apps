@@ -5,7 +5,7 @@
 - Requires at least: 5.9
 - Tested up to: 7.1
 - License: GPL-2.0-or-later
-- Stable tag: 2.1.2
+- Stable tag: 2.1.3
 
 A WordPress app launcher.
 
@@ -161,6 +161,14 @@ When the AI Assistant plugin is available, My Apps also registers domain hints s
    ![The App Store](https://ps.w.org/my-apps/assets/screenshot-2.png)
 
 ## Changelog
+
+### 2.1.3
+
+- Improves Playground installation reliability by handling install acknowledgements and showing manual installation options when automatic installation fails or times out.
+- Asks for confirmation before installing an app through a `myapps-i` short link.
+- Includes app and plugin names in installation, update, uninstall, and shortcut deletion notifications.
+- Hides the My Apps admin bar item from logged-out users.
+- Updates WordPress.org listing assets, documents external services, and adds automated Plugin Check validation. Corrects the declared minimum WordPress version to the existing requirement of 5.9.
 
 ### 2.0.0
 

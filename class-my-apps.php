@@ -867,7 +867,7 @@ class My_Apps {
 			'my-apps/search-app-store',
 			array(
 				'label'               => __( 'Search My Apps App Store', 'my-apps' ),
-				'description'         => __( 'Searches or browses the built-in My Apps App Store catalog of installable apps and curated plugin recommendations.', 'my-apps' ),
+				'description'         => __( 'Find apps and curated plugins in the My Apps App Store, with installation links.', 'my-apps' ),
 				'category'            => 'my-apps',
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -908,7 +908,7 @@ class My_Apps {
 				'permission_callback' => array( $this, 'can_use_customization_abilities' ),
 				'meta'                => array(
 					'annotations'  => array(
-						'instructions' => __( 'Use this when the user asks whether My Apps has an app store, asks to search or browse the app store, asks what apps can be installed from My Apps, or asks about curated app/plugin recommendations. This reads the default published catalog and cannot include browser-local custom blueprints or alternate catalog source overrides.', 'my-apps' ),
+						'instructions' => __( 'For app installation requests, link or navigate to install_url; My Apps handles confirmation and opening. Do not claim installation completed. For plugins, use detail_url for installation. Default catalog only; excludes browser-local blueprints and alternate sources.', 'my-apps' ),
 						'readonly'     => true,
 						'destructive'  => false,
 						'idempotent'   => true,
@@ -4656,7 +4656,7 @@ class My_Apps {
 				),
 				'install_url'  => array(
 					'type'        => 'string',
-					'description' => __( 'The install or plugin-information URL for plugin entries.', 'my-apps' ),
+					'description' => __( 'Apps: site URL to confirm installation or open if installed. Plugins: source or plugin-information URL.', 'my-apps' ),
 				),
 				'landing_page' => array(
 					'type'        => 'string',
@@ -4754,6 +4754,15 @@ class My_Apps {
 			$limit = absint( $input['limit'] );
 			if ( $limit > 0 ) {
 				$entries = array_slice( $entries, 0, $limit, true );
+			}
+		}
+
+		foreach ( $entries as $path => $entry ) {
+			if ( isset( $entry['type'] ) && 'app' === $entry['type'] ) {
+				$slug = self::app_store_app_slug_from_path( $path );
+				if ( '' !== $slug ) {
+					$entries[ $path ]['install_url'] = add_query_arg( 'myapps-i', $slug, home_url( '/' ) );
+				}
 			}
 		}
 

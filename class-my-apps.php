@@ -4652,7 +4652,7 @@ class My_Apps {
 				),
 				'source_url'   => array(
 					'type'        => 'string',
-					'description' => __( 'The public source URL for plugin entries.', 'my-apps' ),
+					'description' => __( 'The public source URL for app and plugin entries.', 'my-apps' ),
 				),
 				'install_url'  => array(
 					'type'        => 'string',
@@ -4953,6 +4953,13 @@ class My_Apps {
 			$author = sanitize_text_field( (string) $app['author'] );
 			if ( '' !== $author ) {
 				$entry['author'] = $author;
+			}
+		}
+
+		if ( isset( $app['source_url'] ) && is_string( $app['source_url'] ) ) {
+			$source_url = esc_url_raw( $app['source_url'], array( 'http', 'https' ) );
+			if ( '' !== $source_url ) {
+				$entry['source_url'] = $source_url;
 			}
 		}
 

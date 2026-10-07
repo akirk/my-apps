@@ -30,6 +30,12 @@
 				"author": {
 					"type": "string"
 				},
+				"source_url": {
+					"type": "string",
+					"format": "uri",
+					"pattern": "^https?://",
+					"description": "Optional canonical URL for the app source code."
+				},
 				"icon": {
 					"type": "string",
 					"description": "Optional App Store icon. Supports http(s) URLs, root-relative paths, image data URIs, Dashicon class names, or short text/emoji icons."

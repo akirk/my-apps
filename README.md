@@ -5,7 +5,7 @@
 - Requires at least: 5.9
 - Tested up to: 7.1
 - License: GPL-2.0-or-later
-- Stable tag: 2.1.3
+- Stable tag: 2.1.4
 
 A WordPress app launcher.
 
@@ -175,6 +175,13 @@ When the AI Assistant plugin is available, My Apps also registers domain hints s
    ![Adding a web link](https://ps.w.org/my-apps/assets/screenshot-8.png)
 
 ## Changelog
+
+### 2.1.4
+
+- Adds optional source code links to App Store catalog entries, shown in app details and included in App Store API results.
+- Adds OR, AND, and phrase matching modes to the App Store search ability.
+- Includes app installation links in App Store search ability results so assistants can link to installation confirmation or open installed apps.
+- Restores additional WordPress.org screenshots and updates listing tags.
 
 ### 2.1.3
 

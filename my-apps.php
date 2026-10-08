@@ -2,7 +2,7 @@
 /**
  * Plugin Name: My Apps
  * Plugin URI: https://github.com/akirk/my-apps
- * Version: 2.1.4
+ * Version: 2.1.4+ed60f903dfba
  * Author: Alex Kirk
  * Author URI: https://alex.kirk.at/
  * Requires at least: 5.9
@@ -20,7 +20,7 @@ namespace My_Apps;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'MY_APPS_VERSION', '2.1.4' );
+define( 'MY_APPS_VERSION', '2.1.4+ed60f903dfba' );
 
 require_once __DIR__ . '/class-my-apps.php';
 require_once __DIR__ . '/default-apps.php';

@@ -11262,6 +11262,16 @@
 		descText.textContent = app.description;
 		descSection.appendChild(descText);
 
+		if (typeof app.source_url === 'string' && /^https?:\/\//i.test(app.source_url)) {
+			var sourceLink = document.createElement('a');
+			sourceLink.href = app.source_url;
+			sourceLink.target = '_blank';
+			sourceLink.rel = 'noopener noreferrer';
+			sourceLink.className = 'app-detail-recipe-link';
+			sourceLink.textContent = __( 'Source code', 'my-apps' );
+			descSection.appendChild(sourceLink);
+		}
+
 		detail.appendChild(descSection);
 
 		// ── Installation steps fetched from the individual blueprint JSON ──

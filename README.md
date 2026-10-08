@@ -113,6 +113,8 @@ https://my.wordpress.net/?myapps-i=wordcamp-companion&schedule=https%3A%2F%2Fexa
 
 `wordcamp-companion` resolves to the matching App Store catalog key, including `apps/wordcamp-companion.json` and `blueprints/wordcamp-companion/blueprint.json`. You can also use `?install=1&app=wordcamp-companion` when an `app` parameter is easier to generate.
 
+Remote App Store catalog entries can include an optional `source_url` HTTP(S) URL for the app source code. It appears as a Source code link in app details and is included in App Store API results. In the blueprints repository, set it in the app’s `app-meta.json`.
+
 Remote App Store catalog entries loaded from `apps.json` can include the same optional `icon` field. This is My Apps catalog metadata, not Playground blueprint metadata.
 
 ### Renaming an app

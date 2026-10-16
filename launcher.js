@@ -1884,8 +1884,15 @@
 		return /^install failed/i.test(details) ? details : 'Install failed: ' + details;
 	}
 
-	function playgroundUpdateErrorMessage(data) {
-		return playgroundInstallErrorMessage(data).replace(/^Install failed/i, 'Update failed');
+	function playgroundUpdateErrorMessage(data, appNames) {
+		var context = appNames ? ' (' + appNames + ')' : '';
+		if (data && data.status === 'timeout') {
+			return 'Update status unknown' + context + ': Playground did not report whether the update finished.';
+		}
+		if (data && data.status === 'cancelled') {
+			return 'Update cancelled' + context;
+		}
+		return playgroundInstallErrorMessage(data).replace(/^Install failed/i, 'Update failed' + context);
 	}
 
 	function resolveBlueprintFromUrl(blueprintUrl) {
@@ -5249,7 +5256,7 @@
 
 				/* translators: %d: Number of apps. */
 				showToast(sprintf(_n( 'Updating %d app...', 'Updating %d apps...', total, 'my-apps' ), total));
-				return runLauncherUpdates(updates, { announce: true });
+				return runLauncherUpdates(updates, { announce: true, background: true });
 			})
 			.catch(function() {
 				return null;
@@ -5288,7 +5295,7 @@
 				return updates.plugins.reduce(function(promise, update) {
 					return promise.then(function() {
 						return updatePluginAppPromise(update.slug, { showProgress: false }).catch(function(error) {
-							return { error: error };
+							return { error: new Error(playgroundUpdateErrorMessage({ error: error }, update.plugin.name || update.slug)) };
 						}).then(function(result) {
 							pluginResults.push(result);
 							return result;
@@ -5320,12 +5327,16 @@
 
 						return Promise.all(updates.blueprints.map(function(update) {
 							return resolveBlueprintUpdateEntry(update.entry).catch(function(error) {
+								showToast(playgroundUpdateErrorMessage({ error: error }, update.entry.app && update.entry.app.title || update.entry.path || update.entry.blueprintUrl), { type: 'error' });
 								return { error: error };
 							});
 						})).then(function(entries) {
 							var resolvedEntries = entries.filter(function(entry) {
 								return entry && !entry.error;
 							});
+							var appNames = resolvedEntries.map(function(entry) {
+								return entry.app && entry.app.title || entry.path || entry.blueprintUrl;
+							}).filter(Boolean).join(', ');
 							var blueprint = buildUpdateAllBlueprint(resolvedEntries);
 							if (!blueprint) {
 								refreshLauncherUpdateButtons();
@@ -5354,11 +5365,16 @@
 										}
 										return;
 									}
+									// A missing relay response does not establish that the update failed.
+									if (options.background && result && result.status === 'timeout') {
+										resetUpdateAllButtonSoon();
+										return;
+									}
 									showToast(
-										result && result.status === 'cancelled' ? t('updateCancelled', __( 'Update cancelled', 'my-apps' )) : playgroundUpdateErrorMessage(result || {}),
-										{ type: 'error' }
+										playgroundUpdateErrorMessage(result || {}, appNames),
+										{ type: result && result.status === 'timeout' ? 'info' : 'error' }
 									);
-									resetUpdateAllButtonSoon(t('updateFailed', __( 'Update failed', 'my-apps' )));
+									resetUpdateAllButtonSoon(result && result.status === 'timeout' ? 'Update status unknown' : t('updateFailed', __( 'Update failed', 'my-apps' )));
 								}
 							});
 							refreshLauncherUpdateButtons();

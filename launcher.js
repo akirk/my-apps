@@ -3239,6 +3239,7 @@
 
 			e.preventDefault();
 			restartLauncherHomePressAnimation(node);
+			reloadApps();
 		});
 	}
 
